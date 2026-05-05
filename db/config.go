@@ -22,6 +22,10 @@ type Config struct {
 	DatabaseURL string // populated when Dialect == DialectPostgres
 }
 
+// cwdResolver is a package-level injectable hook for obtaining the current
+// working directory. Tests may replace it to avoid os.Chdir mutations.
+var cwdResolver = os.Getwd
+
 // LoadConfigFromEnv reads configuration from environment variables.
 //
 // Resolution order:
@@ -51,11 +55,7 @@ func LoadConfigFromEnv() (Config, error) {
 
 	// SQLite path: explicit override or auto-resolved default.
 	if dbPath == "" {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return Config{}, err
-		}
-		resolved, err := ResolveDefaultSQLitePathFrom(cwd)
+		resolved, err := ResolveDefaultSQLitePath()
 		if err != nil {
 			return Config{}, err
 		}
@@ -65,29 +65,42 @@ func LoadConfigFromEnv() (Config, error) {
 	return Config{Dialect: DialectSQLite, SQLitePath: dbPath}, nil
 }
 
+// ResolveDefaultSQLitePath returns the default SQLite database path for the
+// open-core checkout by walking up from the current working directory to find
+// the workspace root (identified by a marker file such as go.work or
+// package.json), then returning <root>/scout.db.
+//
+// If the workspace root cannot be located, it falls back to <cwd>/scout.db
+// rather than returning an error.
+func ResolveDefaultSQLitePath() (string, error) {
+	cwd, err := cwdResolver()
+	if err != nil {
+		return "", err
+	}
+	return resolveDefaultSQLitePathFrom(cwd), nil
+}
+
 // openCoreRootMarkers are filenames whose presence identifies the open-core
 // workspace root. go.work is used in synthetic test fixtures; package.json is
 // present in the real open-core checkout.
 var openCoreRootMarkers = []string{"go.work", "package.json"}
 
-// ResolveDefaultSQLitePathFrom walks up the directory tree from start until it
+// resolveDefaultSQLitePathFrom walks up the directory tree from start until it
 // finds a directory that contains one of the openCoreRootMarkers (indicating
 // the open-core workspace root) and returns the path to scout.db inside that
-// root.
-//
-// The start parameter makes the resolution testable without changing the global
-// working directory.
-func ResolveDefaultSQLitePathFrom(start string) (string, error) {
+// root. If no root is found, it falls back to <start>/scout.db.
+func resolveDefaultSQLitePathFrom(start string) string {
 	dir := start
 	for {
 		for _, marker := range openCoreRootMarkers {
 			if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
-				return filepath.Join(dir, "scout.db"), nil
+				return filepath.Join(dir, "scout.db")
 			}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", errors.New("could not locate open-core root (no workspace marker found)")
+			// Reached filesystem root without finding a marker; fall back.
+			return filepath.Join(start, "scout.db")
 		}
 		dir = parent
 	}

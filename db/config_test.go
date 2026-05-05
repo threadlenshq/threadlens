@@ -7,7 +7,45 @@ import (
 	"testing"
 )
 
+// buildOpenCoreFixture creates a temp directory that mimics the open-core
+// subtree layout:
+//
+//	<root>/           ← open-core root (has go.work marker)
+//	  apps/
+//	    api/          ← a nested subdirectory
+//
+// It returns (nestedDir, rootDir) so callers can inject nestedDir as the fake
+// cwd without mutating the real process cwd.
+func buildOpenCoreFixture(t *testing.T) (nestedDir, openCoreRoot string) {
+	t.Helper()
+	root := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(root, "go.work"), []byte("go 1.23\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	nested := filepath.Join(root, "apps", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	return nested, root
+}
+
+// withFakeCwd temporarily replaces the package-level cwdResolver so that
+// ResolveDefaultSQLitePath() returns the supplied directory as the cwd.
+// It restores the original resolver via t.Cleanup.
+func withFakeCwd(t *testing.T, dir string) {
+	t.Helper()
+	orig := cwdResolver
+	cwdResolver = func() (string, error) { return dir, nil }
+	t.Cleanup(func() { cwdResolver = orig })
+}
+
 func TestLoadConfigDefaultsToOpenCoreSQLitePath(t *testing.T) {
+	nestedDir, openCoreRoot := buildOpenCoreFixture(t)
+	withFakeCwd(t, nestedDir)
+
 	t.Setenv("SCOUT_DB_DIALECT", "")
 	t.Setenv("SCOUT_DB_PATH", "")
 	t.Setenv("DATABASE_URL", "")
@@ -19,11 +57,9 @@ func TestLoadConfigDefaultsToOpenCoreSQLitePath(t *testing.T) {
 	if cfg.Dialect != DialectSQLite {
 		t.Fatalf("Dialect = %q, want %q", cfg.Dialect, DialectSQLite)
 	}
-	if !strings.HasSuffix(filepath.ToSlash(cfg.SQLitePath), "/open-core/scout.db") {
-		t.Fatalf("SQLitePath = %q, want suffix /open-core/scout.db", cfg.SQLitePath)
-	}
-	if filepath.Base(cfg.SQLitePath) != "scout.db" {
-		t.Fatalf("SQLitePath base = %q, want scout.db", filepath.Base(cfg.SQLitePath))
+	want := filepath.Join(openCoreRoot, "scout.db")
+	if cfg.SQLitePath != want {
+		t.Fatalf("SQLitePath = %q, want %q", cfg.SQLitePath, want)
 	}
 }
 
@@ -75,44 +111,35 @@ func TestLoadConfigRejectsPostgresWithoutURL(t *testing.T) {
 	}
 }
 
-// buildOpenCoreFixture creates a temp directory that mimics the open-core
-// subtree layout used by ResolveDefaultSQLitePathFrom:
-//
-//	<root>/           ← open-core root (has go.work or open-core marker)
-//	  apps/
-//	    api/          ← a nested subdirectory to start the walk from
-//
-// It returns the path of the nested subdirectory so tests can use it as the
-// start argument without touching the real checkout or the process-wide cwd.
-func buildOpenCoreFixture(t *testing.T) (startDir, openCoreRoot string) {
-	t.Helper()
-	root := t.TempDir()
-
-	// Marker file that ResolveDefaultSQLitePathFrom will use to identify the
-	// open-core root (mirrors what the production implementation will look for).
-	if err := os.WriteFile(filepath.Join(root, "go.work"), []byte("go 1.23\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	nested := filepath.Join(root, "apps", "api")
-	if err := os.MkdirAll(nested, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	return nested, root
-}
-
-func TestResolveDefaultSQLitePathWorksFromRepoSubdirectories(t *testing.T) {
+func TestResolveDefaultSQLitePathFindsRepoRoot(t *testing.T) {
 	t.Parallel()
 
-	startDir, openCoreRoot := buildOpenCoreFixture(t)
+	nestedDir, openCoreRoot := buildOpenCoreFixture(t)
+	withFakeCwd(t, nestedDir)
 
-	path, err := ResolveDefaultSQLitePathFrom(startDir)
+	path, err := ResolveDefaultSQLitePath()
 	if err != nil {
-		t.Fatalf("ResolveDefaultSQLitePathFrom(%q) error = %v", startDir, err)
+		t.Fatalf("ResolveDefaultSQLitePath() error = %v", err)
 	}
 	want := filepath.Join(openCoreRoot, "scout.db")
 	if path != want {
 		t.Fatalf("path = %q, want %q", path, want)
+	}
+}
+
+func TestResolveDefaultSQLitePathFallsBackToCwd(t *testing.T) {
+	t.Parallel()
+
+	// A temp dir with no marker files — root cannot be found.
+	dir := t.TempDir()
+	withFakeCwd(t, dir)
+
+	path, err := ResolveDefaultSQLitePath()
+	if err != nil {
+		t.Fatalf("ResolveDefaultSQLitePath() error = %v (want fallback, not error)", err)
+	}
+	want := filepath.Join(dir, "scout.db")
+	if path != want {
+		t.Fatalf("path = %q, want fallback %q", path, want)
 	}
 }
