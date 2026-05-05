@@ -1,0 +1,51 @@
+# syntax=docker/dockerfile:1.7
+# Open-core Go API image.
+# Context: open-core/apps/api (or pass --build-context appropriately)
+
+FROM golang:1.23-bookworm AS builder
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -o /scout-api ./cmd/scout-api
+
+FROM debian:bookworm-slim AS prod
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd -r scout && useradd -r -g scout scout
+
+COPY --from=builder /scout-api /usr/local/bin/scout-api
+
+RUN mkdir -p /data && chown scout:scout /data
+
+ENV PORT=4749
+ENV SCOUT_DB_PATH=/data/scout.db
+
+USER scout
+
+EXPOSE 4749
+
+CMD ["scout-api"]
+
+# Dev target: builds and runs the binary (use go-air or rebuild image for iterative dev).
+FROM golang:1.23-bookworm AS dev
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+ENV PORT=4749
+ENV SCOUT_DB_PATH=/data/scout.db
+
+EXPOSE 4749
+
+CMD ["go", "run", "./cmd/scout-api"]

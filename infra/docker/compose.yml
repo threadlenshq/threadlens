@@ -1,0 +1,47 @@
+# Open-core base Docker Compose.
+# This file defines the open-core Go API service.
+# Private Scout overlays (infra/docker-compose.yml) extend this with
+# the private Express API and web frontend services via `include:`.
+#
+# Paths are relative to this file's location: open-core/infra/docker/
+
+name: scout-open-core
+
+services:
+  go-api:
+    profiles: ["dev", "open-core"]
+    build:
+      context: ../../apps/api
+      dockerfile: ../../infra/docker/Dockerfile.go-api
+      target: dev
+    env_file:
+      - path: ../../../.env
+        required: false
+    environment:
+      PORT: "4749"
+      SCOUT_DB_PATH: /data/scout.db
+    ports:
+      - "4749:4749"
+    volumes:
+      - scout_go_sqlite_data:/data
+
+  go-api-prod:
+    profiles: ["prod", "open-core-prod"]
+    build:
+      context: ../../apps/api
+      dockerfile: ../../infra/docker/Dockerfile.go-api
+      target: prod
+    env_file:
+      - path: ../../../.env
+        required: false
+    environment:
+      PORT: "4749"
+      SCOUT_DB_PATH: /data/scout.db
+    ports:
+      - "4749:4749"
+    volumes:
+      - scout_go_sqlite_data:/data
+
+volumes:
+  scout_go_sqlite_data:
+    name: scout_go_sqlite_data
