@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -11,6 +12,12 @@
     },
     "test": {
       "dependsOn": ["^build"]
+    },
+    "build:go": {
+      "cache": false
+    },
+    "test:go": {
+      "cache": false
     }
   }
 }
