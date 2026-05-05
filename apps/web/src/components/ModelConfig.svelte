@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { isOverkill, isUnderkill } from '../../../../apps/legacy-express/server/models/catalog.js';
+  import { isOverkill, isUnderkill } from '@scout/shared/catalog';
   import { models as modelsApi } from '../lib/api.js';
 
   const KNOWN_TIERS = new Set(['low', 'medium', 'high', 'reasoning']);

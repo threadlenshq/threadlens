@@ -45,6 +45,8 @@ services:
       - ../..:/workspace
       - scout_open_core_node_modules:/workspace/node_modules
       - scout_open_core_web_node_modules:/workspace/apps/web/node_modules
+    command: >
+      sh -c "pnpm install --frozen-lockfile && pnpm --dir apps/web exec vite --host 0.0.0.0 --port 4748"
 
   api-prod:
     profiles: ["prod"]

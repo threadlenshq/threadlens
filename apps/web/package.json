@@ -10,5 +10,11 @@
   },
   "dependencies": {
     "@scout/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "svelte": "^5.16.2",
+    "vite": "^6.0.11",
+    "vitest": "^1.6.0"
   }
 }
