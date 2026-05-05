@@ -1,0 +1,102 @@
+package services
+
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/kyle/scout/open-core/apps/api/internal/ai"
+	"github.com/kyle/scout/open-core/apps/api/internal/repository"
+)
+
+// ResolvedModel holds the result of resolving which model to use for a task.
+type ResolvedModel struct {
+	ModelID string `json:"modelId"`
+	Source  string `json:"source"` // "user" or "default"
+}
+
+// ModelService handles business logic for model configuration.
+type ModelService struct {
+	repo *repository.Repository
+}
+
+// NewModelService creates a new ModelService.
+func NewModelService(repo *repository.Repository) *ModelService {
+	return &ModelService{repo: repo}
+}
+
+// ResolveTaskModel resolves which model to use for the given task, checking user overrides first.
+func ResolveTaskModel(ctx context.Context, repo *repository.Repository, taskID string) (ResolvedModel, error) {
+	task := ai.GetTask(taskID)
+	if task == nil {
+		return ResolvedModel{}, &ModelError{Kind: "unknownTask", TaskID: taskID}
+	}
+
+	key := "model." + taskID
+	raw, ok, err := repo.GetSetting(ctx, key)
+	if err != nil {
+		return ResolvedModel{}, err
+	}
+
+	if ok && raw != "" {
+		var obj map[string]string
+		if jsonErr := json.Unmarshal([]byte(raw), &obj); jsonErr == nil {
+			if modelID, exists := obj["modelId"]; exists && ai.GetModel(modelID) != nil {
+				return ResolvedModel{ModelID: modelID, Source: "user"}, nil
+			}
+		}
+	}
+
+	return ResolvedModel{ModelID: task.Default, Source: "default"}, nil
+}
+
+// GetConfig returns the current model configuration for all tasks.
+func (s *ModelService) GetConfig(ctx context.Context) (map[string]ResolvedModel, error) {
+	config := make(map[string]ResolvedModel, len(ai.Tasks))
+	for _, task := range ai.Tasks {
+		resolved, err := ResolveTaskModel(ctx, s.repo, task.ID)
+		if err != nil {
+			return nil, err
+		}
+		config[task.ID] = resolved
+	}
+	return config, nil
+}
+
+// SetConfig sets the model for a task. Returns structured ModelError on validation failures.
+func (s *ModelService) SetConfig(ctx context.Context, taskID string, modelID string) (ResolvedModel, error) {
+	if ai.GetTask(taskID) == nil {
+		return ResolvedModel{}, &ModelError{Kind: "unknownTask", TaskID: taskID}
+	}
+	if ai.GetModel(modelID) == nil {
+		return ResolvedModel{}, &ModelError{Kind: "unknownModel", ModelID: modelID}
+	}
+	if err := s.repo.SetModelSetting(ctx, taskID, modelID); err != nil {
+		return ResolvedModel{}, err
+	}
+	return ResolvedModel{ModelID: modelID, Source: "user"}, nil
+}
+
+// DeleteConfig resets the model for a task back to its default. Returns error if task unknown.
+func (s *ModelService) DeleteConfig(ctx context.Context, taskID string) error {
+	if ai.GetTask(taskID) == nil {
+		return &ModelError{Kind: "unknownTask", TaskID: taskID}
+	}
+	return s.repo.DeleteModelSetting(ctx, taskID)
+}
+
+// ModelError carries structured error info for model operations.
+type ModelError struct {
+	Kind    string
+	TaskID  string
+	ModelID string
+}
+
+func (e *ModelError) Error() string {
+	switch e.Kind {
+	case "unknownTask":
+		return "unknownTask:" + e.TaskID
+	case "unknownModel":
+		return "unknownModel:" + e.ModelID
+	}
+	return "model error"
+}
