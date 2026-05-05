@@ -1,47 +1,73 @@
-# Open-core base Docker Compose.
-# This file defines the open-core Go API service.
-# Private Scout overlays (infra/docker-compose.yml) extend this with
-# the private Express API and web frontend services via `include:`.
-#
-# Paths are relative to this file's location: open-core/infra/docker/
+# Open-core Docker Compose entry point.
+# Run from open-core/ with:
+#   pnpm run docker:dev
+#   pnpm run docker:prod
+#   pnpm run docker:down
+# Paths are relative to this file: open-core/infra/docker/compose.yml.
 
 name: scout-open-core
 
 services:
-  go-api:
-    profiles: ["dev", "open-core"]
+  api:
+    profiles: ["dev"]
     build:
-      context: ../../apps/api
-      dockerfile: ../../infra/docker/Dockerfile.go-api
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.go-api
       target: dev
     env_file:
-      - path: ../../../.env
+      - path: ../../.env
         required: false
     environment:
       PORT: "4749"
       SCOUT_DB_PATH: /data/scout.db
+      SCOUT_FRONTEND_DIST: /workspace/apps/web/dist
     ports:
       - "4749:4749"
     volumes:
-      - scout_go_sqlite_data:/data
+      - ../../apps/api:/src/apps/api
+      - ../../apps/web:/workspace/apps/web
+      - ../../packages/shared:/workspace/packages/shared
+      - scout_open_core_sqlite_data:/data
 
-  go-api-prod:
-    profiles: ["prod", "open-core-prod"]
+  web:
+    profiles: ["dev"]
     build:
-      context: ../../apps/api
-      dockerfile: ../../infra/docker/Dockerfile.go-api
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+      target: dev
+    environment:
+      VITE_API_PROXY_TARGET: http://api:4749
+    ports:
+      - "4748:4748"
+    depends_on:
+      - api
+    volumes:
+      - ../..:/workspace
+      - scout_open_core_node_modules:/workspace/node_modules
+      - scout_open_core_web_node_modules:/workspace/apps/web/node_modules
+
+  api-prod:
+    profiles: ["prod"]
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.go-api
       target: prod
     env_file:
-      - path: ../../../.env
+      - path: ../../.env
         required: false
     environment:
       PORT: "4749"
       SCOUT_DB_PATH: /data/scout.db
+      SCOUT_FRONTEND_DIST: /app/web/dist
     ports:
       - "4749:4749"
     volumes:
-      - scout_go_sqlite_data:/data
+      - scout_open_core_sqlite_data:/data
 
 volumes:
-  scout_go_sqlite_data:
-    name: scout_go_sqlite_data
+  scout_open_core_node_modules:
+    name: scout_open_core_node_modules
+  scout_open_core_web_node_modules:
+    name: scout_open_core_web_node_modules
+  scout_open_core_sqlite_data:
+    name: scout_open_core_sqlite_data
