@@ -1,6 +1,6 @@
 # open-core/apps/api — Scout Go Backend
 
-This directory contains the Go rewrite of the Scout API. The current production backend remains `apps/api` until the Go service passes Express API parity tests.
+This directory contains the Go backend for Scout. It is the active open-core API. The legacy Express backend has been moved to `apps/legacy-express` and is parked.
 
 ## Local development
 
