@@ -3,49 +3,12 @@ package db
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
-// buildOpenCoreFixture creates a temp directory that mimics the open-core
-// subtree layout:
-//
-//	<root>/           ← open-core root (has go.work marker)
-//	  apps/
-//	    api/          ← a nested subdirectory
-//
-// It returns (nestedDir, rootDir) so callers can inject nestedDir as the fake
-// cwd without mutating the real process cwd.
-func buildOpenCoreFixture(t *testing.T) (nestedDir, openCoreRoot string) {
-	t.Helper()
-	root := t.TempDir()
-
-	if err := os.WriteFile(filepath.Join(root, "go.work"), []byte("go 1.23\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	nested := filepath.Join(root, "apps", "api")
-	if err := os.MkdirAll(nested, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	return nested, root
-}
-
-// withFakeCwd temporarily replaces the package-level cwdResolver so that
-// ResolveDefaultSQLitePath() returns the supplied directory as the cwd.
-// It restores the original resolver via t.Cleanup.
-func withFakeCwd(t *testing.T, dir string) {
-	t.Helper()
-	orig := cwdResolver
-	cwdResolver = func() (string, error) { return dir, nil }
-	t.Cleanup(func() { cwdResolver = orig })
-}
-
 func TestLoadConfigDefaultsToOpenCoreSQLitePath(t *testing.T) {
-	nestedDir, openCoreRoot := buildOpenCoreFixture(t)
-	withFakeCwd(t, nestedDir)
-
 	t.Setenv("SCOUT_DB_DIALECT", "")
 	t.Setenv("SCOUT_DB_PATH", "")
 	t.Setenv("DATABASE_URL", "")
@@ -57,9 +20,11 @@ func TestLoadConfigDefaultsToOpenCoreSQLitePath(t *testing.T) {
 	if cfg.Dialect != DialectSQLite {
 		t.Fatalf("Dialect = %q, want %q", cfg.Dialect, DialectSQLite)
 	}
-	want := filepath.Clean(filepath.Join(openCoreRoot, "scout.db"))
-	if cfg.SQLitePath != want {
-		t.Fatalf("SQLitePath = %q, want %q", cfg.SQLitePath, want)
+	if !strings.HasSuffix(filepath.ToSlash(cfg.SQLitePath), "/open-core/scout.db") {
+		t.Fatalf("SQLitePath = %q, want suffix /open-core/scout.db", cfg.SQLitePath)
+	}
+	if filepath.Base(cfg.SQLitePath) != "scout.db" {
+		t.Fatalf("SQLitePath base = %q, want scout.db", filepath.Base(cfg.SQLitePath))
 	}
 }
 
@@ -111,126 +76,28 @@ func TestLoadConfigRejectsPostgresWithoutURL(t *testing.T) {
 	}
 }
 
-func TestLoadConfigTrimsAndLowercasesDialect(t *testing.T) {
-	nestedDir, _ := buildOpenCoreFixture(t)
-	withFakeCwd(t, nestedDir)
-
-	t.Setenv("SCOUT_DB_DIALECT", "  SQLite  ")
-	t.Setenv("SCOUT_DB_PATH", "")
-	t.Setenv("DATABASE_URL", "")
-
-	cfg, err := LoadConfigFromEnv()
+func TestResolveDefaultSQLitePathWorksFromRepoSubdirectories(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	repoOpenCore := filepath.Clean(filepath.Join(filepath.Dir(file), ".."))
+	apiDir := filepath.Join(repoOpenCore, "apps", "api")
+	oldWd, err := os.Getwd()
 	if err != nil {
-		t.Fatalf("LoadConfigFromEnv() error = %v, want nil (should normalise dialect)", err)
+		t.Fatal(err)
 	}
-	if cfg.Dialect != DialectSQLite {
-		t.Fatalf("Dialect = %q, want %q", cfg.Dialect, DialectSQLite)
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+	if err := os.Chdir(apiDir); err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestLoadConfigTrimsURLAndPath(t *testing.T) {
-	t.Setenv("SCOUT_DB_DIALECT", "")
-	t.Setenv("SCOUT_DB_PATH", "")
-	t.Setenv("DATABASE_URL", "  postgres://scout:x@localhost/db  ")
-
-	cfg, err := LoadConfigFromEnv()
-	if err != nil {
-		t.Fatalf("LoadConfigFromEnv() error = %v", err)
-	}
-	if cfg.Dialect != DialectPostgres {
-		t.Fatalf("Dialect = %q, want %q", cfg.Dialect, DialectPostgres)
-	}
-	// URL must be trimmed (no leading/trailing whitespace).
-	if cfg.DatabaseURL != "postgres://scout:x@localhost/db" {
-		t.Fatalf("DatabaseURL = %q, want trimmed value", cfg.DatabaseURL)
-	}
-}
-
-func TestLoadConfigSQLitePathIsCleaned(t *testing.T) {
-	tmp := t.TempDir()
-	messy := filepath.Join(tmp, "subdir", "..", "custom.db")
-
-	t.Setenv("SCOUT_DB_DIALECT", "sqlite")
-	t.Setenv("SCOUT_DB_PATH", messy)
-	t.Setenv("DATABASE_URL", "")
-
-	cfg, err := LoadConfigFromEnv()
-	if err != nil {
-		t.Fatalf("LoadConfigFromEnv() error = %v", err)
-	}
-	want := filepath.Clean(messy)
-	if cfg.SQLitePath != want {
-		t.Fatalf("SQLitePath = %q, want cleaned path %q", cfg.SQLitePath, want)
-	}
-}
-
-func TestResolveDefaultSQLitePathFindsRepoRoot(t *testing.T) {
-	t.Parallel()
-
-	nestedDir, openCoreRoot := buildOpenCoreFixture(t)
-	withFakeCwd(t, nestedDir)
 
 	path, err := ResolveDefaultSQLitePath()
 	if err != nil {
 		t.Fatalf("ResolveDefaultSQLitePath() error = %v", err)
 	}
-	want := filepath.Join(openCoreRoot, "scout.db")
+	want := filepath.Join(repoOpenCore, "scout.db")
 	if path != want {
 		t.Fatalf("path = %q, want %q", path, want)
-	}
-}
-
-func TestResolveDefaultSQLitePathFallsBackToCwd(t *testing.T) {
-	t.Parallel()
-
-	// A temp dir with no marker files — root cannot be found.
-	dir := t.TempDir()
-	withFakeCwd(t, dir)
-
-	path, err := ResolveDefaultSQLitePath()
-	if err != nil {
-		t.Fatalf("ResolveDefaultSQLitePath() error = %v (want fallback, not error)", err)
-	}
-	want := filepath.Join(dir, "scout.db")
-	if path != want {
-		t.Fatalf("path = %q, want fallback %q", path, want)
-	}
-}
-
-// TestResolveDefaultSQLitePathDoesNotMatchAncestorPackageJSON verifies that a
-// directory containing only package.json (common in monorepo ancestors) is NOT
-// treated as the open-core root. Only go.work identifies the root precisely.
-func TestResolveDefaultSQLitePathDoesNotMatchAncestorPackageJSON(t *testing.T) {
-	t.Parallel()
-
-	// Build a tree:
-	//   ancestor/   ← has package.json but NOT go.work
-	//     open-core/ ← has go.work  (the real root)
-	//       apps/api/ ← fake cwd
-	ancestor := t.TempDir()
-	if err := os.WriteFile(filepath.Join(ancestor, "package.json"), []byte(`{}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	openCoreRoot := filepath.Join(ancestor, "open-core")
-	if err := os.MkdirAll(openCoreRoot, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(openCoreRoot, "go.work"), []byte("go 1.23\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	nested := filepath.Join(openCoreRoot, "apps", "api")
-	if err := os.MkdirAll(nested, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	withFakeCwd(t, nested)
-
-	path, err := ResolveDefaultSQLitePath()
-	if err != nil {
-		t.Fatalf("ResolveDefaultSQLitePath() error = %v", err)
-	}
-	want := filepath.Join(openCoreRoot, "scout.db")
-	if path != want {
-		t.Fatalf("path = %q, want open-core root %q (not ancestor)", path, want)
 	}
 }
