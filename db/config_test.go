@@ -3,7 +3,6 @@ package db
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -76,27 +75,43 @@ func TestLoadConfigRejectsPostgresWithoutURL(t *testing.T) {
 	}
 }
 
-func TestResolveDefaultSQLitePathWorksFromRepoSubdirectories(t *testing.T) {
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	repoOpenCore := filepath.Clean(filepath.Join(filepath.Dir(file), ".."))
-	apiDir := filepath.Join(repoOpenCore, "apps", "api")
-	oldWd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(oldWd) })
-	if err := os.Chdir(apiDir); err != nil {
+// buildOpenCoreFixture creates a temp directory that mimics the open-core
+// subtree layout used by ResolveDefaultSQLitePathFrom:
+//
+//	<root>/           ← open-core root (has go.work or open-core marker)
+//	  apps/
+//	    api/          ← a nested subdirectory to start the walk from
+//
+// It returns the path of the nested subdirectory so tests can use it as the
+// start argument without touching the real checkout or the process-wide cwd.
+func buildOpenCoreFixture(t *testing.T) (startDir, openCoreRoot string) {
+	t.Helper()
+	root := t.TempDir()
+
+	// Marker file that ResolveDefaultSQLitePathFrom will use to identify the
+	// open-core root (mirrors what the production implementation will look for).
+	if err := os.WriteFile(filepath.Join(root, "go.work"), []byte("go 1.23\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	path, err := ResolveDefaultSQLitePath()
-	if err != nil {
-		t.Fatalf("ResolveDefaultSQLitePath() error = %v", err)
+	nested := filepath.Join(root, "apps", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
 	}
-	want := filepath.Join(repoOpenCore, "scout.db")
+
+	return nested, root
+}
+
+func TestResolveDefaultSQLitePathWorksFromRepoSubdirectories(t *testing.T) {
+	t.Parallel()
+
+	startDir, openCoreRoot := buildOpenCoreFixture(t)
+
+	path, err := ResolveDefaultSQLitePathFrom(startDir)
+	if err != nil {
+		t.Fatalf("ResolveDefaultSQLitePathFrom(%q) error = %v", startDir, err)
+	}
+	want := filepath.Join(openCoreRoot, "scout.db")
 	if path != want {
 		t.Fatalf("path = %q, want %q", path, want)
 	}
