@@ -1,17 +1,36 @@
 # syntax=docker/dockerfile:1.7
 # Open-core Go API image.
-# Context: open-core/apps/api (or pass --build-context appropriately)
+# Build context: open-core/ repository root.
 
-FROM golang:1.23-bookworm AS builder
+FROM golang:1.23-bookworm AS api-builder
 
-WORKDIR /src
+WORKDIR /src/apps/api
 
-COPY go.mod go.sum ./
+COPY apps/api/go.mod apps/api/go.sum ./
 RUN go mod download
 
-COPY . .
+COPY apps/api ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /scout-api ./cmd/scout-api
+
+FROM node:22-bookworm-slim AS web-builder
+
+ENV PNPM_HOME=/pnpm
+ENV PATH=${PNPM_HOME}:${PATH}
+
+RUN corepack enable \
+  && corepack prepare pnpm@10.14.0 --activate
+
+WORKDIR /workspace
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json apps/web/package.json
+COPY packages/shared/package.json packages/shared/package.json
+RUN pnpm install --frozen-lockfile
+
+COPY apps/web apps/web
+COPY packages/shared packages/shared
+RUN pnpm --dir apps/web run build
 
 FROM debian:bookworm-slim AS prod
 
@@ -20,12 +39,14 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd -r scout && useradd -r -g scout scout
 
-COPY --from=builder /scout-api /usr/local/bin/scout-api
+COPY --from=api-builder /scout-api /usr/local/bin/scout-api
+COPY --from=web-builder /workspace/apps/web/dist /app/web/dist
 
 RUN mkdir -p /data && chown scout:scout /data
 
 ENV PORT=4749
 ENV SCOUT_DB_PATH=/data/scout.db
+ENV SCOUT_FRONTEND_DIST=/app/web/dist
 
 USER scout
 
@@ -33,18 +54,19 @@ EXPOSE 4749
 
 CMD ["scout-api"]
 
-# Dev target: builds and runs the binary (use go-air or rebuild image for iterative dev).
 FROM golang:1.23-bookworm AS dev
 
-WORKDIR /src
+WORKDIR /src/apps/api
 
-COPY go.mod go.sum ./
+COPY apps/api/go.mod apps/api/go.sum ./
 RUN go mod download
 
-COPY . .
+COPY apps/api ./
 
 ENV PORT=4749
 ENV SCOUT_DB_PATH=/data/scout.db
+
+ENV SCOUT_FRONTEND_DIST=/workspace/apps/web/dist
 
 EXPOSE 4749
 
