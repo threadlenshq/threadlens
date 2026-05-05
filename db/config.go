@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Dialect identifies the database backend.
@@ -29,26 +30,34 @@ var cwdResolver = os.Getwd
 // LoadConfigFromEnv reads configuration from environment variables.
 //
 // Resolution order:
-//  1. If DATABASE_URL is set → postgres dialect.
-//  2. If SCOUT_DB_DIALECT == "postgres" → postgres dialect (requires DATABASE_URL).
-//  3. Otherwise → sqlite dialect; path from SCOUT_DB_PATH or the default
-//     open-core path resolved from the process working directory.
+//  1. Normalise SCOUT_DB_DIALECT (trim whitespace, lowercase).
+//  2. If dialect == "postgres" → postgres (requires DATABASE_URL).
+//  3. If dialect == "sqlite"   → sqlite (use SCOUT_DB_PATH or default path).
+//  4. If dialect == ""         → infer: postgres when DATABASE_URL is set,
+//     otherwise sqlite.
+//  5. Any other dialect value  → error.
 func LoadConfigFromEnv() (Config, error) {
-	dbURL := os.Getenv("DATABASE_URL")
-	dialect := Dialect(os.Getenv("SCOUT_DB_DIALECT"))
-	dbPath := os.Getenv("SCOUT_DB_PATH")
+	dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	dialect := Dialect(strings.TrimSpace(strings.ToLower(os.Getenv("SCOUT_DB_DIALECT"))))
+	dbPath := strings.TrimSpace(os.Getenv("SCOUT_DB_PATH"))
 
-	// Postgres wins when DATABASE_URL is present.
-	if dbURL != "" {
-		return Config{Dialect: DialectPostgres, DatabaseURL: dbURL}, nil
-	}
-
-	// Validate explicit dialect value.
 	switch dialect {
-	case "", DialectSQLite:
-		// ok — falls through to sqlite path resolution below
 	case DialectPostgres:
-		return Config{}, errors.New("DATABASE_URL is required when SCOUT_DB_DIALECT=postgres")
+		if dbURL == "" {
+			return Config{}, errors.New("DATABASE_URL is required when SCOUT_DB_DIALECT=postgres")
+		}
+		return Config{Dialect: DialectPostgres, DatabaseURL: dbURL}, nil
+
+	case DialectSQLite:
+		// falls through to SQLite path resolution below
+
+	case "":
+		// No explicit dialect — infer from DATABASE_URL.
+		if dbURL != "" {
+			return Config{Dialect: DialectPostgres, DatabaseURL: dbURL}, nil
+		}
+		// Otherwise default to SQLite.
+
 	default:
 		return Config{}, fmt.Errorf("unsupported SCOUT_DB_DIALECT %q: must be %q or %q", dialect, DialectSQLite, DialectPostgres)
 	}
@@ -62,16 +71,15 @@ func LoadConfigFromEnv() (Config, error) {
 		dbPath = resolved
 	}
 
-	return Config{Dialect: DialectSQLite, SQLitePath: dbPath}, nil
+	return Config{Dialect: DialectSQLite, SQLitePath: filepath.Clean(dbPath)}, nil
 }
 
 // ResolveDefaultSQLitePath returns the default SQLite database path for the
 // open-core checkout by walking up from the current working directory to find
-// the workspace root (identified by a marker file such as go.work or
-// package.json), then returning <root>/scout.db.
+// the open-core root (identified by go.work), then returning <root>/scout.db.
 //
-// If the workspace root cannot be located, it falls back to <cwd>/scout.db
-// rather than returning an error.
+// If the root cannot be located, it falls back to <cwd>/scout.db rather than
+// returning an error.
 func ResolveDefaultSQLitePath() (string, error) {
 	cwd, err := cwdResolver()
 	if err != nil {
@@ -80,22 +88,20 @@ func ResolveDefaultSQLitePath() (string, error) {
 	return resolveDefaultSQLitePathFrom(cwd), nil
 }
 
-// openCoreRootMarkers are filenames whose presence identifies the open-core
-// workspace root. go.work is used in synthetic test fixtures; package.json is
-// present in the real open-core checkout.
-var openCoreRootMarkers = []string{"go.work", "package.json"}
-
 // resolveDefaultSQLitePathFrom walks up the directory tree from start until it
-// finds a directory that contains one of the openCoreRootMarkers (indicating
-// the open-core workspace root) and returns the path to scout.db inside that
-// root. If no root is found, it falls back to <start>/scout.db.
+// finds a directory that contains go.work (which precisely identifies the
+// open-core workspace root) and returns the path to scout.db inside that root.
+//
+// go.work is used as the sole marker because it is unique to the open-core
+// checkout root and is not present in any ancestor repository directory,
+// preventing false positives on shared package.json ancestors.
+//
+// If no root is found, it falls back to <start>/scout.db.
 func resolveDefaultSQLitePathFrom(start string) string {
 	dir := start
 	for {
-		for _, marker := range openCoreRootMarkers {
-			if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
-				return filepath.Join(dir, "scout.db")
-			}
+		if _, err := os.Stat(filepath.Join(dir, "go.work")); err == nil {
+			return filepath.Join(dir, "scout.db")
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
