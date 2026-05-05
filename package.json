@@ -9,7 +9,10 @@
     "build": "turbo run build",
     "build:go": "cd apps/api && go build ./...",
     "test": "turbo run test",
-    "test:go": "cd apps/api && go test ./..."
+    "test:go": "cd apps/api && go test ./...",
+    "docker:dev": "docker compose -f infra/docker/compose.yml --profile dev up --build -d",
+    "docker:prod": "docker compose -f infra/docker/compose.yml --profile prod up --build -d",
+    "docker:down": "docker compose -f infra/docker/compose.yml --profile dev down && docker compose -f infra/docker/compose.yml --profile prod down"
   },
   "devDependencies": {
     "turbo": "^2.0.0"
