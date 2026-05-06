@@ -1,9 +1,13 @@
-// Package db provides the legacy local SQLite bootstrap used by tests
-// in this package. Production code now uses github.com/kyle/scout/open-core/db
-// (the shared module) directly. This package is retained for the internal
-// package-level tests; it should be removed once those tests are migrated.
+// go:build ignore
 //
-// TODO: remove this package after migrating sqlite_test.go to use shareddb.
+// This file is excluded from compilation. The legacy SQLite bootstrap path it
+// contained has been superseded by github.com/kyle/scout/open-core/db.
+// Tests that previously relied on Open() / InitSchema() here have been
+// migrated to wire_test.go which uses the shared module directly.
+// Retained as a reference; delete when no longer needed.
+
+//go:build ignore
+
 package db
 
 import (

@@ -1,3 +1,8 @@
+//go:build ignore
+
+// This file is excluded from compilation. The tests it contained have been
+// migrated to wire_test.go which uses the shared open-core/db module.
+
 package db
 
 import (
