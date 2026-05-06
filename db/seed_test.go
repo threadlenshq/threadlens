@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -65,32 +66,75 @@ func TestCoreSeedMarkerDistinctNamesAreIndependent(t *testing.T) {
 	}
 }
 
+// TestCoreSeedMarkerConcurrentIdempotency fires multiple concurrent calls for
+// the same key and verifies that exactly one call reports "seeded" and the
+// rest report "noop" — confirming the INSERT OR IGNORE / ON CONFLICT DO NOTHING
+// strategy is race-safe without a transaction.
+func TestCoreSeedMarkerConcurrentIdempotency(t *testing.T) {
+	database, err := Open(context.Background(), Config{Dialect: DialectSQLite, SQLitePath: filepath.Join(t.TempDir(), "seed_concurrent.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+
+	const workers = 20
+	results := make([]SeedResult, workers)
+	errs := make([]error, workers)
+
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for i := range workers {
+		go func(idx int) {
+			defer wg.Done()
+			results[idx], errs[idx] = EnsureCoreSeedMarker(context.Background(), database, "concurrent", 1)
+		}(i)
+	}
+	wg.Wait()
+
+	seededCount := 0
+	for i, e := range errs {
+		if e != nil {
+			t.Errorf("worker %d returned error: %v", i, e)
+		}
+	}
+	for _, r := range results {
+		if r.Status == "seeded" {
+			seededCount++
+		}
+	}
+	if seededCount != 1 {
+		t.Errorf("seededCount = %d, want exactly 1", seededCount)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Portability unit tests — validate SQL shape and driver detection without
 // requiring a live Postgres instance.
 // ---------------------------------------------------------------------------
 
-// TestSeedInsertSQLShapePostgres verifies that the Postgres variant of the
-// INSERT statement uses $N positional placeholders (required by pgx/stdlib)
-// and that none of the SQLite-only '?' markers appear.
+// TestSeedInsertSQLShapePostgres verifies that the Postgres variant uses
+// $N positional placeholders and ON CONFLICT DO NOTHING (not WHERE NOT EXISTS).
 func TestSeedInsertSQLShapePostgres(t *testing.T) {
 	q, err := seedInsertSQL(DialectPostgres)
 	if err != nil {
 		t.Fatalf("seedInsertSQL(Postgres): %v", err)
 	}
-	if !strings.Contains(q, "$1") || !strings.Contains(q, "$2") || !strings.Contains(q, "$3") {
+	if !strings.Contains(q, "$1") || !strings.Contains(q, "$2") {
 		t.Errorf("postgres SQL missing $N placeholders:\n%s", q)
 	}
 	if strings.Contains(q, "?") {
 		t.Errorf("postgres SQL must not contain '?' placeholders:\n%s", q)
 	}
-	if !strings.Contains(q, "WHERE NOT EXISTS") {
-		t.Errorf("postgres SQL missing WHERE NOT EXISTS guard:\n%s", q)
+	if !strings.Contains(strings.ToUpper(q), "ON CONFLICT") {
+		t.Errorf("postgres SQL missing ON CONFLICT guard:\n%s", q)
+	}
+	if strings.Contains(strings.ToUpper(q), "WHERE NOT EXISTS") {
+		t.Errorf("postgres SQL must not use WHERE NOT EXISTS (has race window):\n%s", q)
 	}
 }
 
-// TestSeedInsertSQLShapeSQLite verifies the SQLite variant uses '?' markers
-// and contains no $N positional parameters.
+// TestSeedInsertSQLShapeSQLite verifies the SQLite variant uses INSERT OR IGNORE
+// with '?' markers and no $N parameters.
 func TestSeedInsertSQLShapeSQLite(t *testing.T) {
 	q, err := seedInsertSQL(DialectSQLite)
 	if err != nil {
@@ -102,8 +146,12 @@ func TestSeedInsertSQLShapeSQLite(t *testing.T) {
 	if strings.Contains(q, "$") {
 		t.Errorf("sqlite SQL must not contain '$N' placeholders:\n%s", q)
 	}
-	if !strings.Contains(q, "WHERE NOT EXISTS") {
-		t.Errorf("sqlite SQL missing WHERE NOT EXISTS guard:\n%s", q)
+	upperQ := strings.ToUpper(q)
+	if !strings.Contains(upperQ, "INSERT OR IGNORE") {
+		t.Errorf("sqlite SQL missing INSERT OR IGNORE guard:\n%s", q)
+	}
+	if strings.Contains(upperQ, "WHERE NOT EXISTS") {
+		t.Errorf("sqlite SQL must not use WHERE NOT EXISTS (has race window):\n%s", q)
 	}
 }
 
@@ -145,7 +193,7 @@ func TestDialectFromDBSQLite(t *testing.T) {
 
 // TestDialectFromDBUnknownDriver registers a synthetic driver and confirms
 // dialectFromDB returns an error (not a silent wrong dialect) when it cannot
-// recognise the underlying driver type.
+// recognise the underlying driver.
 func TestDialectFromDBUnknownDriver(t *testing.T) {
 	driverName := "fake_driver_for_test_" + t.Name()
 	sql.Register(driverName, fakeDriver{name: driverName})
@@ -160,28 +208,32 @@ func TestDialectFromDBUnknownDriver(t *testing.T) {
 	if err == nil {
 		t.Error("expected error for unknown driver, got nil")
 	}
-	if !strings.Contains(err.Error(), "unrecognised driver type") {
+	if !strings.Contains(err.Error(), "unrecognised driver") {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
 
-// TestSeedMarkerParamCountConsistency is a cross-dialect consistency check
-// that ensures both SQL variants use exactly 3 parameter slots — matching the
-// 3 arguments (key, value, key) passed by EnsureCoreSeedMarker.
+// ---------------------------------------------------------------------------
+// Parameter count consistency
+// ---------------------------------------------------------------------------
+
+// TestSeedMarkerParamCountConsistency ensures both SQL variants use exactly 2
+// parameter slots — matching the 2 arguments (key, value) passed by
+// EnsureCoreSeedMarker after switching from the 3-arg WHERE NOT EXISTS form.
 func TestSeedMarkerParamCountConsistency(t *testing.T) {
 	tests := []struct {
-		dialect     Dialect
-		wantCount   int
-		countFn     func(string) int
+		dialect   Dialect
+		wantCount int
+		countFn   func(string) int
 	}{
 		{
 			dialect:   DialectSQLite,
-			wantCount: 3,
+			wantCount: 2,
 			countFn:   func(q string) int { return strings.Count(q, "?") },
 		},
 		{
 			dialect:   DialectPostgres,
-			wantCount: 3,
+			wantCount: 2,
 			countFn:   func(q string) int { return strings.Count(q, "$") },
 		},
 	}
