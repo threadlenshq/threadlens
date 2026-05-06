@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -67,9 +68,13 @@ func TestCoreSeedMarkerDistinctNamesAreIndependent(t *testing.T) {
 }
 
 // TestCoreSeedMarkerConcurrentIdempotency fires multiple concurrent calls for
-// the same key and verifies that exactly one call reports "seeded" and the
-// rest report "noop" — confirming the INSERT OR IGNORE / ON CONFLICT DO NOTHING
-// strategy is race-safe without a transaction.
+// the same key and verifies that:
+//  1. Exactly one call reports "seeded" (the row was inserted once).
+//  2. All remaining calls report "noop" (the INSERT OR IGNORE was a no-op).
+//  3. The database contains exactly one row for the key after all workers finish.
+//
+// This confirms the INSERT OR IGNORE / ON CONFLICT DO NOTHING strategy is
+// race-safe without an additional transaction or read-then-write gap.
 func TestCoreSeedMarkerConcurrentIdempotency(t *testing.T) {
 	database, err := Open(context.Background(), Config{Dialect: DialectSQLite, SQLitePath: filepath.Join(t.TempDir(), "seed_concurrent.db")})
 	if err != nil {
@@ -91,19 +96,43 @@ func TestCoreSeedMarkerConcurrentIdempotency(t *testing.T) {
 	}
 	wg.Wait()
 
-	seededCount := 0
+	// All workers must succeed.
 	for i, e := range errs {
 		if e != nil {
 			t.Errorf("worker %d returned error: %v", i, e)
 		}
 	}
+
+	// Exactly one worker must have seeded the row; all others must be noop.
+	seededCount := 0
+	noopCount := 0
 	for _, r := range results {
-		if r.Status == "seeded" {
+		switch r.Status {
+		case "seeded":
 			seededCount++
+		case "noop":
+			noopCount++
+		default:
+			t.Errorf("unexpected status %q", r.Status)
 		}
 	}
 	if seededCount != 1 {
 		t.Errorf("seededCount = %d, want exactly 1", seededCount)
+	}
+	if noopCount != workers-1 {
+		t.Errorf("noopCount = %d, want %d", noopCount, workers-1)
+	}
+
+	// Confirm exactly one row in the DB for this key.
+	var rowCount int
+	err = database.QueryRowContext(context.Background(),
+		`SELECT COUNT(*) FROM app_settings WHERE key = ?`, "seed.core.concurrent").
+		Scan(&rowCount)
+	if err != nil {
+		t.Fatalf("counting rows: %v", err)
+	}
+	if rowCount != 1 {
+		t.Errorf("row count in app_settings = %d, want exactly 1", rowCount)
 	}
 }
 
@@ -168,13 +197,14 @@ func TestSeedInsertSQLShapeUnsupportedDialect(t *testing.T) {
 // dialectFromDB detection tests
 // ---------------------------------------------------------------------------
 
-// fakeDriver is a minimal driver.Driver used to test dialectFromDB detection.
+// fakeDriver is a minimal driver.Driver used to test that dialectFromDB
+// returns an error for databases that don't respond to either probe query.
 type fakeDriver struct{ name string }
 
 func (fakeDriver) Open(_ string) (driver.Conn, error) { return nil, nil }
 
 // TestDialectFromDBSQLite verifies that a *sql.DB backed by the real SQLite
-// driver resolves to DialectSQLite.
+// driver resolves to DialectSQLite via the probe-query mechanism.
 func TestDialectFromDBSQLite(t *testing.T) {
 	database, err := Open(context.Background(), Config{Dialect: DialectSQLite, SQLitePath: filepath.Join(t.TempDir(), "detect.db")})
 	if err != nil {
@@ -182,7 +212,7 @@ func TestDialectFromDBSQLite(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = database.Close() })
 
-	got, err := dialectFromDB(database)
+	got, err := dialectFromDB(context.Background(), database)
 	if err != nil {
 		t.Fatalf("dialectFromDB: %v", err)
 	}
@@ -192,11 +222,14 @@ func TestDialectFromDBSQLite(t *testing.T) {
 }
 
 // TestDialectFromDBUnknownDriver registers a synthetic driver and confirms
-// dialectFromDB returns an error (not a silent wrong dialect) when it cannot
-// recognise the underlying driver.
+// dialectFromDB returns an error (not a silent wrong dialect) when the
+// connection cannot execute either probe query.
+//
+// The fakeConn returns an error for all queries, which simulates a driver
+// that does not understand the dialect-probe SQL.
 func TestDialectFromDBUnknownDriver(t *testing.T) {
-	driverName := "fake_driver_for_test_" + t.Name()
-	sql.Register(driverName, fakeDriver{name: driverName})
+	driverName := "fake_probe_driver_" + t.Name()
+	sql.Register(driverName, fakeConnDriver{})
 
 	db, err := sql.Open(driverName, "")
 	if err != nil {
@@ -204,14 +237,31 @@ func TestDialectFromDBUnknownDriver(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 
-	_, err = dialectFromDB(db)
+	_, err = dialectFromDB(context.Background(), db)
 	if err == nil {
-		t.Error("expected error for unknown driver, got nil")
+		t.Error("expected error for unrecognised driver, got nil")
 	}
-	if !strings.Contains(err.Error(), "unrecognised driver") {
+	if !strings.Contains(err.Error(), "unable to identify dialect") {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// fakeConnDriver — a driver whose connections fail every query, used by
+// TestDialectFromDBUnknownDriver to exercise the probe-failure path.
+// ---------------------------------------------------------------------------
+
+type fakeConnDriver struct{}
+
+func (fakeConnDriver) Open(_ string) (driver.Conn, error) { return fakeConn{}, nil }
+
+type fakeConn struct{}
+
+func (fakeConn) Prepare(_ string) (driver.Stmt, error) {
+	return nil, fmt.Errorf("fakeConn: not implemented")
+}
+func (fakeConn) Close() error              { return nil }
+func (fakeConn) Begin() (driver.Tx, error) { return nil, fmt.Errorf("fakeConn: not implemented") }
 
 // ---------------------------------------------------------------------------
 // Parameter count consistency

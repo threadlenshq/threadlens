@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 )
@@ -20,10 +19,10 @@ type SeedResult struct {
 // returns Status "noop" rather than an error.
 //
 // The function is compatible with both SQLite and Postgres: it auto-detects
-// the driver and selects the appropriate placeholder style without requiring
-// the caller to pass a dialect parameter.
+// the dialect by probing the live connection with dialect-specific SQL, which
+// is robust for any *sql.DB regardless of how the driver was registered.
 func EnsureCoreSeedMarker(ctx context.Context, database *sql.DB, name string, version int) (SeedResult, error) {
-	dialect, err := dialectFromDB(database)
+	dialect, err := dialectFromDB(ctx, database)
 	if err != nil {
 		return SeedResult{}, fmt.Errorf("EnsureCoreSeedMarker: detect dialect: %w", err)
 	}
@@ -87,47 +86,31 @@ func seedInsertSQL(dialect Dialect) (string, error) {
 	}
 }
 
-// dialectFromDB infers the Dialect by comparing the driver instance returned
-// by database.Driver() against the instances registered under the known driver
-// names ("sqlite" and "pgx"). This avoids fragile type-name substring matching
-// and works correctly even when drivers are wrapped (as long as they are
-// registered under one of the canonical names).
+// dialectFromDB probes the live connection with dialect-specific SQL to infer
+// the Dialect without relying on driver names, registered driver instances, or
+// type-name string matching.
 //
+// Detection order:
+//  1. SELECT sqlite_version() — succeeds only on SQLite.
+//  2. SELECT version()        — succeeds on Postgres (and most other SQL engines).
+//
+// Using a live probe means the result reflects the actual database in use,
+// regardless of driver wrappers, registration aliases, or custom sql.Open calls.
 // The dialect is never surfaced to callers; it is an internal implementation
 // detail of EnsureCoreSeedMarker.
-func dialectFromDB(database *sql.DB) (Dialect, error) {
-	drv := database.Driver()
-
-	knownDrivers := map[string]Dialect{
-		"sqlite": DialectSQLite,
-		"pgx":    DialectPostgres,
+func dialectFromDB(ctx context.Context, database *sql.DB) (Dialect, error) {
+	// Probe for SQLite first: sqlite_version() is a SQLite-only function.
+	var discard string
+	err := database.QueryRowContext(ctx, "SELECT sqlite_version()").Scan(&discard)
+	if err == nil {
+		return DialectSQLite, nil
 	}
 
-	for name, dialect := range knownDrivers {
-		// sql.Open registers and caches the driver instance; comparing the
-		// interface values (which hold the same concrete pointer) is reliable.
-		if registered := driverByName(name); registered != nil && registered == drv {
-			return dialect, nil
-		}
+	// Probe for Postgres: version() is available in Postgres.
+	err = database.QueryRowContext(ctx, "SELECT version()").Scan(&discard)
+	if err == nil {
+		return DialectPostgres, nil
 	}
 
-	return "", fmt.Errorf("dialectFromDB: unrecognised driver (not registered under a known name)")
-}
-
-// driverByName returns the driver.Driver registered under name, or nil if the
-// name is not in sql.Drivers(). It opens a throwaway *sql.DB solely to obtain
-// the cached Driver() value; no actual connection is made.
-func driverByName(name string) driver.Driver {
-	for _, n := range sql.Drivers() {
-		if n == name {
-			db, err := sql.Open(name, "")
-			if err != nil {
-				return nil
-			}
-			d := db.Driver()
-			_ = db.Close()
-			return d
-		}
-	}
-	return nil
+	return "", fmt.Errorf("dialectFromDB: unable to identify dialect via probe queries")
 }
