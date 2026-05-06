@@ -5,16 +5,13 @@ import (
 	"database/sql"
 	"os"
 	"testing"
-
-	_ "github.com/jackc/pgx/v5/stdlib"
-	_ "modernc.org/sqlite"
 )
 
 // ---------------------------------------------------------------------------
 // SQLite migration tests
 // ---------------------------------------------------------------------------
 
-func TestMigrate_SQLite_CoreTablesExist(t *testing.T) {
+func TestMigrateSQLiteCreatesCoreTablesAndMetadata(t *testing.T) {
 	database, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("sql.Open: %v", err)
@@ -25,7 +22,16 @@ func TestMigrate_SQLite_CoreTablesExist(t *testing.T) {
 		t.Fatalf("Migrate: %v", err)
 	}
 
-	for _, table := range []string{"projects", "posts", "schema_migrations"} {
+	for _, table := range []string{
+		"schema_migrations",
+		"projects",
+		"project_queries",
+		"posts",
+		"scout_runs",
+		"research_reports",
+		"google_results",
+		"google_reports",
+	} {
 		if !sqliteTableExists(t, database, table) {
 			t.Errorf("expected table %q to exist after migration", table)
 		}
@@ -33,16 +39,16 @@ func TestMigrate_SQLite_CoreTablesExist(t *testing.T) {
 
 	var count int
 	if err := database.QueryRow(
-		`SELECT COUNT(*) FROM schema_migrations WHERE id = 'core/0001_core'`,
+		`SELECT COUNT(*) FROM schema_migrations WHERE scope = 'core' AND version = '0001_core'`,
 	).Scan(&count); err != nil {
 		t.Fatalf("querying schema_migrations: %v", err)
 	}
 	if count != 1 {
-		t.Errorf("schema_migrations rows for core/0001_core = %d, want 1", count)
+		t.Errorf("schema_migrations rows for scope='core' version='0001_core' = %d, want 1", count)
 	}
 }
 
-func TestMigrate_SQLite_Idempotent(t *testing.T) {
+func TestMigrateSQLiteIsIdempotent(t *testing.T) {
 	database, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("sql.Open: %v", err)
@@ -57,12 +63,12 @@ func TestMigrate_SQLite_Idempotent(t *testing.T) {
 
 	var count int
 	if err := database.QueryRow(
-		`SELECT COUNT(*) FROM schema_migrations WHERE id = 'core/0001_core'`,
+		`SELECT COUNT(*) FROM schema_migrations WHERE scope = 'core' AND version = '0001_core'`,
 	).Scan(&count); err != nil {
 		t.Fatalf("querying schema_migrations: %v", err)
 	}
 	if count != 1 {
-		t.Errorf("schema_migrations rows for core/0001_core = %d after two runs, want 1", count)
+		t.Errorf("schema_migrations rows for scope='core' version='0001_core' = %d after two runs, want 1", count)
 	}
 }
 
@@ -70,7 +76,7 @@ func TestMigrate_SQLite_Idempotent(t *testing.T) {
 // Postgres migration test (optional, gated by env var)
 // ---------------------------------------------------------------------------
 
-func TestMigrate_Postgres_CoreTablesExist(t *testing.T) {
+func TestMigratePostgresCreatesCoreTablesWhenDSNProvided(t *testing.T) {
 	dsn := os.Getenv("SCOUT_TEST_POSTGRES_DSN")
 	if dsn == "" {
 		t.Skip("SCOUT_TEST_POSTGRES_DSN not set — skipping Postgres migration test")
@@ -82,11 +88,27 @@ func TestMigrate_Postgres_CoreTablesExist(t *testing.T) {
 	}
 	defer database.Close()
 
+	// Reset schema to ensure a clean state before migrating.
+	if _, err := database.ExecContext(context.Background(),
+		`DROP SCHEMA public CASCADE; CREATE SCHEMA public`,
+	); err != nil {
+		t.Fatalf("resetting postgres schema: %v", err)
+	}
+
 	if err := Migrate(context.Background(), database, DialectPostgres); err != nil {
 		t.Fatalf("Migrate: %v", err)
 	}
 
-	for _, table := range []string{"projects", "posts", "schema_migrations"} {
+	for _, table := range []string{
+		"schema_migrations",
+		"projects",
+		"project_queries",
+		"posts",
+		"scout_runs",
+		"research_reports",
+		"google_results",
+		"google_reports",
+	} {
 		if !postgresTableExists(t, database, table) {
 			t.Errorf("expected table %q to exist after migration", table)
 		}
@@ -94,12 +116,12 @@ func TestMigrate_Postgres_CoreTablesExist(t *testing.T) {
 
 	var count int
 	if err := database.QueryRow(
-		`SELECT COUNT(*) FROM schema_migrations WHERE id = 'core/0001_core'`,
+		`SELECT COUNT(*) FROM schema_migrations WHERE scope = 'core' AND version = '0001_core'`,
 	).Scan(&count); err != nil {
 		t.Fatalf("querying schema_migrations: %v", err)
 	}
 	if count != 1 {
-		t.Errorf("schema_migrations rows for core/0001_core = %d, want 1", count)
+		t.Errorf("schema_migrations rows for scope='core' version='0001_core' = %d, want 1", count)
 	}
 }
 
