@@ -1,3 +1,9 @@
+// Package db provides the legacy local SQLite bootstrap used by tests
+// in this package. Production code now uses github.com/kyle/scout/open-core/db
+// (the shared module) directly. This package is retained for the internal
+// package-level tests; it should be removed once those tests are migrated.
+//
+// TODO: remove this package after migrating sqlite_test.go to use shareddb.
 package db
 
 import (
@@ -8,6 +14,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// Open opens an in-process SQLite database for legacy tests. New callers
+// should use github.com/kyle/scout/open-core/db instead.
 func Open(path string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {

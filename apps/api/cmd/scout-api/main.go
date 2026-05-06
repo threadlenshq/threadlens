@@ -12,14 +12,17 @@ import (
 
 	"github.com/kyle/scout/open-core/apps/api/internal/ai"
 	"github.com/kyle/scout/open-core/apps/api/internal/app"
-	"github.com/kyle/scout/open-core/apps/api/internal/db"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
 	"github.com/kyle/scout/open-core/apps/api/internal/services"
+	shareddb "github.com/kyle/scout/open-core/db"
 )
 
 func main() {
 	cfg := app.LoadConfig()
-	sqlDB, err := db.Open(cfg.DBPath)
+	sqlDB, err := shareddb.Open(context.Background(), shareddb.Config{
+		Dialect:    shareddb.DialectSQLite,
+		SQLitePath: cfg.DBPath,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}

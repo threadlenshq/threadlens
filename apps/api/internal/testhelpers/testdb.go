@@ -1,15 +1,19 @@
 package testhelpers
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
-	"github.com/kyle/scout/open-core/apps/api/internal/db"
+	shareddb "github.com/kyle/scout/open-core/db"
 )
 
 func OpenTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	database, err := db.Open(":memory:")
+	database, err := shareddb.Open(context.Background(), shareddb.Config{
+		Dialect:    shareddb.DialectSQLite,
+		SQLitePath: ":memory:",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
