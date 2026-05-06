@@ -2,12 +2,15 @@
 # Open-core Go API image.
 # Build context: open-core/ repository root.
 
-FROM golang:1.23-bookworm AS api-builder
+FROM golang:1.25-bookworm AS api-builder
 
-WORKDIR /src/apps/api
+WORKDIR /src
 
 COPY apps/api/go.mod apps/api/go.sum ./
+COPY db/go.mod db/go.sum ./
 RUN go mod download
+
+WORKDIR /src/apps/api
 
 COPY apps/api ./
 
@@ -54,12 +57,15 @@ EXPOSE 4749
 
 CMD ["scout-api"]
 
-FROM golang:1.23-bookworm AS dev
+FROM golang:1.25-bookworm AS dev
 
-WORKDIR /src/apps/api
+WORKDIR /src
 
 COPY apps/api/go.mod apps/api/go.sum ./
+COPY db/go.mod db/go.sum ./
 RUN go mod download
+
+WORKDIR /src/apps/api
 
 COPY apps/api ./
 
