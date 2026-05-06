@@ -32,15 +32,6 @@ func makeOpenCoreFixture(t *testing.T) string {
 	return root
 }
 
-// withCwdResolver temporarily overrides the package-level cwdResolver and
-// restores it when the test finishes.
-func withCwdResolver(t *testing.T, dir string) {
-	t.Helper()
-	orig := cwdResolver
-	cwdResolver = func() (string, error) { return dir, nil }
-	t.Cleanup(func() { cwdResolver = orig })
-}
-
 // ---------------------------------------------------------------------------
 // resolveDefaultSQLitePathFrom (pure helper — no process state)
 // ---------------------------------------------------------------------------
@@ -74,17 +65,17 @@ func TestResolveDefaultSQLitePathFrom_FallbackWhenNoOpenCoreRoot(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// ResolveDefaultSQLitePath (uses cwdResolver seam)
+// resolveDefaultSQLitePathWithGetwd (injected getwd — no process state)
 // ---------------------------------------------------------------------------
 
 func TestResolveDefaultSQLitePath_FromOpenCoreSubdir(t *testing.T) {
 	root := makeOpenCoreFixture(t)
 	subDir := filepath.Join(root, "apps", "api")
-	withCwdResolver(t, subDir)
+	fakeGetwd := func() (string, error) { return subDir, nil }
 
-	got, err := ResolveDefaultSQLitePath()
+	got, err := resolveDefaultSQLitePathWithGetwd(fakeGetwd)
 	if err != nil {
-		t.Fatalf("ResolveDefaultSQLitePath() error = %v", err)
+		t.Fatalf("resolveDefaultSQLitePathWithGetwd() error = %v", err)
 	}
 	want := filepath.Join(root, "scout.db")
 	if got != want {
@@ -94,11 +85,11 @@ func TestResolveDefaultSQLitePath_FromOpenCoreSubdir(t *testing.T) {
 
 func TestResolveDefaultSQLitePath_FallbackDir(t *testing.T) {
 	dir := t.TempDir()
-	withCwdResolver(t, dir)
+	fakeGetwd := func() (string, error) { return dir, nil }
 
-	got, err := ResolveDefaultSQLitePath()
+	got, err := resolveDefaultSQLitePathWithGetwd(fakeGetwd)
 	if err != nil {
-		t.Fatalf("ResolveDefaultSQLitePath() error = %v", err)
+		t.Fatalf("resolveDefaultSQLitePathWithGetwd() error = %v", err)
 	}
 	want := filepath.Join(dir, "scout.db")
 	if got != want {
@@ -112,15 +103,15 @@ func TestResolveDefaultSQLitePath_FallbackDir(t *testing.T) {
 
 func TestLoadConfigDefaultsToSQLiteWithOpenCorePath(t *testing.T) {
 	root := makeOpenCoreFixture(t)
-	withCwdResolver(t, filepath.Join(root, "apps", "api"))
+	fakeGetwd := func() (string, error) { return filepath.Join(root, "apps", "api"), nil }
 
 	t.Setenv("SCOUT_DB_DIALECT", "")
 	t.Setenv("SCOUT_DB_PATH", "")
 	t.Setenv("DATABASE_URL", "")
 
-	cfg, err := LoadConfigFromEnv()
+	cfg, err := loadConfigFromEnvWithGetwd(fakeGetwd)
 	if err != nil {
-		t.Fatalf("LoadConfigFromEnv() error = %v", err)
+		t.Fatalf("loadConfigFromEnvWithGetwd() error = %v", err)
 	}
 	if cfg.Dialect != DialectSQLite {
 		t.Fatalf("Dialect = %q, want %q", cfg.Dialect, DialectSQLite)
@@ -132,8 +123,9 @@ func TestLoadConfigDefaultsToSQLiteWithOpenCorePath(t *testing.T) {
 }
 
 func TestLoadConfigUsesSQLitePathOverride(t *testing.T) {
+	customPath := filepath.Join(t.TempDir(), "custom.db")
 	t.Setenv("SCOUT_DB_DIALECT", "sqlite")
-	t.Setenv("SCOUT_DB_PATH", filepath.Join(t.TempDir(), "custom.db"))
+	t.Setenv("SCOUT_DB_PATH", customPath)
 	t.Setenv("DATABASE_URL", "")
 
 	cfg, err := LoadConfigFromEnv()
@@ -143,8 +135,9 @@ func TestLoadConfigUsesSQLitePathOverride(t *testing.T) {
 	if cfg.Dialect != DialectSQLite {
 		t.Fatalf("Dialect = %q", cfg.Dialect)
 	}
-	if !strings.HasSuffix(cfg.SQLitePath, "custom.db") {
-		t.Fatalf("SQLitePath = %q, want custom.db suffix", cfg.SQLitePath)
+	want := filepath.Clean(customPath)
+	if cfg.SQLitePath != want {
+		t.Fatalf("SQLitePath = %q, want %q", cfg.SQLitePath, want)
 	}
 }
 

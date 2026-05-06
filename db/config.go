@@ -22,6 +22,13 @@ type Config struct {
 }
 
 func LoadConfigFromEnv() (Config, error) {
+	return loadConfigFromEnvWithGetwd(os.Getwd)
+}
+
+// loadConfigFromEnvWithGetwd is the testable core of LoadConfigFromEnv.
+// Callers inject a getwd function so tests can simulate any working directory
+// without mutating package-global state.
+func loadConfigFromEnvWithGetwd(getwd func() (string, error)) (Config, error) {
 	dialect := strings.TrimSpace(strings.ToLower(os.Getenv("SCOUT_DB_DIALECT")))
 	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	sqlitePath := strings.TrimSpace(os.Getenv("SCOUT_DB_PATH"))
@@ -37,7 +44,7 @@ func LoadConfigFromEnv() (Config, error) {
 	switch Dialect(dialect) {
 	case DialectSQLite:
 		if sqlitePath == "" {
-			resolved, err := ResolveDefaultSQLitePath()
+			resolved, err := resolveDefaultSQLitePathWithGetwd(getwd)
 			if err != nil {
 				return Config{}, err
 			}
@@ -54,16 +61,18 @@ func LoadConfigFromEnv() (Config, error) {
 	}
 }
 
-// cwdResolver is a package-level seam that tests can override to inject a
-// fake working directory without mutating the real process cwd.
-var cwdResolver = os.Getwd
-
 // ResolveDefaultSQLitePath returns the default SQLite database path.
 // It walks up from the current working directory looking for the open-core
 // root (identified by apps/api/go.mod + package.json). When found it returns
 // <open-core-root>/scout.db; otherwise it falls back to <cwd>/scout.db.
 func ResolveDefaultSQLitePath() (string, error) {
-	wd, err := cwdResolver()
+	return resolveDefaultSQLitePathWithGetwd(os.Getwd)
+}
+
+// resolveDefaultSQLitePathWithGetwd is the testable entry point. Callers
+// inject a getwd function so tests never need to mutate package-global state.
+func resolveDefaultSQLitePathWithGetwd(getwd func() (string, error)) (string, error) {
+	wd, err := getwd()
 	if err != nil {
 		return "", err
 	}
