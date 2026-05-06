@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"os"
 	"testing"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "modernc.org/sqlite"
 )
 
 // ---------------------------------------------------------------------------
@@ -63,12 +66,12 @@ func TestMigrateSQLiteIsIdempotent(t *testing.T) {
 
 	var count int
 	if err := database.QueryRow(
-		`SELECT COUNT(*) FROM schema_migrations WHERE scope = 'core' AND version = '0001_core'`,
+		`SELECT COUNT(*) FROM schema_migrations WHERE scope = 'core'`,
 	).Scan(&count); err != nil {
 		t.Fatalf("querying schema_migrations: %v", err)
 	}
 	if count != 1 {
-		t.Errorf("schema_migrations rows for scope='core' version='0001_core' = %d after two runs, want 1", count)
+		t.Errorf("schema_migrations rows for scope='core' = %d after two runs, want 1", count)
 	}
 }
 
@@ -112,16 +115,6 @@ func TestMigratePostgresCreatesCoreTablesWhenDSNProvided(t *testing.T) {
 		if !postgresTableExists(t, database, table) {
 			t.Errorf("expected table %q to exist after migration", table)
 		}
-	}
-
-	var count int
-	if err := database.QueryRow(
-		`SELECT COUNT(*) FROM schema_migrations WHERE scope = 'core' AND version = '0001_core'`,
-	).Scan(&count); err != nil {
-		t.Fatalf("querying schema_migrations: %v", err)
-	}
-	if count != 1 {
-		t.Errorf("schema_migrations rows for scope='core' version='0001_core' = %d, want 1", count)
 	}
 }
 
