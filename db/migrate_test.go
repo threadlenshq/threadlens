@@ -10,6 +10,20 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// coreExpectedTables is the canonical list of tables that every Migrate call
+// must create, regardless of dialect.  Define it once to avoid duplication
+// between the SQLite and Postgres test cases.
+var coreExpectedTables = []string{
+	"schema_migrations",
+	"projects",
+	"project_queries",
+	"posts",
+	"scout_runs",
+	"research_reports",
+	"google_results",
+	"google_reports",
+}
+
 // ---------------------------------------------------------------------------
 // SQLite migration tests
 // ---------------------------------------------------------------------------
@@ -25,16 +39,7 @@ func TestMigrateSQLiteCreatesCoreTablesAndMetadata(t *testing.T) {
 		t.Fatalf("Migrate: %v", err)
 	}
 
-	for _, table := range []string{
-		"schema_migrations",
-		"projects",
-		"project_queries",
-		"posts",
-		"scout_runs",
-		"research_reports",
-		"google_results",
-		"google_reports",
-	} {
+	for _, table := range coreExpectedTables {
 		if !sqliteTableExists(t, database, table) {
 			t.Errorf("expected table %q to exist after migration", table)
 		}
@@ -102,16 +107,7 @@ func TestMigratePostgresCreatesCoreTablesWhenDSNProvided(t *testing.T) {
 		t.Fatalf("Migrate: %v", err)
 	}
 
-	for _, table := range []string{
-		"schema_migrations",
-		"projects",
-		"project_queries",
-		"posts",
-		"scout_runs",
-		"research_reports",
-		"google_results",
-		"google_reports",
-	} {
+	for _, table := range coreExpectedTables {
 		if !postgresTableExists(t, database, table) {
 			t.Errorf("expected table %q to exist after migration", table)
 		}
