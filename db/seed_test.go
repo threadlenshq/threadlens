@@ -13,11 +13,11 @@ func TestCoreSeedMarkerIsIdempotent(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = database.Close() })
 
-	first, err := EnsureCoreSeedMarker(context.Background(), database, DialectSQLite, "demo", 1)
+	first, err := EnsureCoreSeedMarker(context.Background(), database, "demo", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := EnsureCoreSeedMarker(context.Background(), database, DialectSQLite, "demo", 1)
+	second, err := EnsureCoreSeedMarker(context.Background(), database, "demo", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,11 +42,11 @@ func TestCoreSeedMarkerDistinctNamesAreIndependent(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = database.Close() })
 
-	r1, err := EnsureCoreSeedMarker(context.Background(), database, DialectSQLite, "demo", 1)
+	r1, err := EnsureCoreSeedMarker(context.Background(), database, "demo", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r2, err := EnsureCoreSeedMarker(context.Background(), database, DialectSQLite, "other", 2)
+	r2, err := EnsureCoreSeedMarker(context.Background(), database, "other", 2)
 	if err != nil {
 		t.Fatal(err)
 	}

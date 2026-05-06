@@ -14,29 +14,26 @@ type SeedResult struct {
 	Version int
 }
 
-// EnsureCoreSeedMarker marks a named seed as applied in app_settings for the
-// given dialect. It is idempotent and concurrency-safe: a concurrent insert
-// that races to the same key returns Status "noop" rather than an error.
-func EnsureCoreSeedMarker(ctx context.Context, database *sql.DB, dialect Dialect, name string, version int) (SeedResult, error) {
+// EnsureCoreSeedMarker marks a named seed as applied in app_settings. It is
+// idempotent and concurrency-safe: if the key already exists the function
+// returns Status "noop" rather than an error. It works with both SQLite and
+// Postgres without requiring a dialect parameter.
+func EnsureCoreSeedMarker(ctx context.Context, database *sql.DB, name string, version int) (SeedResult, error) {
 	key := fmt.Sprintf("seed.core.%s", name)
 	value, err := json.Marshal(map[string]any{"name": name, "version": version})
 	if err != nil {
 		return SeedResult{}, err
 	}
 
-	var result sql.Result
-	switch dialect {
-	case DialectPostgres:
-		result, err = database.ExecContext(ctx,
-			`INSERT INTO app_settings (key, value, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (key) DO NOTHING`,
-			key, string(value),
-		)
-	default: // DialectSQLite
-		result, err = database.ExecContext(ctx,
-			`INSERT OR IGNORE INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))`,
-			key, string(value),
-		)
-	}
+	// Use a WHERE NOT EXISTS sub-select so the same SQL compiles on both
+	// SQLite and Postgres — no dialect-specific INSERT OR IGNORE / ON CONFLICT
+	// syntax required. The subquery acts as the idempotency guard.
+	result, err := database.ExecContext(ctx,
+		`INSERT INTO app_settings (key, value, updated_at)
+		 SELECT ?, ?, CURRENT_TIMESTAMP
+		 WHERE NOT EXISTS (SELECT 1 FROM app_settings WHERE key = ?)`,
+		key, string(value), key,
+	)
 	if err != nil {
 		return SeedResult{}, err
 	}
