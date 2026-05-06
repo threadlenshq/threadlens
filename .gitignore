@@ -15,6 +15,9 @@ build/
 *.db-shm
 *.db-wal
 
+# Build binaries
+db/migrate
+
 # Logs
 logs/
 *.log
