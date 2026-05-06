@@ -25,6 +25,7 @@ services:
       - "4749:4749"
     volumes:
       - ../../apps/api:/src/apps/api
+      - ../../db:/src/db
       - ../../apps/web:/workspace/apps/web
       - ../../packages/shared:/workspace/packages/shared
       - scout_open_core_sqlite_data:/data
