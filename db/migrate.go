@@ -112,7 +112,10 @@ func applyMigration(ctx context.Context, db *sql.DB, dialect Dialect, m migratio
 		return fmt.Errorf("exec migration SQL: %w", err)
 	}
 
-	ins := insertMigrationSQL(dialect)
+	ins, err2 := insertMigrationSQL(dialect)
+	if err2 != nil {
+		return fmt.Errorf("insert migration SQL: %w", err2)
+	}
 	if _, err := tx.ExecContext(ctx, ins, m.version, "core"); err != nil {
 		return fmt.Errorf("record migration: %w", err)
 	}
@@ -122,13 +125,17 @@ func applyMigration(ctx context.Context, db *sql.DB, dialect Dialect, m migratio
 
 // ensureMigrationsTable creates schema_migrations if it does not yet exist.
 func ensureMigrationsTable(ctx context.Context, db *sql.DB, dialect Dialect) error {
-	_, err := db.ExecContext(ctx, migrationTableSQL(dialect))
+	q, err := migrationTableSQL(dialect)
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, q)
 	return err
 }
 
 // migrationTableSQL returns the CREATE TABLE statement for schema_migrations
 // appropriate for the given dialect.
-func migrationTableSQL(dialect Dialect) string {
+func migrationTableSQL(dialect Dialect) (string, error) {
 	switch dialect {
 	case DialectPostgres:
 		return `CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -136,28 +143,28 @@ func migrationTableSQL(dialect Dialect) string {
   scope   TEXT NOT NULL DEFAULT 'core',
   applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (version, scope)
-)`
+)`, nil
 	case DialectSQLite:
 		return `CREATE TABLE IF NOT EXISTS schema_migrations (
   version    TEXT NOT NULL,
   scope      TEXT NOT NULL DEFAULT 'core',
   applied_at DATETIME NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (version, scope)
-)`
+)`, nil
 	default:
-		panic(fmt.Sprintf("unsupported dialect: %q", dialect))
+		return "", fmt.Errorf("unsupported dialect: %q", dialect)
 	}
 }
 
 // insertMigrationSQL returns a parameterised INSERT statement for the
 // schema_migrations table appropriate for the given dialect.
-func insertMigrationSQL(dialect Dialect) string {
+func insertMigrationSQL(dialect Dialect) (string, error) {
 	switch dialect {
 	case DialectPostgres:
-		return `INSERT INTO schema_migrations (version, scope) VALUES ($1, $2)`
+		return `INSERT INTO schema_migrations (version, scope) VALUES ($1, $2)`, nil
 	case DialectSQLite:
-		return `INSERT INTO schema_migrations (version, scope) VALUES (?, ?)`
+		return `INSERT INTO schema_migrations (version, scope) VALUES (?, ?)`, nil
 	default:
-		panic(fmt.Sprintf("unsupported dialect: %q", dialect))
+		return "", fmt.Errorf("unsupported dialect: %q", dialect)
 	}
 }

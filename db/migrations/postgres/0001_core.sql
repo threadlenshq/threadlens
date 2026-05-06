@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 
 CREATE TABLE IF NOT EXISTS project_queries (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky', 'google')),
   query_url TEXT NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS project_queries (
 );
 
 CREATE TABLE IF NOT EXISTS project_prompts (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   type TEXT NOT NULL CHECK (type IN ('product', 'karma', 'dm')),
   platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky')),
@@ -46,9 +46,9 @@ CREATE TABLE IF NOT EXISTS posts (
   repost_count INTEGER,
   bluesky_uri TEXT,
   bluesky_cid TEXT,
-  post_score REAL NOT NULL DEFAULT 0,
-  comment_score REAL,
-  final_score REAL NOT NULL DEFAULT 0,
+  post_score DOUBLE PRECISION NOT NULL DEFAULT 0,
+  comment_score DOUBLE PRECISION,
+  final_score DOUBLE PRECISION NOT NULL DEFAULT 0,
   angle TEXT,
   why TEXT NOT NULL DEFAULT '',
   engagement_type TEXT NOT NULL DEFAULT 'karma' CHECK (engagement_type IN ('product', 'karma')),
@@ -64,10 +64,10 @@ CREATE TABLE IF NOT EXISTS posts (
 );
 
 CREATE TABLE IF NOT EXISTS dm_targets (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
   username TEXT NOT NULL,
-  intent_score REAL NOT NULL DEFAULT 0,
+  intent_score DOUBLE PRECISION NOT NULL DEFAULT 0,
   signal TEXT NOT NULL DEFAULT '',
   context TEXT NOT NULL DEFAULT '',
   approach TEXT NOT NULL DEFAULT '',
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS seen_posts (
 );
 
 CREATE TABLE IF NOT EXISTS scout_runs (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky', 'google')),
   started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS scout_runs (
 );
 
 CREATE TABLE IF NOT EXISTS schedules (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky', 'google')),
   cron_expr TEXT NOT NULL,
@@ -111,11 +111,11 @@ CREATE TABLE IF NOT EXISTS schedules (
 CREATE TABLE IF NOT EXISTS app_settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
-  updated_at TEXT NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS research_reports (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   title TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'completed', 'failed')),
@@ -135,7 +135,7 @@ CREATE TABLE IF NOT EXISTS report_posts (
 );
 
 CREATE TABLE IF NOT EXISTS google_results (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   run_id INTEGER NOT NULL REFERENCES scout_runs(id) ON DELETE CASCADE,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   root_keyword TEXT NOT NULL,
@@ -153,8 +153,8 @@ CREATE TABLE IF NOT EXISTS google_results (
   content_type TEXT NOT NULL DEFAULT '',
   intent_type TEXT NOT NULL DEFAULT '',
   relevance_fit TEXT NOT NULL DEFAULT '',
-  relevance_score REAL,
-  confidence_score REAL,
+  relevance_score DOUBLE PRECISION,
+  confidence_score DOUBLE PRECISION,
   opportunity_types TEXT NOT NULL DEFAULT '[]',
   keepgoing_fit_reasons TEXT NOT NULL DEFAULT '[]',
   disqualifiers TEXT NOT NULL DEFAULT '[]',
@@ -168,15 +168,15 @@ CREATE TABLE IF NOT EXISTS google_results (
 );
 
 CREATE TABLE IF NOT EXISTS google_keyword_summaries (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   run_id INTEGER NOT NULL REFERENCES scout_runs(id) ON DELETE CASCADE,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   root_keyword TEXT NOT NULL,
   total_results INTEGER NOT NULL DEFAULT 0,
   relevant_results INTEGER NOT NULL DEFAULT 0,
   outreach_candidates INTEGER NOT NULL DEFAULT 0,
-  avg_relevance_score REAL,
-  avg_confidence_score REAL,
+  avg_relevance_score DOUBLE PRECISION,
+  avg_confidence_score DOUBLE PRECISION,
   result_types_json TEXT NOT NULL DEFAULT '{}',
   content_types_json TEXT NOT NULL DEFAULT '{}',
   intent_types_json TEXT NOT NULL DEFAULT '{}',
@@ -186,7 +186,7 @@ CREATE TABLE IF NOT EXISTS google_keyword_summaries (
 );
 
 CREATE TABLE IF NOT EXISTS google_reports (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   run_id INTEGER NOT NULL UNIQUE REFERENCES scout_runs(id) ON DELETE CASCADE,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   executive_summary_json TEXT NOT NULL DEFAULT '{}',
@@ -199,7 +199,7 @@ CREATE TABLE IF NOT EXISTS google_reports (
 );
 
 CREATE TABLE IF NOT EXISTS report_councils (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   report_id INTEGER NOT NULL UNIQUE REFERENCES research_reports(id) ON DELETE CASCADE,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   status TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'completed', 'failed')),
@@ -211,15 +211,15 @@ CREATE TABLE IF NOT EXISTS report_councils (
 );
 
 CREATE TABLE IF NOT EXISTS google_domain_stats (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   run_id INTEGER NOT NULL REFERENCES scout_runs(id) ON DELETE CASCADE,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   domain TEXT NOT NULL,
   result_count INTEGER NOT NULL DEFAULT 0,
   relevant_count INTEGER NOT NULL DEFAULT 0,
   outreach_candidate_count INTEGER NOT NULL DEFAULT 0,
-  avg_relevance_score REAL,
-  avg_confidence_score REAL,
+  avg_relevance_score DOUBLE PRECISION,
+  avg_confidence_score DOUBLE PRECISION,
   top_intent_types_json TEXT NOT NULL DEFAULT '[]',
   top_content_types_json TEXT NOT NULL DEFAULT '[]',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
