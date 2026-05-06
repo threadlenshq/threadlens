@@ -140,14 +140,14 @@ func migrationTableSQL(dialect Dialect) (string, error) {
 	case DialectPostgres:
 		return `CREATE TABLE IF NOT EXISTS schema_migrations (
   version TEXT NOT NULL,
-  scope   TEXT NOT NULL DEFAULT 'core',
+  scope   TEXT NOT NULL,
   applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (version, scope)
 )`, nil
 	case DialectSQLite:
 		return `CREATE TABLE IF NOT EXISTS schema_migrations (
   version    TEXT NOT NULL,
-  scope      TEXT NOT NULL DEFAULT 'core',
+  scope      TEXT NOT NULL,
   applied_at DATETIME NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (version, scope)
 )`, nil
