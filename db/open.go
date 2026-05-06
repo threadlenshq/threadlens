@@ -54,12 +54,21 @@ func openSQLite(ctx context.Context, cfg Config) (*sql.DB, error) {
 // _pragma query parameters. modernc.org/sqlite applies these on every new
 // connection, which is required because foreign_keys and busy_timeout are
 // connection-scoped settings in SQLite.
+//
+// The path is encoded via url.URL so that any URI-significant characters
+// (spaces, '#', '?', etc.) are safely percent-encoded before the query
+// parameters are appended.
 func buildSQLiteDSN(path string) string {
 	q := url.Values{}
 	q.Add("_pragma", "foreign_keys(1)")
 	q.Add("_pragma", "journal_mode(WAL)")
 	q.Add("_pragma", "busy_timeout(5000)")
-	return "file:" + path + "?" + q.Encode()
+	u := url.URL{
+		Scheme:   "file",
+		Opaque:   url.PathEscape(path),
+		RawQuery: q.Encode(),
+	}
+	return u.String()
 }
 
 func openPostgres(ctx context.Context, cfg Config) (*sql.DB, error) {

@@ -27,6 +27,24 @@ func TestOpenAppliesSQLitePragmasAndMigrations(t *testing.T) {
 		t.Errorf("PRAGMA foreign_keys = %d, want 1", fkEnabled)
 	}
 
+	// Verify WAL journal mode is active.
+	var journalMode string
+	if err := database.QueryRow("PRAGMA journal_mode").Scan(&journalMode); err != nil {
+		t.Fatalf("PRAGMA journal_mode: %v", err)
+	}
+	if journalMode != "wal" {
+		t.Errorf("PRAGMA journal_mode = %q, want \"wal\"", journalMode)
+	}
+
+	// Verify busy_timeout is set to the expected value (5000 ms).
+	var busyTimeout int
+	if err := database.QueryRow("PRAGMA busy_timeout").Scan(&busyTimeout); err != nil {
+		t.Fatalf("PRAGMA busy_timeout: %v", err)
+	}
+	if busyTimeout != 5000 {
+		t.Errorf("PRAGMA busy_timeout = %d, want 5000", busyTimeout)
+	}
+
 	// Verify migrations ran and the projects table exists.
 	if !sqliteOpenTableExists(t, database, "projects") {
 		t.Error("expected table \"projects\" to exist after Open")
@@ -37,6 +55,13 @@ func TestOpenRejectsMissingSQLitePath(t *testing.T) {
 	_, err := Open(context.Background(), Config{Dialect: DialectSQLite})
 	if err == nil {
 		t.Fatal("Open with empty SQLitePath: expected error, got nil")
+	}
+}
+
+func TestOpenRejectsMissingDatabaseURL(t *testing.T) {
+	_, err := Open(context.Background(), Config{Dialect: DialectPostgres})
+	if err == nil {
+		t.Fatal("Open with empty DatabaseURL: expected error, got nil")
 	}
 }
 
