@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/ai"
+	"github.com/kyle/scout/open-core/apps/api/internal/entitlements"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
+	"github.com/kyle/scout/open-core/apps/api/internal/tenant"
 )
 
 // ResolvedModel holds the result of resolving which model to use for a task.
@@ -16,12 +18,31 @@ type ResolvedModel struct {
 
 // ModelService handles business logic for model configuration.
 type ModelService struct {
-	repo *repository.Repository
+	repo     *repository.Repository
+	mode     entitlements.RuntimeMode
+	resolver entitlements.Resolver
 }
 
 // NewModelService creates a new ModelService.
-func NewModelService(repo *repository.Repository) *ModelService {
-	return &ModelService{repo: repo}
+func NewModelService(repo *repository.Repository, mode entitlements.RuntimeMode, resolver entitlements.Resolver) *ModelService {
+	return &ModelService{repo: repo, mode: mode, resolver: resolver}
+}
+
+// Catalog returns the model catalog with entitlement-aware managed provider metadata.
+func (s *ModelService) Catalog(ctx context.Context) (map[string]any, error) {
+	subject := tenant.SubjectFromContext(ctx, s.mode)
+	decision, err := s.resolver.Check(ctx, entitlements.CheckRequest{Subject: subject, Capability: entitlements.CapabilityManagedAIUse, Action: "models.catalog.managed_ai"})
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"models": ai.ModelCatalog,
+		"tasks":  ai.Tasks,
+		"managedProvider": map[string]any{
+			"available":  decision.Allowed,
+			"capability": entitlements.CapabilityManagedAIUse,
+		},
+	}, nil
 }
 
 // ResolveTaskModel resolves which model to use for the given task, checking user overrides first.
