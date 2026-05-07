@@ -3,12 +3,15 @@ package app
 import (
 	"os"
 	"path/filepath"
+
+	"github.com/kyle/scout/open-core/apps/api/internal/entitlements"
 )
 
 type Config struct {
 	Port         string
 	DBPath       string
 	FrontendDist string
+	RuntimeMode  entitlements.RuntimeMode
 }
 
 func LoadConfig() Config {
@@ -27,5 +30,10 @@ func LoadConfig() Config {
 		frontendDist = filepath.Clean(filepath.Join("..", "web", "dist"))
 	}
 
-	return Config{Port: port, DBPath: dbPath, FrontendDist: frontendDist}
+	runtimeMode := entitlements.RuntimeMode(os.Getenv("THREADLENS_RUNTIME_MODE"))
+	if runtimeMode != entitlements.RuntimeModeSelfHosted && runtimeMode != entitlements.RuntimeModeHosted {
+		runtimeMode = entitlements.RuntimeModeSelfHosted
+	}
+
+	return Config{Port: port, DBPath: dbPath, FrontendDist: frontendDist, RuntimeMode: runtimeMode}
 }
