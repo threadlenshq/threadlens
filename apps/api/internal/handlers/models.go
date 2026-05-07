@@ -5,24 +5,27 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/kyle/scout/open-core/apps/api/internal/ai"
 	"github.com/kyle/scout/open-core/apps/api/internal/httpx"
 	"github.com/kyle/scout/open-core/apps/api/internal/services"
 )
 
 // MountModelRoutes registers the /api/models routes on the given router.
 func MountModelRoutes(r chi.Router, svc *services.ModelService) {
-	r.Get("/api/models/catalog", handleGetModelCatalog)
+	r.Get("/api/models/catalog", makeHandleGetModelCatalog(svc))
 	r.Get("/api/models/config", makeHandleGetModelConfig(svc))
 	r.Put("/api/models/config/{taskId}", makeHandlePutModelConfig(svc))
 	r.Delete("/api/models/config/{taskId}", makeHandleDeleteModelConfig(svc))
 }
 
-func handleGetModelCatalog(w http.ResponseWriter, r *http.Request) {
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"models": ai.ModelCatalog,
-		"tasks":  ai.Tasks,
-	})
+func makeHandleGetModelCatalog(svc *services.ModelService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		catalog, err := svc.Catalog(r.Context())
+		if err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "Internal server error")
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, catalog)
+	}
 }
 
 func makeHandleGetModelConfig(svc *services.ModelService) http.HandlerFunc {
