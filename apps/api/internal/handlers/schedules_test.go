@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/kyle/scout/open-core/apps/api/internal/ai"
+	"github.com/kyle/scout/open-core/apps/api/internal/entitlements"
 	"github.com/kyle/scout/open-core/apps/api/internal/handlers"
 	"github.com/kyle/scout/open-core/apps/api/internal/pipeline"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
@@ -36,7 +37,7 @@ func newScheduleRouterWithProject(t *testing.T) http.Handler {
 	aiSvc := ai.New()
 	runner := pipeline.NewRunner(repo, aiSvc)
 	sched := scheduler.New(repo, runner)
-	projSvc := services.NewProjectService(repo)
+	projSvc := services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil))
 	scheduleSvc := services.NewScheduleService(repo, sched)
 	r := chi.NewRouter()
 	handlers.MountProjectRoutes(r, projSvc)

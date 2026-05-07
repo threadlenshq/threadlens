@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/kyle/scout/open-core/apps/api/internal/ai"
+	"github.com/kyle/scout/open-core/apps/api/internal/entitlements"
 	"github.com/kyle/scout/open-core/apps/api/internal/handlers"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
 	"github.com/kyle/scout/open-core/apps/api/internal/services"
@@ -37,7 +38,7 @@ func newQueryAIRouter(t *testing.T, aiResult string) (http.Handler, *repository.
 	aiSvc := ai.NewServiceWithProviders([]ai.Provider{fakeProvider})
 	querySvc := services.NewQueryService(repo, aiSvc)
 	r := chi.NewRouter()
-	handlers.MountProjectRoutes(r, services.NewProjectService(repo))
+	handlers.MountProjectRoutes(r, services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)))
 	handlers.MountQueryRoutes(r, querySvc)
 	return r, repo
 }

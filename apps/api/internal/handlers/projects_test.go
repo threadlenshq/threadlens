@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/kyle/scout/open-core/apps/api/internal/entitlements"
 	"github.com/kyle/scout/open-core/apps/api/internal/handlers"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
 	"github.com/kyle/scout/open-core/apps/api/internal/services"
@@ -18,7 +19,8 @@ func newProjectRouter(t *testing.T) http.Handler {
 	t.Helper()
 	db := testingpkg.OpenTestDB(t)
 	repo := repository.New(db)
-	svc := services.NewProjectService(repo)
+	resolver := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
+	svc := services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, resolver)
 	r := chi.NewRouter()
 	handlers.MountProjectRoutes(r, svc)
 	return r

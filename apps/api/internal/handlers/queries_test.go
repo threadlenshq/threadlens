@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/kyle/scout/open-core/apps/api/internal/ai"
+	"github.com/kyle/scout/open-core/apps/api/internal/entitlements"
 	"github.com/kyle/scout/open-core/apps/api/internal/handlers"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
 	"github.com/kyle/scout/open-core/apps/api/internal/services"
@@ -29,7 +30,7 @@ func newQueryRouterWithProject(t *testing.T) http.Handler {
 	db := testingpkg.OpenTestDB(t)
 	repo := repository.New(db)
 	// Create a project for testing queries
-	projSvc := services.NewProjectService(repo)
+	projSvc := services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil))
 	querySvc := services.NewQueryService(repo, ai.New())
 	r := chi.NewRouter()
 	handlers.MountProjectRoutes(r, projSvc)

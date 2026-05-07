@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/kyle/scout/open-core/apps/api/internal/entitlements"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
 	"github.com/kyle/scout/open-core/apps/api/internal/services"
 	testhelpers "github.com/kyle/scout/open-core/apps/api/internal/testhelpers"
@@ -17,7 +18,8 @@ func newModelRouter(t *testing.T) (http.Handler, *repository.Repository) {
 	t.Helper()
 	db := testhelpers.OpenTestDB(t)
 	repo := repository.New(db)
-	svc := services.NewModelService(repo)
+	resolver := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
+	svc := services.NewModelService(repo, entitlements.RuntimeModeSelfHosted, resolver)
 	r := chi.NewRouter()
 	MountModelRoutes(r, svc)
 	return r, repo

@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/kyle/scout/open-core/apps/api/internal/ai"
+	"github.com/kyle/scout/open-core/apps/api/internal/entitlements"
 	"github.com/kyle/scout/open-core/apps/api/internal/handlers"
 	"github.com/kyle/scout/open-core/apps/api/internal/pipeline"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
@@ -22,8 +23,9 @@ func newScoutRouter(t *testing.T) (http.Handler, *repository.Repository) {
 	aiSvc := ai.NewService(repo)
 	runner := pipeline.NewRunner(repo, aiSvc)
 	r := chi.NewRouter()
-	handlers.MountProjectRoutes(r, services.NewProjectService(repo))
-	handlers.MountScoutRoutes(r, services.NewScoutService(repo, runner))
+	resolver := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
+	handlers.MountProjectRoutes(r, services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, resolver))
+	handlers.MountScoutRoutes(r, services.NewScoutService(repo, runner, entitlements.RuntimeModeSelfHosted, resolver))
 	return r, repo
 }
 
@@ -124,8 +126,9 @@ func TestScout_Cancel_UntrackedRunningRow_MarksFailedWithCancelled(t *testing.T)
 	aiSvc := ai.NewService(repo2)
 	runner := pipeline.NewRunner(repo2, aiSvc)
 	r2 := chi.NewRouter()
-	handlers.MountProjectRoutes(r2, services.NewProjectService(repo2))
-	handlers.MountScoutRoutes(r2, services.NewScoutService(repo2, runner))
+	resolver2 := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
+	handlers.MountProjectRoutes(r2, services.NewProjectService(repo2, entitlements.RuntimeModeSelfHosted, resolver2))
+	handlers.MountScoutRoutes(r2, services.NewScoutService(repo2, runner, entitlements.RuntimeModeSelfHosted, resolver2))
 	_ = repo // unused; repo2 is the test target
 
 	doRequest(t, r2, http.MethodPost, "/api/projects", map[string]any{"id": "sp4", "name": "Test", "mode": "research"})
