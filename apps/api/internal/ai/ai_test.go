@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/kyle/scout/open-core/apps/api/internal/usage"
 )
 
 // ---------------------------------------------------------------------------
@@ -26,9 +28,9 @@ func (f *fakeProvider) Generate(_ context.Context, _ string, _ string, _ string,
 	return f.result, f.err
 }
 
-// newTestService builds a Service with the given fake providers.
+// newTestService builds a Service with the given fake providers and a NoopMeter.
 func newTestService(providers []Provider) *Service {
-	return &Service{providers: providers}
+	return &Service{providers: providers, meter: usage.NoopMeter{}}
 }
 
 // ---------------------------------------------------------------------------
@@ -241,5 +243,38 @@ func TestStripMarkdown_Mixed(t *testing.T) {
 	got := StripMarkdown(input)
 	if got != want {
 		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// GenerateForTask usage metering tests
+// ---------------------------------------------------------------------------
+
+func TestGenerateForTaskRecordsUsageEvent(t *testing.T) {
+	meter := usage.NewMemoryMeter()
+	copilot := &fakeProvider{name: "copilot", available: true, result: "scored"}
+	svc := &Service{providers: []Provider{copilot}, meter: meter}
+
+	_, _, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	events := meter.Events()
+	if len(events) != 1 {
+		t.Fatalf("expected 1 usage event, got %d", len(events))
+	}
+	ev := events[0]
+	if ev.TaskID != "post_scoring" {
+		t.Errorf("expected TaskID='post_scoring', got %q", ev.TaskID)
+	}
+	if ev.ModelID == "" {
+		t.Errorf("expected non-empty ModelID")
+	}
+	if ev.Operation != "ai.generate_for_task" {
+		t.Errorf("expected Operation='ai.generate_for_task', got %q", ev.Operation)
+	}
+	if !ev.Success {
+		t.Errorf("expected Success=true")
 	}
 }
