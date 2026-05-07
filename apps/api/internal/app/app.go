@@ -10,11 +10,15 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/kyle/scout/open-core/apps/api/internal/ai"
+	"github.com/kyle/scout/open-core/apps/api/internal/entitlements"
 	"github.com/kyle/scout/open-core/apps/api/internal/httpx"
+	"github.com/kyle/scout/open-core/apps/api/internal/modules"
 	"github.com/kyle/scout/open-core/apps/api/internal/pipeline"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
 	"github.com/kyle/scout/open-core/apps/api/internal/scheduler"
 	"github.com/kyle/scout/open-core/apps/api/internal/services"
+	"github.com/kyle/scout/open-core/apps/api/internal/templates"
+	"github.com/kyle/scout/open-core/apps/api/internal/usage"
 )
 
 type App struct {
@@ -23,6 +27,8 @@ type App struct {
 	Router          *chi.Mux
 	Repo            *repository.Repository
 	Scheduler       *scheduler.Scheduler
+	ModuleRegistry  *modules.Registry
+	RuntimeService  *services.RuntimeService
 	InsightsService *services.InsightsService
 	ProjectService  *services.ProjectService
 	QueryService    *services.QueryService
@@ -43,24 +49,32 @@ func New(cfg Config, db *sql.DB) *App {
 	r.Use(httpx.RecoverJSON)
 
 	repo := repository.New(db)
-	aiSvc := ai.NewService(repo)
+	usageMeter := usage.NoopMeter{}
+	aiSvc := ai.NewServiceWithUsage(repo, usageMeter)
 	runner := pipeline.NewRunner(repo, aiSvc)
 	sched := scheduler.New(repo, runner)
+
+	moduleRegistry := modules.NewRegistry(modules.CoreResearchModule{})
+	entitlementResolver := entitlements.NewLocalResolver(cfg.RuntimeMode, moduleRegistry.Statuses())
+	templateCatalog := templates.NewLocalCatalog(entitlementResolver)
+
 	a := &App{
 		Config:          cfg,
 		DB:              db,
 		Router:          r,
 		Repo:            repo,
 		Scheduler:       sched,
+		ModuleRegistry:  moduleRegistry,
+		RuntimeService:  services.NewRuntimeService(cfg.RuntimeMode, entitlementResolver, templateCatalog),
 		InsightsService: services.NewInsightsService(repo),
-		ProjectService:  services.NewProjectService(repo),
+		ProjectService:  services.NewProjectService(repo, cfg.RuntimeMode, entitlementResolver),
 		QueryService:    services.NewQueryService(repo, aiSvc),
 		PromptService:   services.NewPromptService(repo),
 		PostService:     services.NewPostServiceFull(repo, aiSvc, redditContextFetcher{}, blueskyReplierAdapter{}),
-		ModelService:    services.NewModelService(repo),
-		ReportService:   services.NewReportService(repo, db, aiSvc),
+		ModelService:    services.NewModelService(repo, cfg.RuntimeMode, entitlementResolver),
+		ReportService:   services.NewReportService(repo, db, aiSvc, cfg.RuntimeMode, entitlementResolver),
 		GoogleService:   services.NewGoogleService(repo),
-		ScoutService:    services.NewScoutService(repo, runner),
+		ScoutService:    services.NewScoutService(repo, runner, cfg.RuntimeMode, entitlementResolver),
 		ScheduleService: services.NewScheduleService(repo, sched),
 	}
 	a.mountRoutes()

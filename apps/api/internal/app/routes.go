@@ -15,6 +15,9 @@ func (a *App) mountRoutes() {
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true, "service": "api-go"})
 	})
 
+	handlers.MountRuntimeRoutes(a.Router, a.RuntimeService)
+	a.ModuleRegistry.MountRoutes(a.Router)
+
 	handlers.MountInsightsRoutes(a.Router, a.InsightsService)
 	handlers.MountProjectRoutes(a.Router, a.ProjectService)
 	handlers.MountQueryRoutes(a.Router, a.QueryService)
