@@ -143,7 +143,7 @@
   {:else if reportsList.length === 0}
     <div class="empty-state">
       <p class="empty-title">No reports yet</p>
-      <p class="empty-desc">Scout some posts first, then run an analysis to discover pain point patterns and product angles.</p>
+      <p class="empty-desc">Run ThreadLens on some posts first, then run an analysis to discover pain point patterns and product angles.</p>
     </div>
   {:else}
     <div class="reports-list">

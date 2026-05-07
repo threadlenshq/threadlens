@@ -73,7 +73,7 @@
   {:else if reportsList.length === 0}
     <div class="empty-state">
       <p class="empty-title">No Google reports yet</p>
-      <p class="empty-desc">Run Scout with Google to generate your first report.</p>
+      <p class="empty-desc">Run ThreadLens with Google to generate your first report.</p>
     </div>
   {:else}
     <div class="reports-list">

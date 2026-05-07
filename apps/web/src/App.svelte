@@ -654,8 +654,8 @@
   <!-- Header -->
   <header class="header">
     <div class="header-left">
-      <img src="/logo.svg" alt="Scout" class="logo-icon" />
-      <span class="logo">Scout</span>
+      <img src="/logo.svg" alt="ThreadLens" class="logo-icon" />
+      <span class="logo">ThreadLens</span>
       <ProjectSelector
         projects={projectList}
         selectedId={selectedProjectId}
@@ -839,7 +839,7 @@
           {#if loadingPosts}
             <div class="loading">Loading posts...</div>
           {:else if postsList.length === 0}
-            <div class="empty-list">No posts found. Try running Scout or adjusting filters.</div>
+            <div class="empty-list">No posts found. Try running ThreadLens or adjusting filters.</div>
           {:else}
             {#each postsList as post (post.id)}
               <PostCard

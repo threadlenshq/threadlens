@@ -96,7 +96,7 @@
         <span class="spinner"></span>
         Running...
       {:else}
-        Run Scout
+        Run ThreadLens
         {#if selectedPlatform !== 'all'}
           <span class="platform-pill">{selectedPlatformLabel()}</span>
         {/if}

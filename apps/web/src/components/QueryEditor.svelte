@@ -725,7 +725,7 @@
               <div class="refine-loading-spinner" aria-hidden="true"></div>
               <div>
                 <div class="refine-loading-title">Refining your query set…</div>
-                <p class="refine-loading-text">Keep this tab open while Scout reviews the current queries against your project context and latest reports.</p>
+                <p class="refine-loading-text">Keep this tab open while ThreadLens reviews the current queries against your project context and latest reports.</p>
               </div>
             </div>
             <div class="refine-briefing" aria-live="polite">
