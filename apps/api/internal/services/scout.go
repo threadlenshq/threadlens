@@ -5,19 +5,23 @@ import (
 	"net/http"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/domain"
+	"github.com/kyle/scout/open-core/apps/api/internal/entitlements"
 	"github.com/kyle/scout/open-core/apps/api/internal/pipeline"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
+	"github.com/kyle/scout/open-core/apps/api/internal/tenant"
 )
 
 // ScoutService handles business logic for scout runs.
 type ScoutService struct {
-	repo   *repository.Repository
-	runner *pipeline.Runner
+	repo     *repository.Repository
+	runner   *pipeline.Runner
+	mode     entitlements.RuntimeMode
+	resolver entitlements.Resolver
 }
 
 // NewScoutService creates a new ScoutService.
-func NewScoutService(repo *repository.Repository, runner *pipeline.Runner) *ScoutService {
-	return &ScoutService{repo: repo, runner: runner}
+func NewScoutService(repo *repository.Repository, runner *pipeline.Runner, mode entitlements.RuntimeMode, resolver entitlements.Resolver) *ScoutService {
+	return &ScoutService{repo: repo, runner: runner, mode: mode, resolver: resolver}
 }
 
 // StartRun validates inputs, creates a scout_run row, and starts the pipeline asynchronously.
@@ -27,8 +31,21 @@ func (s *ScoutService) StartRun(ctx context.Context, projectID string, platform 
 		return domain.ScoutRun{}, http.StatusBadRequest, `platform must be "reddit", "bluesky", or "google"`
 	}
 
+	decision, err := s.resolver.Check(ctx, entitlements.CheckRequest{
+		Subject:    tenant.SubjectFromContext(ctx, s.mode),
+		Capability: entitlements.CapabilityForScoutPlatform(platform),
+		ProjectID:  projectID,
+		Action:     "scout.run",
+	})
+	if err != nil {
+		return domain.ScoutRun{}, http.StatusInternalServerError, "Internal server error"
+	}
+	if err := entitlements.EnsureAllowed(decision); err != nil {
+		return domain.ScoutRun{}, entitlements.StatusCode(err), err.Error()
+	}
+
 	// Verify project exists.
-	_, err := s.repo.GetProject(ctx, projectID)
+	_, err = s.repo.GetProject(ctx, projectID)
 	if err != nil {
 		code, msg := mapError(err)
 		if msg == "not found" {
