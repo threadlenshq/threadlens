@@ -8,20 +8,24 @@ import (
 
 	"github.com/kyle/scout/open-core/apps/api/internal/ai"
 	"github.com/kyle/scout/open-core/apps/api/internal/domain"
+	"github.com/kyle/scout/open-core/apps/api/internal/entitlements"
 	"github.com/kyle/scout/open-core/apps/api/internal/pipeline"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
+	"github.com/kyle/scout/open-core/apps/api/internal/tenant"
 )
 
 // ReportService handles business logic for research reports.
 type ReportService struct {
-	repo  *repository.Repository
-	db    *sql.DB
-	aiSvc *ai.Service
+	repo     *repository.Repository
+	db       *sql.DB
+	aiSvc    *ai.Service
+	mode     entitlements.RuntimeMode
+	resolver entitlements.Resolver
 }
 
 // NewReportService creates a new ReportService.
-func NewReportService(repo *repository.Repository, db *sql.DB, aiSvc *ai.Service) *ReportService {
-	return &ReportService{repo: repo, db: db, aiSvc: aiSvc}
+func NewReportService(repo *repository.Repository, db *sql.DB, aiSvc *ai.Service, mode entitlements.RuntimeMode, resolver entitlements.Resolver) *ReportService {
+	return &ReportService{repo: repo, db: db, aiSvc: aiSvc, mode: mode, resolver: resolver}
 }
 
 // ListReports returns all reports for a project.
@@ -69,6 +73,13 @@ type CreateReportRequest struct {
 // StartReport creates a running report record, kicks off analysis in the background,
 // and returns the initial report immediately (status: running).
 func (s *ReportService) StartReport(ctx context.Context, projectID string, req CreateReportRequest) (domain.ResearchReport, int, string) {
+	decision, err := s.resolver.Check(ctx, entitlements.CheckRequest{Subject: tenant.SubjectFromContext(ctx, s.mode), Capability: entitlements.CapabilityReportsCreate, ProjectID: projectID, Action: "reports.create"})
+	if err != nil {
+		return domain.ResearchReport{}, http.StatusInternalServerError, "Internal server error"
+	}
+	if err := entitlements.EnsureAllowed(decision); err != nil {
+		return domain.ResearchReport{}, entitlements.StatusCode(err), err.Error()
+	}
 	// Resolve the model to record in the row.
 	resolved, err := ResolveTaskModel(ctx, s.repo, "report_clustering")
 	if err != nil {
