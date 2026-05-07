@@ -1,6 +1,6 @@
-# Open-Core Docker
+# ThreadLens Open-Core Docker
 
-`compose.yml` is the canonical Docker Compose entry point for Scout Open-Core. The public command surface is intentionally short:
+`compose.yml` is the canonical Docker Compose entry point for ThreadLens open-core. The public command surface is intentionally short:
 
 ```bash
 pnpm run docker:dev
@@ -8,7 +8,7 @@ pnpm run docker:prod
 pnpm run docker:down
 ```
 
-The Docker env file lives at `open-core/.env` by default. If it is missing, `pnpm run docker:dev` and `pnpm run docker:prod` create it from `open-core/.env.example` before starting Compose. Embedding repos can override the env location by setting `SCOUT_ENV_FILE`.
+The Docker env file lives at `open-core/.env` by default. If it is missing, `pnpm run docker:dev` and `pnpm run docker:prod` create it from `open-core/.env.example` before starting Compose. Embedding repositories can override the env location by setting `SCOUT_ENV_FILE`.
 
 ## Profiles
 
@@ -31,4 +31,4 @@ To intentionally reset local Docker data, run:
 docker volume rm scout_open_core_sqlite_data
 ```
 
-Only run the reset command when you want to delete local Scout data.
+Only run the reset command when you want to delete local ThreadLens data.
