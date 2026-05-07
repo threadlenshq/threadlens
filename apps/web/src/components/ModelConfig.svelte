@@ -10,7 +10,7 @@
   let config = {};
   let loading = false;
   let error = '';
-  let managedProvider = { available: false };
+  let managedProvider = null;
   let savingTaskId = null;
   let savedTaskId = null;
   let savedTimer = null;
@@ -119,10 +119,12 @@
     <span class="section-sub">Choose a model per task. Settings are global.</span>
   </div>
 
-  {#if managedProvider.available}
-    <div class="managed-provider available">Managed AI provider routing is available for this server session.</div>
-  {:else}
-    <div class="managed-provider local">Managed AI is not enabled. Self-hosted provider configuration and local fallbacks remain available.</div>
+  {#if managedProvider !== null}
+    {#if managedProvider.available}
+      <div class="managed-provider available">Managed AI provider routing is available for this server session.</div>
+    {:else}
+      <div class="managed-provider local">Managed AI is not enabled. Self-hosted provider configuration and local fallbacks remain available.</div>
+    {/if}
   {/if}
 
   {#if error}

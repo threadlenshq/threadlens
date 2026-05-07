@@ -30,6 +30,8 @@
   }
 
   function platformAllowed(platform) {
+    // When capabilities snapshot is not yet loaded, allow all (advisory UI only)
+    if (!capabilities) return true;
     if (platform === 'all') {
       return ['reddit', 'bluesky', 'google'].some((p) => hasCapability(capabilities, scoutCapabilityForPlatform(p)));
     }
@@ -62,11 +64,11 @@
     try {
       let results;
       if (selectedPlatform === 'all') {
-        results = await Promise.all([
-          scoutApi.run(projectId, 'reddit'),
-          scoutApi.run(projectId, 'bluesky'),
-          scoutApi.run(projectId, 'google'),
-        ]);
+        const allPlatforms = ['reddit', 'bluesky', 'google'];
+        const allowedPlatforms = capabilities
+          ? allPlatforms.filter((p) => hasCapability(capabilities, scoutCapabilityForPlatform(p)))
+          : allPlatforms;
+        results = await Promise.all(allowedPlatforms.map((p) => scoutApi.run(projectId, p)));
       } else {
         results = [await scoutApi.run(projectId, selectedPlatform)];
       }
