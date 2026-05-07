@@ -7,15 +7,19 @@ import (
 	"strings"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/domain"
+	"github.com/kyle/scout/open-core/apps/api/internal/entitlements"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
+	"github.com/kyle/scout/open-core/apps/api/internal/tenant"
 )
 
 type ProjectService struct {
-	repo *repository.Repository
+	repo     *repository.Repository
+	mode     entitlements.RuntimeMode
+	resolver entitlements.Resolver
 }
 
-func NewProjectService(repo *repository.Repository) *ProjectService {
-	return &ProjectService{repo: repo}
+func NewProjectService(repo *repository.Repository, mode entitlements.RuntimeMode, resolver entitlements.Resolver) *ProjectService {
+	return &ProjectService{repo: repo, mode: mode, resolver: resolver}
 }
 
 type CreateProjectRequest struct {
@@ -40,6 +44,9 @@ func (s *ProjectService) List(ctx context.Context) ([]domain.Project, error) {
 }
 
 func (s *ProjectService) Create(ctx context.Context, body CreateProjectRequest) (domain.Project, int, string) {
+	if status, msg := s.ensure(ctx, entitlements.CapabilityProjectsCreate, body.ID, "projects.create"); msg != "" {
+		return domain.Project{}, status, msg
+	}
 	p, err := s.repo.CreateProject(ctx, domain.Project{
 		ID:          body.ID,
 		Name:        body.Name,
@@ -80,6 +87,9 @@ func (s *ProjectService) Delete(ctx context.Context, id string) (int, string) {
 }
 
 func (s *ProjectService) Clone(ctx context.Context, id string, body CloneProjectRequest) (domain.Project, int, string) {
+	if status, msg := s.ensure(ctx, entitlements.CapabilityProjectsClone, id, "projects.clone"); msg != "" {
+		return domain.Project{}, status, msg
+	}
 	p, err := s.repo.CloneProject(ctx, id, body.ID, body.Name)
 	if err != nil {
 		code, msg := mapError(err)
@@ -101,6 +111,9 @@ func (s *ProjectService) SelectAngle(ctx context.Context, id string, body Select
 }
 
 func (s *ProjectService) Graduate(ctx context.Context, id string) (domain.Project, int, string) {
+	if status, msg := s.ensure(ctx, entitlements.CapabilityProjectsGraduate, id, "projects.graduate"); msg != "" {
+		return domain.Project{}, status, msg
+	}
 	p, err := s.repo.GraduateProject(ctx, id)
 	if err != nil {
 		code, msg := mapError(err)
@@ -126,4 +139,15 @@ func mapError(err error) (int, string) {
 	default:
 		return http.StatusInternalServerError, "Internal server error"
 	}
+}
+
+func (s *ProjectService) ensure(ctx context.Context, capability entitlements.Capability, projectID string, action string) (int, string) {
+	decision, err := s.resolver.Check(ctx, entitlements.CheckRequest{Subject: tenant.SubjectFromContext(ctx, s.mode), Capability: capability, ProjectID: projectID, Action: action})
+	if err != nil {
+		return http.StatusInternalServerError, "Internal server error"
+	}
+	if err := entitlements.EnsureAllowed(decision); err != nil {
+		return entitlements.StatusCode(err), err.Error()
+	}
+	return http.StatusOK, ""
 }
