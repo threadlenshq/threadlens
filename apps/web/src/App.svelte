@@ -4,9 +4,10 @@
   import ProjectSettings from './components/ProjectSettings.svelte';
   import ScoutRunButton from './components/ScoutRunButton.svelte';
   import ActiveRunBanner from './components/ActiveRunBanner.svelte';
+  import RuntimeBanner from './components/RuntimeBanner.svelte';
   import PostCard from './components/PostCard.svelte';
   import DetailPanel from './components/DetailPanel.svelte';
-  import { projects as projectsApi, posts as postsApi, scout as scoutApi, queries as queriesApi } from './lib/api.js';
+  import { projects as projectsApi, posts as postsApi, scout as scoutApi, queries as queriesApi, runtime as runtimeApi } from './lib/api.js';
   import { readUrlState, writeUrlState, clearUrlState } from './lib/url.js';
   import ReportsTab from './components/ReportsTab.svelte';
   import ReportView from './components/ReportView.svelte';
@@ -22,6 +23,8 @@
   let activeReportId = $state(null);
   let activeGoogleReportId = $state(null);
   let reportSource = $state('social'); // 'social' | 'google'
+  let capabilitySnapshot = $state(null);
+  let capabilityError = $state('');
 
   // Posts state
   let postsList = $state([]);
@@ -71,6 +74,15 @@
   }
 
   let lastRunLabel = $derived((timeTick, relativeTime(lastCompletedRun?.completed_at)));
+
+  async function loadCapabilities() {
+    capabilityError = '';
+    try {
+      capabilitySnapshot = await runtimeApi.capabilities();
+    } catch (e) {
+      capabilityError = e.message;
+    }
+  }
 
   async function pollActiveRuns() {
     if (!selectedProjectId || activeRunIds.size === 0) return;
@@ -590,6 +602,7 @@
     if (appInitialized || typeof window === 'undefined') return;
     appInitialized = true;
     window.addEventListener('popstate', handlePopState);
+    loadCapabilities();
     await loadProjects();
     const urlState = readUrlState();
 
@@ -649,6 +662,7 @@
 </script>
 
 <div class="app">
+  <RuntimeBanner snapshot={capabilitySnapshot} error={capabilityError} />
   <ActiveRunBanner runs={activeRuns} {failedRuns} {completedRuns} onDismissFailed={dismissFailedRun} onDismissCompleted={dismissCompletedRun} onCancel={cancelRun} />
 
   <!-- Header -->
@@ -704,6 +718,7 @@
           externalRunning={activeRuns.length > 0}
           {lastRunLabel}
           {enabledQueryCount}
+          capabilities={capabilitySnapshot}
           onScoutComplete={handleScoutTriggered}
         />
       {/if}

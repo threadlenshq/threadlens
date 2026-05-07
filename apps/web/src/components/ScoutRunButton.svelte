@@ -1,11 +1,13 @@
 <script>
   import { scout as scoutApi } from '../lib/api.js';
+  import { hasCapability, scoutCapabilityForPlatform } from '../lib/capabilities.js';
 
   let {
     projectId,
     externalRunning = false,
     lastRunLabel = '',
     enabledQueryCount = null,
+    capabilities = null,
     onScoutComplete,
   } = $props();
 
@@ -27,6 +29,13 @@
     return platforms.find((p) => p.value === selectedPlatform)?.label || selectedPlatform;
   }
 
+  function platformAllowed(platform) {
+    if (platform === 'all') {
+      return ['reddit', 'bluesky', 'google'].some((p) => hasCapability(capabilities, scoutCapabilityForPlatform(p)));
+    }
+    return hasCapability(capabilities, scoutCapabilityForPlatform(platform));
+  }
+
   function showToast(msg) {
     toastMessage = msg;
     clearTimeout(toastTimeout);
@@ -37,6 +46,10 @@
 
   async function run() {
     if (disabled) return;
+    if (!platformAllowed(selectedPlatform)) {
+      showToast('This scout run is not available for the current server capabilities.');
+      return;
+    }
     if (enabledQueryCount !== null && enabledQueryCount < MIN_RECOMMENDED_QUERIES) {
       const proceed = confirm(
         `You have ${enabledQueryCount} search ${enabledQueryCount === 1 ? 'query' : 'queries'}. For best results, we recommend at least ${MIN_RECOMMENDED_QUERIES}. Run anyway?`
@@ -122,6 +135,7 @@
         <button
           class="dropdown-item"
           class:selected={selectedPlatform === p.value}
+          disabled={!platformAllowed(p.value)}
           onclick={() => selectPlatform(p.value)}
         >
           {p.label}

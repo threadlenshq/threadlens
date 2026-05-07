@@ -122,3 +122,11 @@ export const models = {
   setTask: (taskId, modelId) => api(`/api/models/config/${taskId}`, { method: 'PUT', body: { modelId } }),
   resetTask: (taskId) => api(`/api/models/config/${taskId}`, { method: 'DELETE' }),
 };
+
+export const runtime = {
+  capabilities: () => api('/api/runtime/capabilities'),
+};
+
+export const templates = {
+  promptPacks: () => api('/api/templates/prompt-packs'),
+};

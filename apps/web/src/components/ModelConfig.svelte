@@ -10,6 +10,7 @@
   let config = {};
   let loading = false;
   let error = '';
+  let managedProvider = { available: false };
   let savingTaskId = null;
   let savedTaskId = null;
   let savedTimer = null;
@@ -55,6 +56,7 @@
       ]);
       catalogModels = Array.isArray(catalog.models) ? catalog.models : [];
       tasks = Array.isArray(catalog.tasks) ? catalog.tasks : [];
+      managedProvider = catalog.managedProvider || { available: false };
       config = currentConfig || {};
     } catch (e) {
       error = e.message;
@@ -116,6 +118,12 @@
     <h3 class="section-title">Models</h3>
     <span class="section-sub">Choose a model per task. Settings are global.</span>
   </div>
+
+  {#if managedProvider.available}
+    <div class="managed-provider available">Managed AI provider routing is available for this server session.</div>
+  {:else}
+    <div class="managed-provider local">Managed AI is not enabled. Self-hosted provider configuration and local fallbacks remain available.</div>
+  {/if}
 
   {#if error}
     <div class="error-msg">{error}</div>
@@ -215,6 +223,23 @@
     border-radius: 6px;
     color: #f87171;
     font-size: 13px;
+  }
+
+  .managed-provider {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #2d2d36;
+    font-size: 13px;
+  }
+
+  .managed-provider.available {
+    color: #86efac;
+    background: #0f2417;
+  }
+
+  .managed-provider.local {
+    color: #c4b5fd;
+    background: #181528;
   }
 
   .loading {
