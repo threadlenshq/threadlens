@@ -14,13 +14,15 @@ services:
       context: ../..
       dockerfile: infra/docker/Dockerfile.go-api
       target: dev
-    env_file:
-      - path: ../../.env
-        required: false
     environment:
       PORT: "4749"
       SCOUT_DB_PATH: /data/scout.db
       SCOUT_FRONTEND_DIST: /workspace/apps/web/dist
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      PARALLEL_API_KEY: ${PARALLEL_API_KEY:-}
+      BLUESKY_HANDLE: ${BLUESKY_HANDLE:-}
+      BLUESKY_APP_PASSWORD: ${BLUESKY_APP_PASSWORD:-}
     ports:
       - "4749:4749"
     volumes:
@@ -55,13 +57,15 @@ services:
       context: ../..
       dockerfile: infra/docker/Dockerfile.go-api
       target: prod
-    env_file:
-      - path: ../../.env
-        required: false
     environment:
       PORT: "4749"
       SCOUT_DB_PATH: /data/scout.db
       SCOUT_FRONTEND_DIST: /app/web/dist
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      PARALLEL_API_KEY: ${PARALLEL_API_KEY:-}
+      BLUESKY_HANDLE: ${BLUESKY_HANDLE:-}
+      BLUESKY_APP_PASSWORD: ${BLUESKY_APP_PASSWORD:-}
     ports:
       - "4749:4749"
     volumes:

@@ -8,9 +8,10 @@ Run these commands from the `open-core/` directory:
 
 ```bash
 pnpm install
-cp .env.example .env
 pnpm run docker:dev
 ```
+
+`pnpm run docker:dev` auto-creates `open-core/.env` from `open-core/.env.example` when missing. Fill in provider keys in `open-core/.env` if you want Google or Bluesky features to work. If another repository embeds open-core, it can pass a different env file through `SCOUT_ENV_FILE`.
 
 The development profile starts:
 

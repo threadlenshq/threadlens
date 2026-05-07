@@ -8,6 +8,8 @@ pnpm run docker:prod
 pnpm run docker:down
 ```
 
+The Docker env file lives at `open-core/.env` by default. If it is missing, `pnpm run docker:dev` and `pnpm run docker:prod` create it from `open-core/.env.example` before starting Compose. Embedding repos can override the env location by setting `SCOUT_ENV_FILE`.
+
 ## Profiles
 
 | Profile | Command | Services | Ports |
