@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/kyle/scout/open-core/apps/api/internal/usage"
 )
 
 // SettingsGetter is a minimal interface for reading app_settings rows.
@@ -41,6 +43,7 @@ func defaultProviders() []Provider {
 type Service struct {
 	repo      SettingsGetter
 	providers []Provider // ordered: copilot, claude-cli, sdk, gemini
+	meter     usage.Meter
 
 	mu             sync.Mutex
 	cachedProvider Provider // last known-good provider for GenerateAuto
@@ -52,13 +55,23 @@ func NewService(repo SettingsGetter) *Service {
 	return &Service{
 		repo:      repo,
 		providers: defaultProviders(),
+		meter:     usage.NoopMeter{},
+	}
+}
+
+// NewServiceWithUsage creates a Service with the given settings getter and usage meter.
+func NewServiceWithUsage(repo SettingsGetter, meter usage.Meter) *Service {
+	return &Service{
+		repo:      repo,
+		providers: defaultProviders(),
+		meter:     meter,
 	}
 }
 
 // NewServiceWithProviders creates a Service with the supplied providers list.
 // Intended for testing only.
 func NewServiceWithProviders(providers []Provider) *Service {
-	return &Service{providers: providers}
+	return &Service{providers: providers, meter: usage.NoopMeter{}}
 }
 
 // providerFor returns the Provider whose Name() matches the given provider tag
@@ -90,6 +103,37 @@ func (s *Service) invokeModel(ctx context.Context, m *ModelEntry, systemPrompt, 
 // tries it followed by the fallback chain.  Mirrors Express generateForTask().
 // Returns (result, usedModelID, error).
 func (s *Service) GenerateForTask(ctx context.Context, taskID string, systemPrompt string, userMessage string) (string, string, error) {
+	// Resolve the intended model ID up front so it is available for usage
+	// metering even if generation fails.
+	resolvedModelID, _ := s.resolveTaskModel(ctx, taskID)
+
+	result, usedModelID, err := s.generateForTaskInner(ctx, taskID, systemPrompt, userMessage)
+
+	// Use the actually-used model when available; fall back to resolved primary.
+	meterModelID := usedModelID
+	if meterModelID == "" {
+		meterModelID = resolvedModelID
+	}
+
+	event := usage.Event{
+		TaskID:     taskID,
+		ModelID:    meterModelID,
+		Operation:  "ai.generate_for_task",
+		Success:    err == nil,
+		RecordedAt: time.Now().UTC(),
+	}
+	if err != nil {
+		event.Error = err.Error()
+	}
+	if s.meter != nil {
+		_ = s.meter.Record(ctx, event)
+	}
+
+	return result, usedModelID, err
+}
+
+// generateForTaskInner is the core implementation of GenerateForTask without metering.
+func (s *Service) generateForTaskInner(ctx context.Context, taskID string, systemPrompt string, userMessage string) (string, string, error) {
 	task := GetTask(taskID)
 	if task == nil {
 		return "", "", fmt.Errorf("unknown task id: %s", taskID)
