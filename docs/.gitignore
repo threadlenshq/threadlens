@@ -1,0 +1,7 @@
+# Astro and Cloudflare build output
+dist/
+.astro/
+.wrangler/
+
+# Local dependency installs when running from the docs package directly
+node_modules/
