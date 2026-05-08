@@ -10,6 +10,11 @@
     "build:go": "cd apps/api && go build ./...",
     "test": "turbo run test",
     "test:go": "cd apps/api && go test ./...",
+    "docs:dev": "pnpm --dir docs run dev",
+    "docs:build": "pnpm --dir docs run build",
+    "docs:check": "pnpm --dir docs run check",
+    "docs:preview": "pnpm --dir docs run preview",
+    "docs:deploy": "pnpm --dir docs run deploy",
     "docker:dev": "docker compose -f infra/docker/compose.yml --profile dev up --build -d",
     "docker:prod": "docker compose -f infra/docker/compose.yml --profile prod up --build -d",
     "docker:down": "docker compose -f infra/docker/compose.yml --profile dev down && docker compose -f infra/docker/compose.yml --profile prod down"
