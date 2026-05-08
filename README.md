@@ -4,6 +4,8 @@ ThreadLens is open-core research intelligence for finding product opportunities 
 
 ThreadLens helps builders turn scattered posts, complaints, workarounds, search results, and repeated requests into scored findings and product-angle reports they can inspect locally.
 
+📖 **Full documentation:** [docs.threadlens.dev](https://docs.threadlens.dev)
+
 ## Why ThreadLens
 
 Useful market signals are buried across public threads and search results. A founder might see one complaint on Reddit, a workaround on Bluesky, and a related search result days later, but the pattern is easy to miss.

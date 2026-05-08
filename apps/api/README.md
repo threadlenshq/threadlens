@@ -2,6 +2,8 @@
 
 This directory contains the Go backend for Scout. It is the active open-core API. The legacy Express backend has been moved to `apps/legacy-express` and is parked.
 
+📖 **Architecture docs:** [docs.threadlens.dev/architecture/go-api/](https://docs.threadlens.dev/architecture/go-api/)
+
 ## Local development
 
 ```bash
