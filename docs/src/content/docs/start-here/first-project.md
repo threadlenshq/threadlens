@@ -16,14 +16,14 @@ Use the URL for the Docker profile you started:
 
 ## 2. Create a project
 
-Create one project for the niche, product idea, audience, or market you want to research.
+In the web app, open the project selector in the top-left corner and click **+ New Project**. A creation form will appear.
 
-Use these field choices for your first project:
+Fill in the three required fields and click **Create**:
 
 | Field | What to enter | Why it matters |
 | --- | --- | --- |
-| Slug | A stable, URL-safe identifier such as `ai-note-taking` | Use lowercase words with hyphens. Choose something durable because the slug identifies the project in routes or API usage where applicable. |
-| Display name | A readable label such as `AI Note Taking Research` | This is for humans scanning the app. It can be more descriptive than the slug and is safe to rename if the UI supports renaming. |
+| Slug | A short, lowercase, hyphenated ID such as `ai-note-taking` | This is the machine-readable identifier used in routes and API calls. Keep it simple and stable — you will not need to change it often. |
+| Display name | A human-friendly label such as `AI Note Taking Research` | This is what you see while browsing the app. It can be more descriptive than the slug and is easy to rename later. |
 | Mode | Choose `research` for the first project | Research mode focuses on discovering pain points, repeated complaints, and product opportunities. Choose `marketing` only when your goal is outreach around an already-understood opportunity. |
 
 Keep the first project narrow. `ai-note-taking` is easier to evaluate than `productivity` because the results will use more specific language.
