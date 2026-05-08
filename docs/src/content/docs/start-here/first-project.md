@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Create Your First Project
 description: Create a project, add queries, run a scout, review findings, and generate a report.
 ---
 

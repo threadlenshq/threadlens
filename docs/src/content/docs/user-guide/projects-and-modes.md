@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Projects and Modes
 description: Understand ThreadLens projects and the current research and marketing mode distinction.
 ---
 

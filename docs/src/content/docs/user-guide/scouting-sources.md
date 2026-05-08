@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Scouting Sources
 description: Understand what each scouting source is best at and which credentials each source needs.
 ---
 

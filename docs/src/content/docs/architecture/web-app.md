@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Web App
 description: Understand the open-core Svelte and Vite frontend role.
 ---
 

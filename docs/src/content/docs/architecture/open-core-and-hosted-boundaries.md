@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Open-Core and Hosted Boundaries
 description: Keep public open-core docs separate from private hosted SaaS material.
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Configuration Basics
 description: Configure ThreadLens environment variables safely without renaming runtime settings.
 ---
 

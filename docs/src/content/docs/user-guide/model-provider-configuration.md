@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Model and Provider Configuration
 description: Understand provider keys and the current AI fallback model used by ThreadLens.
 ---
 

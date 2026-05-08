@@ -1,5 +1,5 @@
 ---
-title: ---
+title: API Shape Overview
 description: Understand the high-level Go API surface without generated API reference.
 ---
 

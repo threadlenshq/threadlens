@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Docs Contributions
 description: Keep ThreadLens docs readable in GitHub and safe to publish.
 ---
 

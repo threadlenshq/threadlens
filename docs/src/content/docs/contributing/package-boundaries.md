@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Package Boundaries
 description: Keep ThreadLens open-core code organized by clear package responsibilities.
 ---
 

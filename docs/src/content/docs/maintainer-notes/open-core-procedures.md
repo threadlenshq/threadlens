@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Open-Core Procedures
 description: Public maintainer notes for keeping open-core documentation and support healthy.
 ---
 

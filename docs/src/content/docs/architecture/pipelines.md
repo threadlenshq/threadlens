@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Pipelines
 description: Understand the social and Google scouting flows at a high level.
 ---
 

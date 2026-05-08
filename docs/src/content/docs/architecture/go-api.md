@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Go API
 description: Understand the active open-core backend structure and responsibilities.
 ---
 

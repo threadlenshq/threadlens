@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Workspace Layout
 description: Understand the main directories in the ThreadLens open-core workspace.
 ---
 

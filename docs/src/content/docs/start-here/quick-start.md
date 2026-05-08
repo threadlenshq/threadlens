@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Quick Start
 description: Start the open-core development profile with Docker from the open-core workspace.
 ---
 

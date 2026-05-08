@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Scoring, Filtering, and Statuses
 description: Understand how ThreadLens turns raw findings into reviewable research signals.
 ---
 

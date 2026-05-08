@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Development Setup
 description: Set up the ThreadLens open-core workspace for local contribution.
 ---
 

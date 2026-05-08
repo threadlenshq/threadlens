@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Schedules
 description: Use schedules for recurring scout runs after query quality is proven.
 ---
 

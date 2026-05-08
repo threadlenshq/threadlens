@@ -1,5 +1,5 @@
 ---
-title: ---
+title: ThreadLens Documentation
 description: Run, configure, understand, and contribute to the ThreadLens open-core research intelligence app.
 ---
 

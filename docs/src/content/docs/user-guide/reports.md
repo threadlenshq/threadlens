@@ -1,5 +1,5 @@
 ---
-title: ---
+title: Reports
 description: Use ThreadLens reports to turn selected findings into themes, opportunities, and next actions.
 ---
 
