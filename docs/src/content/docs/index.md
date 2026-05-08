@@ -3,8 +3,6 @@ title: ThreadLens Documentation
 description: Run, configure, understand, and contribute to the ThreadLens open-core research intelligence app.
 ---
 
-# ThreadLens Documentation
-
 ThreadLens is open-core research intelligence for finding product opportunities in real conversations across Reddit, Bluesky, and Google Search. These docs help you run ThreadLens locally, configure providers safely, understand how scouting works, and contribute to the open-core project.
 
 ## Start with Docker
