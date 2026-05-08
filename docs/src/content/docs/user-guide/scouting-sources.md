@@ -1,9 +1,8 @@
 ---
-title: Reddit, Bluesky, and Google Scouting
+title: ---
 description: Understand what each scouting source is best at and which credentials each source needs.
 ---
 
-# Reddit, Bluesky, and Google Scouting
 
 ThreadLens can scout social posts and Google Search results from project-specific queries.
 

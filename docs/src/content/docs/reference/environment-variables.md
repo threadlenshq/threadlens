@@ -1,9 +1,8 @@
 ---
-title: Environment Variables
+title: ---
 description: Reference the ThreadLens open-core environment variables without renaming runtime settings.
 ---
 
-# Environment Variables
 
 ThreadLens preserves existing runtime environment variable names even when public docs use the ThreadLens brand.
 

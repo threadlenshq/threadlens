@@ -1,9 +1,8 @@
 ---
-title: Open-Core Workspace Layout
+title: ---
 description: Understand the main directories in the ThreadLens open-core workspace.
 ---
 
-# Open-Core Workspace Layout
 
 The open-core workspace is rooted at `open-core/`.
 

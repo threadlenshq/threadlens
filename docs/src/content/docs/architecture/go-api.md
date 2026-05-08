@@ -1,9 +1,8 @@
 ---
-title: Go API Architecture
+title: ---
 description: Understand the active open-core backend structure and responsibilities.
 ---
 
-# Go API Architecture
 
 The active open-core backend lives in `open-core/apps/api`.
 

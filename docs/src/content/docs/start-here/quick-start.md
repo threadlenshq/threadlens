@@ -1,9 +1,8 @@
 ---
-title: Run ThreadLens with Docker
+title: ---
 description: Start the open-core development profile with Docker from the open-core workspace.
 ---
 
-# Run ThreadLens with Docker
 
 Use this path when you want the fastest local ThreadLens setup. Commands in this page run from the `open-core/` directory.
 

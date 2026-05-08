@@ -1,9 +1,8 @@
 ---
-title: AI Providers and Fallbacks
+title: ---
 description: Understand how ThreadLens chooses AI providers for scoring and analysis.
 ---
 
-# AI Providers and Fallbacks
 
 ThreadLens uses AI providers for scoring, report generation, query assistance, and analysis.
 

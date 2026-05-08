@@ -1,9 +1,8 @@
 ---
-title: Issue and Bug Reproduction Guidance
+title: ---
 description: Report useful ThreadLens open-core issues without sharing secrets.
 ---
 
-# Issue and Bug Reproduction Guidance
 
 Good bug reports make open-core maintenance faster and safer.
 

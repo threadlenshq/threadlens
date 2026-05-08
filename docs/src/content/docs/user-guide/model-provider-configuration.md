@@ -1,9 +1,8 @@
 ---
-title: Model and Provider Configuration
+title: ---
 description: Understand provider keys and the current AI fallback model used by ThreadLens.
 ---
 
-# Model and Provider Configuration
 
 ThreadLens uses AI providers for scoring, analysis, query assistance, clustering, and report generation.
 

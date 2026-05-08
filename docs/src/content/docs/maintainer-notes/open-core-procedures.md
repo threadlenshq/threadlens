@@ -1,9 +1,8 @@
 ---
-title: Open-Core Maintainer Procedures
+title: ---
 description: Public maintainer notes for keeping open-core documentation and support healthy.
 ---
 
-# Open-Core Maintainer Procedures
 
 This section is public and maintainer-oriented. It is not a place for private hosted operations.
 

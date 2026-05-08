@@ -1,9 +1,8 @@
 ---
-title: Ports and Local URLs
+title: ---
 description: Reference local ThreadLens ports and URLs for Docker and development workflows.
 ---
 
-# Ports and Local URLs
 
 | Context | URL | Notes |
 | --- | --- | --- |

@@ -1,9 +1,8 @@
 ---
-title: Research Reports and Google Reports
+title: ---
 description: Use ThreadLens reports to turn selected findings into themes, opportunities, and next actions.
 ---
 
-# Research Reports and Google Reports
 
 Reports preserve the conclusions from useful scout runs and selected findings.
 

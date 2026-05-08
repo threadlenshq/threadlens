@@ -1,9 +1,8 @@
 ---
-title: Projects and Modes
+title: ---
 description: Understand ThreadLens projects and the current research and marketing mode distinction.
 ---
 
-# Projects and Modes
 
 A project is the main workspace for a market, audience, niche, or product idea. Projects own queries, prompts, posts, reports, scout runs, and schedules.
 

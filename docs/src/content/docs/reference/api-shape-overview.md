@@ -1,9 +1,8 @@
 ---
-title: API Shape Overview
+title: ---
 description: Understand the high-level Go API surface without generated API reference.
 ---
 
-# API Shape Overview
 
 The active open-core backend is the Go API in `open-core/apps/api`. Detailed generated API reference is deferred for the first docs release.
 

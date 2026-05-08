@@ -1,9 +1,8 @@
 ---
-title: Data Storage and Backups
+title: ---
 description: Understand where ThreadLens stores local data and how to think about backups.
 ---
 
-# Data Storage and Backups
 
 ThreadLens stores open-core application data in SQLite.
 

@@ -1,9 +1,8 @@
 ---
-title: Web App Architecture
+title: ---
 description: Understand the open-core Svelte and Vite frontend role.
 ---
 
-# Web App Architecture
 
 The open-core frontend lives in `open-core/apps/web` and uses Svelte 5 with Vite.
 

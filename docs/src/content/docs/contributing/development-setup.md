@@ -1,9 +1,8 @@
 ---
-title: Development Setup
+title: ---
 description: Set up the ThreadLens open-core workspace for local contribution.
 ---
 
-# Development Setup
 
 Run these commands from `open-core/` unless a command explicitly says otherwise.
 

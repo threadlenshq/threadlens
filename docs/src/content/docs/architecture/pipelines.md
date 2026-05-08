@@ -1,9 +1,8 @@
 ---
-title: Scouting Pipeline Overview
+title: ---
 description: Understand the social and Google scouting flows at a high level.
 ---
 
-# Scouting Pipeline Overview
 
 ThreadLens has social scouting pipelines and a Google scouting pipeline.
 

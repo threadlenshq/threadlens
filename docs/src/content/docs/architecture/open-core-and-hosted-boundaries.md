@@ -1,9 +1,8 @@
 ---
-title: Open-Core and Hosted Boundaries
+title: ---
 description: Keep public open-core docs separate from private hosted SaaS material.
 ---
 
-# Open-Core and Hosted Boundaries
 
 The open-core workspace contains the ThreadLens product users can run today. Hosted ThreadLens is planned as a later managed option.
 

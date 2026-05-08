@@ -1,9 +1,8 @@
 ---
-title: Documentation Contribution Rules
+title: ---
 description: Keep ThreadLens docs readable in GitHub and safe to publish.
 ---
 
-# Documentation Contribution Rules
 
 Docs source lives in `open-core/docs/src/content/docs/` and is publishable by default.
 

@@ -1,9 +1,8 @@
 ---
-title: Scoring, Filtering, and Statuses
+title: ---
 description: Understand how ThreadLens turns raw findings into reviewable research signals.
 ---
 
-# Scoring, Filtering, and Statuses
 
 ThreadLens scores and filters findings so a project does not become a pile of raw links.
 

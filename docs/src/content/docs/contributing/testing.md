@@ -1,9 +1,8 @@
 ---
-title: Testing Commands
+title: ---
 description: Run the main ThreadLens open-core validation commands.
 ---
 
-# Testing Commands
 
 Use focused checks before broader checks.
 

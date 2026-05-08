@@ -1,9 +1,10 @@
 ---
-title: What ThreadLens Is
+title: ---
+
 description: Understand what ThreadLens does, who it is for, and what the open-core release includes today.
+
 ---
 
-# What ThreadLens Is
 
 ThreadLens helps builders find product opportunities by collecting public conversations and search results, scoring them for pain and relevance, filtering duplicates, and turning high-signal findings into product-angle reports.
 

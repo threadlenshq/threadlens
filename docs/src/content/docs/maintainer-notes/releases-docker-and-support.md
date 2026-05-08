@@ -1,9 +1,8 @@
 ---
-title: Releases, Docker, and Support
+title: ---
 description: Public maintainer notes for docs releases, Docker image hygiene, and support routing.
 ---
 
-# Releases, Docker, and Support
 
 Use these public notes to keep open-core releases and docs aligned.
 

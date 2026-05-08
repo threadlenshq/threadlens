@@ -1,9 +1,8 @@
 ---
-title: Create Your First Project
+title: ---
 description: Create a project, add queries, run a scout, review findings, and generate a report.
 ---
 
-# Create Your First Project
 
 After Docker is running, use the local web app at `http://localhost:4748` to create your first research workflow.
 

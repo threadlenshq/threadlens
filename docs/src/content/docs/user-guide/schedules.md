@@ -1,9 +1,8 @@
 ---
-title: Schedules and Recurring Research
+title: ---
 description: Use schedules for recurring scout runs after query quality is proven.
 ---
 
-# Schedules and Recurring Research
 
 Schedules run scouts repeatedly so you can monitor markets over time.
 

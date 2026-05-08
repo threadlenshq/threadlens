@@ -1,9 +1,8 @@
 ---
-title: Configure Provider Keys
+title: ---
 description: Configure ThreadLens environment variables safely without renaming runtime settings.
 ---
 
-# Configure Provider Keys
 
 ThreadLens reads open-core runtime settings from `open-core/.env`. The Docker commands create that file from `open-core/.env.example` when it is missing.
 

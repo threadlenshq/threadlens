@@ -1,9 +1,8 @@
 ---
-title: Docker Commands and Profiles
+title: ---
 description: Reference supported open-core Docker commands, profiles, and persistent data behavior.
 ---
 
-# Docker Commands and Profiles
 
 Run Docker commands from `open-core/`.
 

@@ -1,9 +1,8 @@
 ---
-title: Package Boundary Expectations
+title: ---
 description: Keep ThreadLens open-core code organized by clear package responsibilities.
 ---
 
-# Package Boundary Expectations
 
 Respect the existing open-core package boundaries.
 
