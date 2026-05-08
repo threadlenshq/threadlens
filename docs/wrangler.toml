@@ -1,0 +1,7 @@
+# Cloudflare Pages deployment config for ThreadLens Docs
+# Deploy target: https://docs.threadlens.dev
+# Usage: pnpm run deploy  (runs astro build then wrangler pages deploy)
+
+name = "threadlens-docs"
+pages_build_output_dir = "./dist"
+compatibility_date = "2025-01-01"
