@@ -6,6 +6,8 @@ description: Set up the ThreadLens open-core workspace for local contribution.
 
 Run these commands from `open-core/` unless a command explicitly says otherwise.
 
+Before contributing, review the [Licensing](../reference/licensing/) page. Public contributions are accepted through forks and pull requests only.
+
 ## Install dependencies
 
 ```bash

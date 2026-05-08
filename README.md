@@ -130,4 +130,10 @@ Public product code belongs in this open-core workspace. Hosted-only SaaS servic
 
 ## License status
 
-ThreadLens's open-source license decision is deferred. The root `LICENSE` file records that no license grant is provided until the final license text replaces the deferred-decision marker.
+ThreadLens open-core is source-available under the Business Source License 1.1 in [`open-core/LICENSE`](LICENSE).
+
+The license allows public source access, local modification, redistribution, and self-hosted production use for your own internal business or personal use.
+
+The license does not allow selling ThreadLens as your own product, offering it as a competing hosted service, or using ThreadLens branding without permission.
+
+Public contributions are welcome through GitHub forks and pull requests. See the docs licensing page for the current contribution policy and license scope.

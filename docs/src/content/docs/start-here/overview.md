@@ -28,4 +28,6 @@ ThreadLens is useful when you want to research a niche, validate repeated compla
 
 ## Open-core status
 
-The open-core app can run today with Docker or local workspace commands. Hosted ThreadLens is planned as a later managed option for teams that do not want to self-host or manage provider keys. The license decision is still deferred, so the repository's license file remains the authority for the current no-license-grant status.
+The open-core app can run today with Docker or local workspace commands. Hosted ThreadLens is planned as a later managed option for teams that do not want to self-host or manage provider keys.
+
+ThreadLens open-core is source-available under BUSL 1.1. That means you can inspect, modify, fork, and self-host it for your own internal business or personal use, while competing resale and hosted clone use stay restricted. See the [Licensing](../reference/licensing/) page for the current terms.

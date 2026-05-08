@@ -41,6 +41,7 @@ export default defineConfig({
         {
           label: 'Reference',
           items: [
+            { slug: 'reference/licensing' },
             { slug: 'reference/environment-variables' },
             { slug: 'reference/ports-and-local-urls' },
             { slug: 'reference/docker-commands-and-profiles' },

@@ -22,6 +22,7 @@ The development profile starts the Go API at `http://localhost:4749` and the web
 - [Run ThreadLens with Docker](start-here/quick-start/) gives the fastest local setup path.
 - [Configure provider keys](start-here/configuration-basics/) explains the `.env` file and safe sample values.
 - [Create your first project](start-here/first-project/) walks through queries, scouting, findings, and reports.
+- [Review the license](reference/licensing/) explains self-host rights, commercial restrictions, and contribution terms.
 - [Contribute to ThreadLens](contributing/development-setup/) explains local development and quality checks.
 
 ## Public documentation sections

@@ -2,6 +2,7 @@
   "name": "scout-open-core",
   "version": "0.1.0",
   "private": true,
+  "license": "BUSL-1.1",
   "type": "module",
   "packageManager": "pnpm@10.14.0",
   "scripts": {
