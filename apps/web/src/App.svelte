@@ -4,7 +4,6 @@
   import ProjectSettings from './components/ProjectSettings.svelte';
   import ScoutRunButton from './components/ScoutRunButton.svelte';
   import ActiveRunBanner from './components/ActiveRunBanner.svelte';
-  import RuntimeBanner from './components/RuntimeBanner.svelte';
   import PostCard from './components/PostCard.svelte';
   import DetailPanel from './components/DetailPanel.svelte';
   import { projects as projectsApi, posts as postsApi, scout as scoutApi, queries as queriesApi, runtime as runtimeApi } from './lib/api.js';
@@ -662,7 +661,6 @@
 </script>
 
 <div class="app">
-  <RuntimeBanner snapshot={capabilitySnapshot} error={capabilityError} />
   <ActiveRunBanner runs={activeRuns} {failedRuns} {completedRuns} onDismissFailed={dismissFailedRun} onDismissCompleted={dismissCompletedRun} onCancel={cancelRun} />
 
   <!-- Header -->
