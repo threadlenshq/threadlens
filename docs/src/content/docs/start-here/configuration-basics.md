@@ -43,10 +43,9 @@ AI provider configuration is separate from source access. Add source credentials
 Save `.env`, then restart the Docker profile you started so the containers pick up the new values:
 
 ```bash
-# If you used the standard profile (from open-core/)
-docker compose --profile api down && docker compose --profile api up -d
-
-# Or rerun whatever profile command you used when you first started Docker
+# From the repo root
+pnpm run docker:down
+pnpm run docker:dev   # or pnpm run docker:prod if you started with the prod profile
 ```
 
 Environment variables are read at container start-up, so any change to `.env` requires a restart before ThreadLens sees the new values.
