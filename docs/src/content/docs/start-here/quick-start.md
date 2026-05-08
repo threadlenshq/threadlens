@@ -3,16 +3,19 @@ title: Quick Start
 description: Start the open-core development profile with Docker from the open-core workspace.
 ---
 
-
 Use this path when you want the fastest local ThreadLens setup. Commands in this page run from the `open-core/` directory.
 
 ## Prerequisites
 
 - Node and pnpm compatible with `packageManager: pnpm@10.14.0`.
 - Docker Desktop or another Docker Engine with Compose support.
-- Provider keys if you want AI analysis, Google scouting, or Bluesky scouting.
+- Provider keys before you expect useful AI scoring, analysis, reports, Google scouting, or Bluesky scouting.
+
+You can start the app without provider keys to smoke-test local startup. Configure providers before treating the run as a real scouting workflow.
 
 ## Start the development profile
+
+For a first local run, use the development Docker profile:
 
 ```bash
 pnpm install
@@ -38,7 +41,15 @@ curl -i http://localhost:4749/api/runtime/capabilities
 
 Expected result: an HTTP `200` response with JSON runtime information.
 
+## Before you scout
+
+Docker startup and provider readiness are separate steps. A no-key launch confirms the containers, web app, and API can run, but it does not provide a complete first-scout outcome.
+
+Before creating a real first scout, follow [Configuration Basics](configuration-basics/) to configure at least one AI provider path. Add `PARALLEL_API_KEY` only if you plan to scout Google Search, and add `BLUESKY_HANDLE` plus `BLUESKY_APP_PASSWORD` only if you plan to scout Bluesky.
+
 ## Start the production self-host profile
+
+After the development profile is verified, you can use the production self-host profile:
 
 ```bash
 pnpm run docker:prod
@@ -46,10 +57,12 @@ pnpm run docker:prod
 
 The production profile serves the built web app from the Go API container at `http://localhost:4749`.
 
+Use the development profile first when you are following the Start Here path because it exposes the web app at `http://localhost:4748` and keeps local debugging straightforward.
+
 ## Stop Docker services
 
 ```bash
 pnpm run docker:down
 ```
 
-This stops supported `dev` and `prod` profiles without deleting the SQLite data volume.
+This stops supported `dev` and `prod` profiles without deleting the SQLite data volume. For volume reset behavior and the full command reference, see [Docker Commands and Profiles](../reference/docker-commands-and-profiles/).
