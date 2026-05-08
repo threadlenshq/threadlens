@@ -137,3 +137,5 @@ The license allows public source access, local modification, redistribution, and
 The license does not allow selling ThreadLens as your own product, offering it as a competing hosted service, or using ThreadLens branding without permission.
 
 Public contributions are welcome through GitHub forks and pull requests. See the docs licensing page for the current contribution policy and license scope.
+
+The repository contribution terms are documented in [`CONTRIBUTING.md`](CONTRIBUTING.md).

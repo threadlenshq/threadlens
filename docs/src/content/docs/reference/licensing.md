@@ -30,6 +30,8 @@ Public contributions are accepted through GitHub forks and pull requests only.
 
 By submitting a pull request, you represent that you have the right to contribute the code and that the contribution may be used, relicensed, and distributed by the licensor as part of ThreadLens open-core and its future Change License.
 
+The repository-level contribution terms live in `open-core/CONTRIBUTING.md`.
+
 ## Scope
 
 The licensed work is limited to the `open-core/` directory of this repository. Code and materials outside `open-core/` are not publicly licensed unless a different license is stated in the relevant file or directory.
