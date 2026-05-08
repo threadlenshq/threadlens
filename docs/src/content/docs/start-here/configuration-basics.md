@@ -1,12 +1,13 @@
 ---
 title: Configuration Basics
-description: Configure ThreadLens environment variables safely without renaming runtime settings.
+description: Configure the provider credentials needed for useful ThreadLens scouting and reports.
 ---
 
+ThreadLens reads open-core runtime settings from `open-core/.env`. The Docker commands create that file from `open-core/.env.example` when it is missing, and you can also create it manually before starting or restarting Docker.
 
-ThreadLens reads open-core runtime settings from `open-core/.env`. The Docker commands create that file from `open-core/.env.example` when it is missing.
+Docker can start without provider keys, but useful AI scoring, analysis, reports, Google scouting, and Bluesky scouting depend on the credentials below.
 
-## Create the environment file manually
+## 1. Create or open the environment file
 
 Run from `open-core/` if you want to create the file before Docker does:
 
@@ -14,20 +15,40 @@ Run from `open-core/` if you want to create the file before Docker does:
 cp .env.example .env
 ```
 
-## Supported variables
+Then open `open-core/.env` in your editor and add only the credentials you need for the first source you plan to scout.
 
-| Variable | Required | Purpose |
+## 2. Configure one AI provider first
+
+For a first useful scout, configure at least one AI provider path before expecting scores, analysis, or reports.
+
+| Variable | First-run role | Notes |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | Required for Anthropic-backed AI workflows | Powers Claude-based analysis and scoring paths. |
-| `GEMINI_API_KEY` | Required when using Gemini as the AI provider | Provides the Gemini fallback/provider path. |
-| `PARALLEL_API_KEY` | Required for Google scouting when using Parallel.ai Search | Enables the Google search provider path. |
-| `BLUESKY_HANDLE` | Required for Bluesky scouting | Identifies the Bluesky account used for API access. |
-| `BLUESKY_APP_PASSWORD` | Required for Bluesky scouting | Authenticates the Bluesky account. |
-| `SCOUT_ENV_FILE` | Optional | Lets embedding repositories point Docker commands at a different env file. |
-| `SCOUT_DB_PATH` | Optional | Overrides the SQLite database path used by the Go API. |
-| `SCOUT_FRONTEND_DIST` | Optional | Points the Go API at a built web app directory for static serving. |
-| `SCOUT_INIT_DEMO` | Optional | Seeds demo data when set to `1`. |
-| `THREADLENS_RUNTIME_MODE` | Optional | Selects `self_hosted` or `hosted`; self-hosted is the default. |
+| `ANTHROPIC_API_KEY` | Recommended explicit first provider key | Enables Anthropic-backed AI workflows when the runtime uses that provider path. |
+| `GEMINI_API_KEY` | Alternative AI provider key | Enables the Gemini-compatible provider path when configured. |
+
+ThreadLens may also use CLI-backed provider paths when the required CLI is available and authenticated in the runtime environment. For first-run Docker docs, prefer an explicit provider key because CLI availability and authentication can vary by host and container setup.
+
+## 3. Add source-specific credentials only when needed
+
+AI provider configuration is separate from source access. Add source credentials for the source you want to scout:
+
+| Source | Credentials | First-run guidance |
+| --- | --- | --- |
+| Reddit | No extra source credential is documented for the current open-core first-run path | Lowest-friction first source, but still needs an AI provider for useful scoring and reports. |
+| Google Search | `PARALLEL_API_KEY` | Add this when you want Google scouting through the configured search provider. |
+| Bluesky | `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` | Add both before relying on Bluesky scouting. |
+
+## 4. Leave optional runtime overrides alone at first
+
+These variables are useful for advanced local development, embedding repositories, or deployment customization, but they are not required for a first scout:
+
+| Variable | Purpose |
+| --- | --- |
+| `SCOUT_ENV_FILE` | Lets embedding repositories point Docker commands at a different env file. |
+| `SCOUT_DB_PATH` | Overrides the SQLite database path used by the Go API. |
+| `SCOUT_FRONTEND_DIST` | Points the Go API at a built web app directory for static serving. |
+| `SCOUT_INIT_DEMO` | Seeds demo data when set to `1`. |
+| `THREADLENS_RUNTIME_MODE` | Selects self-hosted or hosted runtime mode; self-hosted is the default for open-core use. |
 
 ## Safe sample values
 
@@ -42,3 +63,10 @@ BLUESKY_APP_PASSWORD=example-app-password-not-real
 ```
 
 Do not commit real provider keys, private URLs, hosted credentials, billing tokens, or customer data.
+
+## Next steps
+
+- Continue to [Create Your First Project](first-project/) after Docker is running and at least one AI provider path is configured.
+- See [Model and Provider Configuration](../user-guide/model-provider-configuration/) for provider fallback behavior.
+- See [AI Providers](../architecture/ai-providers/) for the architecture-level provider order.
+- See [Environment Variables](../reference/environment-variables/) for the complete variable reference.
