@@ -22,11 +22,26 @@ pnpm check        # TypeScript / Astro type-check
 
 The site deploys to **Cloudflare Pages** (`threadlens-docs` project).
 
+### CI/CD (recommended)
+
+This repo includes a GitHub Actions workflow at `.github/workflows/docs-cloudflare-pages.yml`.
+
+- Trigger: pushes that touch `open-core/docs/**`
+- Build: `pnpm --dir open-core run docs:build`
+- Deploy: `wrangler pages deploy dist --project-name threadlens-docs`
+
+Required repository secrets:
+
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_API_TOKEN` (with Cloudflare Pages edit/deploy permissions)
+
+### Manual deploy
+
 ```bash
 pnpm deploy       # astro build + wrangler pages deploy dist
 ```
 
-The `wrangler.toml` in this directory targets the `threadlens-docs` Cloudflare Pages project. CI/CD can also be wired directly through the Cloudflare Pages GitHub integration pointing the build output directory to `open-core/docs/dist`.
+The `wrangler.toml` in this directory targets the `threadlens-docs` Cloudflare Pages project.
 
 ## Adding docs
 
