@@ -5,7 +5,7 @@ description: Configure the provider credentials needed for useful ThreadLens sco
 
 ThreadLens reads open-core runtime settings from `open-core/.env`. The Docker commands create that file from `open-core/.env.example` when it is missing, and you can also create it manually before starting or restarting Docker.
 
-Docker can start without provider keys, but useful AI scoring, analysis, reports, Google scouting, and Bluesky scouting depend on the credentials below.
+Docker can start without an AI provider path, but useful AI scoring, analysis, reports, Google scouting, and Bluesky scouting need either a configured provider key or a supported CLI-backed provider path available in the same runtime environment as ThreadLens. For the simplest first run, start with one explicit provider key.
 
 ## 1. Create or open the environment file
 
@@ -15,18 +15,20 @@ Run from `open-core/` if you want to create the file before Docker does:
 cp .env.example .env
 ```
 
-Then open `open-core/.env` in your editor and add only the credentials you need for the first source you plan to scout.
+Then open `open-core/.env` in your editor and add the AI provider key and source credentials you need for the first source you plan to scout.
 
 ## 2. Configure one AI provider first
 
-For a first useful scout, configure at least one AI provider path before expecting scores, analysis, or reports.
+For a first useful scout, configure at least one AI provider path before expecting scores, analysis, or reports. API keys are the recommended first-run path because they are explicit, easy to verify, and portable across local and Docker runs.
 
-| Variable | First-run role | Notes |
+| Provider path | First-run role | Notes |
 | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | Recommended explicit first provider key | Enables Anthropic-backed AI workflows when the runtime uses that provider path. |
 | `GEMINI_API_KEY` | Alternative AI provider key | Enables the Gemini-compatible provider path when configured. |
+| Copilot CLI | Supported advanced fallback path | Works only when the Copilot CLI is installed and authenticated in the same runtime environment as ThreadLens. |
+| Claude CLI | Supported advanced fallback path | Works only when the Claude CLI is installed and authenticated in the same runtime environment as ThreadLens. |
 
-ThreadLens may also use CLI-backed provider paths when the required CLI is available and authenticated in the runtime environment. For first-run Docker docs, prefer an explicit provider key because CLI availability and authentication can vary by host and container setup.
+For first-run Docker docs, prefer an explicit provider key because CLI availability and authentication can vary by host and container setup. The CLI-backed paths are supported runtime paths, but this page intentionally does not provide Docker mount, install, or authentication walkthroughs.
 
 ## 3. Add source-specific credentials only when needed
 
@@ -78,7 +80,7 @@ Do not commit real provider keys, private URLs, hosted credentials, billing toke
 
 ## Next steps
 
-- Continue to [Create Your First Project](first-project/) after Docker is running and at least one AI provider path is configured.
+- Continue to [Create Your First Project](first-project/) after Docker is running and at least one AI provider path is configured. For most first runs, use a provider key.
 - See [Model and Provider Configuration](../user-guide/model-provider-configuration/) for provider fallback behavior.
 - See [AI Providers](../architecture/ai-providers/) for the architecture-level provider order.
 - See [Environment Variables](../reference/environment-variables/) for the complete variable reference.
