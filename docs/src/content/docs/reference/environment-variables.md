@@ -1,24 +1,33 @@
 ---
 title: Environment Variables
-description: Complete reference for ThreadLens open-core environment variables, including which capabilities each variable unlocks.
+description: Reference the ThreadLens open-core environment variables without renaming runtime settings.
 ---
 
 ThreadLens preserves existing runtime environment variable names even when public docs use the ThreadLens brand. Do not rename these variables as part of documentation updates.
 
-For first-run setup guidance see [Configuration Basics](../start-here/configuration-basics/). For how these variables are passed to containers see [Docker Commands and Profiles](../reference/docker-commands-and-profiles/).
+Docker reads values from `open-core/.env` unless an embedding repository or command overrides the env file. Docker containers can start before credentials are configured, but scouting capabilities depend on the variables available to the runtime.
 
-## Variable reference
-
-| Variable | Default | Capability unlocked | First-run importance |
+| Variable | Default | Capability unlocked | Purpose |
 | --- | --- | --- | --- |
-| `PORT` | `4749` | Go API HTTP port. | Not required at first run; override only when the default port conflicts with another service. |
-| `SCOUT_DB_PATH` | `../../scout.db` from the API working directory | SQLite database path. Docker sets this to `/data/scout.db`. | Leave unset for standard Docker use; the Docker profile sets this automatically. |
-| `SCOUT_FRONTEND_DIST` | `../web/dist` from the API working directory | Static web build directory served by the Go API. | Leave unset for standard Docker use; only needed for custom build locations. |
-| `ANTHROPIC_API_KEY` | Empty | Anthropic-backed AI scoring, analysis, and report generation. | **Set this first.** AI scoring and reports do not run without at least one provider key. |
-| `GEMINI_API_KEY` | Empty | Gemini provider path for AI scoring and analysis. | Alternative to `ANTHROPIC_API_KEY`; set one or both. |
-| `PARALLEL_API_KEY` | Empty | Google scouting through the Parallel.ai Search provider. | Required only when Google scouting is enabled for a project. |
-| `BLUESKY_HANDLE` | Empty | Bluesky API account handle for Bluesky scouting. | Required together with `BLUESKY_APP_PASSWORD` when Bluesky scouting is enabled. |
-| `BLUESKY_APP_PASSWORD` | Empty | Bluesky app password paired with `BLUESKY_HANDLE`. | Required together with `BLUESKY_HANDLE` when Bluesky scouting is enabled. |
-| `SCOUT_ENV_FILE` | Empty | Lets embedding repositories point Docker commands at a different env file. | Not needed for standard first-run use. |
-| `SCOUT_INIT_DEMO` | Empty | Seeds demo data when set to `1`. | Optional; useful for evaluating ThreadLens with pre-loaded sample data. |
-| `THREADLENS_RUNTIME_MODE` | `self-hosted` | Selects `self-hosted` or `hosted` runtime mode. | Leave at the default `self-hosted` for open-core use. |
+| `PORT` | `4749` | Optional runtime override | Go API HTTP port. |
+| `SCOUT_DB_PATH` | `../../scout.db` from the API working directory | Optional runtime override | SQLite database path. Docker sets this to `/data/scout.db`. |
+| `SCOUT_FRONTEND_DIST` | `../web/dist` from the API working directory | Optional runtime override | Static web build directory served by the Go API. |
+| `ANTHROPIC_API_KEY` | Empty | AI scoring, analysis, and reports through Anthropic-backed calls | Anthropic-backed AI workflows. |
+| `GEMINI_API_KEY` | Empty | AI scoring, analysis, and reports through Gemini-compatible calls | Gemini provider path. |
+| `PARALLEL_API_KEY` | Empty | Google scouting through the configured search provider | Parallel.ai Search provider for Google scouting. |
+| `BLUESKY_HANDLE` | Empty | Bluesky scouting | Bluesky API account handle. |
+| `BLUESKY_APP_PASSWORD` | Empty | Bluesky scouting | Bluesky app password. |
+| `SCOUT_ENV_FILE` | Empty | Optional Docker env-file override | Docker env-file override for embedding repositories. |
+| `SCOUT_INIT_DEMO` | Empty | Optional local demo seed | Seeds demo data when set to `1`. |
+| `THREADLENS_RUNTIME_MODE` | `self-hosted` | Optional runtime mode selection | Selects `self-hosted` or `hosted`. |
+
+## First-run importance
+
+- Configure at least one AI provider path, such as `ANTHROPIC_API_KEY`, before expecting useful scoring, analysis, or reports.
+- Add `PARALLEL_API_KEY` only when you plan to scout Google Search through the configured search provider.
+- Add both `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` before relying on Bluesky scouting.
+- Leave optional runtime overrides unchanged for the first Docker walkthrough unless you already know you need a custom port, database path, frontend dist path, env file, demo seed, or runtime mode.
+
+Use obviously fake values in docs, examples, and bug reports. Do not commit real provider keys, private URLs, hosted credentials, billing tokens, or customer data.
+
+For a guided setup sequence, see [Configuration Basics](../start-here/configuration-basics/). For Docker command behavior, see [Docker Commands and Profiles](docker-commands-and-profiles/).
