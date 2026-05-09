@@ -3,11 +3,11 @@ title: AI Providers
 description: Understand how ThreadLens chooses AI providers for scoring and analysis.
 ---
 
-ThreadLens uses AI providers for scoring, report generation, query assistance, clustering, and analysis.
+ThreadLens uses AI providers for scoring, report generation, query assistance, clustering, and analysis. The provider policy is hybrid: API keys are the recommended first-run path, and Copilot CLI plus Claude CLI are supported advanced fallback paths when available in the runtime environment.
 
 ## Provider order
 
-The Go API preserves the current fallback shape used by the project:
+The Go API uses this provider fallback order:
 
 1. Copilot CLI when available and authenticated.
 2. Claude CLI when available and authenticated.
@@ -16,7 +16,7 @@ The Go API preserves the current fallback shape used by the project:
 
 ## First-run note
 
-The Start Here docs recommend configuring an explicit provider key for first use because CLI-backed provider paths depend on local or container availability and authentication. A no-key Docker startup can verify that the app loads, but useful scoring, analysis, and reports need an available AI provider path.
+The Start Here docs recommend configuring an explicit provider key for first use because CLI-backed provider paths depend on local or container runtime availability and authentication. A no-key Docker startup can verify that the app loads, but useful scoring, analysis, and reports need an available AI provider path. Copilot CLI and Claude CLI are supported advanced fallback paths when they are installed and authenticated where ThreadLens runs; this architecture page intentionally avoids Docker mount, install, or authentication walkthroughs.
 
 ## Provider keys versus source credentials
 
