@@ -9,9 +9,9 @@ Use this path when you want the fastest local ThreadLens setup. Commands in this
 
 - Node and pnpm compatible with `packageManager: pnpm@10.14.0`.
 - Docker Desktop or another Docker Engine with Compose support.
-- Provider keys before you expect useful AI scoring, analysis, reports, Google scouting, or Bluesky scouting.
+- At least one AI provider path before you expect useful AI scoring, analysis, reports, Google scouting, or Bluesky scouting. A provider key is the recommended first-run path.
 
-You can start the app without provider keys to smoke-test local startup. Configure providers before treating the run as a real scouting workflow.
+You can start the app without an AI provider path to smoke-test local startup. Configure a provider key, or use a supported CLI-backed path that is installed and authenticated in the runtime environment, before treating the run as a real scouting workflow.
 
 ## Start the development profile
 
@@ -45,7 +45,7 @@ Expected result: an HTTP `200` response with JSON runtime information.
 
 Docker startup and provider readiness are separate steps. A no-key launch confirms the containers, web app, and API can run, but it does not provide a complete first-scout outcome.
 
-Before creating a real first scout, follow [Configuration Basics](configuration-basics/) to configure at least one AI provider path. Add `PARALLEL_API_KEY` only if you plan to scout Google Search, and add `BLUESKY_HANDLE` plus `BLUESKY_APP_PASSWORD` only if you plan to scout Bluesky.
+Before creating a real first scout, follow [Configuration Basics](configuration-basics/) to configure at least one AI provider path. For most first runs, use a provider key. Add `PARALLEL_API_KEY` only if you plan to scout Google Search, and add `BLUESKY_HANDLE` plus `BLUESKY_APP_PASSWORD` only if you plan to scout Bluesky.
 
 ## Start the production self-host profile
 
