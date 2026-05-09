@@ -1,54 +1,34 @@
 ---
 title: Scouting Sources
-description: Understand what each scouting source is best at, which credentials each source needs, and what is required for useful scoring and reports.
+description: Understand what each scouting source is best at and which credentials each source needs.
 ---
 
-ThreadLens can scout social posts and Google Search results from project-specific queries. Each source has its own credential requirements, and useful AI scoring and reports require an AI provider to be configured regardless of which source you use.
+ThreadLens can scout social posts and Google Search results from project-specific queries. Useful scoring and reports require AI provider readiness even when a source itself has little or no extra credential setup.
 
 ## Source readiness at a glance
 
-| Source | Runs without credentials | Useful results require |
-| --- | --- | --- |
-| Reddit | ✅ Yes | An AI provider key for scoring |
-| Bluesky | ❌ No | `BLUESKY_HANDLE` + `BLUESKY_APP_PASSWORD` + an AI provider key |
-| Google Search | ❌ No | `PARALLEL_API_KEY` + an AI provider key |
-
-See [Configuration Basics](/start-here/configuration-basics/) for step-by-step setup and [Environment Variables](/reference/environment-variables/) for a full variable reference.
+| Source | Best for | Source credentials | First-run guidance |
+| --- | --- | --- | --- |
+| Reddit | Long-form complaints, niche community language, and detailed workarounds | No extra source credential is documented for the current open-core first-run path | Start here when you want the least source-specific setup. Configure an AI provider first for useful scoring and reports. |
+| Google Search | Pages, comparisons, search intent, commercial intent, and recurring problem language outside social posts | `PARALLEL_API_KEY` | Use after the configured search provider key is present in `open-core/.env`. |
+| Bluesky | Shorter public posts, emerging conversation, and social commentary | `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` | Use after both Bluesky credentials are present in `open-core/.env`. |
 
 ## Reddit
 
-Reddit is useful for long-form complaints, niche community language, and detailed workarounds.
+Reddit is useful for long-form complaints, niche community language, and detailed workarounds. It is the recommended first source when you want the least source-specific credential overhead.
 
-**Credential requirements:** None. Reddit scouting uses the public API and does not require a Reddit account or token.
-
-**Ready to use:** Reddit queries run as soon as the server starts. Without an AI provider key, posts are collected but scores and reports will not be generated.
+Reddit results still need AI provider readiness before you should expect useful scoring, analysis, or reports.
 
 ## Bluesky
 
-Bluesky is useful for shorter public posts and emerging conversation.
-
-**Credential requirements:** Set `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` in `open-core/.env` before running a Bluesky scout. Without these, Bluesky runs will fail immediately.
-
-**Ready to use:** After adding the credentials and restarting, Bluesky queries become active. As with all sources, an AI provider key is required for scoring and reports.
+Bluesky is useful for shorter public posts and emerging conversation. Configure `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` before relying on Bluesky scouting.
 
 ## Google Search
 
-Google scouting finds pages and search results that surface comparison intent, commercial intent, and recurring problem language.
-
-**Credential requirements:** Set `PARALLEL_API_KEY` in `open-core/.env` to use the default Parallel.ai Search provider. Without this key, Google scout runs will return no results.
-
-**Ready to use:** After adding the key and restarting, Google queries become active. An AI provider key is required for the per-result analysis and the executive summary report.
-
-## AI provider readiness
-
-Scoring and reports are driven by the configured AI provider. Without a working AI provider key, ThreadLens collects raw posts but cannot:
-
-- Calculate pain-point scores
-- Generate clustering or research reports
-- Produce Google Search executive summaries
-
-Configure at least one AI provider (Anthropic, Gemini, or Copilot CLI) in `open-core/.env` before expecting scored results. See [Configuration Basics](/start-here/configuration-basics/) for instructions.
+Google scouting finds pages and search results that can show comparison intent, commercial intent, and recurring problem language. Configure `PARALLEL_API_KEY` when using the Parallel.ai Search provider.
 
 ## Source selection
 
-Start with one source, inspect the results, then add more sources after the project query language is producing useful findings.
+Start with one source, inspect the results, then add more sources after the project query language is producing useful findings. If a source returns errors or empty results, check both the AI provider credential and the source-specific credential for that source.
+
+For first-run credential setup, see [Configuration Basics](../start-here/configuration-basics/). For the complete variable reference, see [Environment Variables](../reference/environment-variables/).
