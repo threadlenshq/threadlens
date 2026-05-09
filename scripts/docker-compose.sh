@@ -30,6 +30,11 @@ ensure_env_file() {
   printf 'Fill in provider keys in open-core/.env for Google or Bluesky features.\n'
 }
 
+# Source env file to make variables available to docker compose (${VAR:-} syntax reads from host env)
+set -a
+source "$ENV_FILE"
+set +a
+
 cd "$ROOT_DIR"
 
 case "$COMMAND" in
