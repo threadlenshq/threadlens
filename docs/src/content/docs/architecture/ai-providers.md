@@ -32,7 +32,7 @@ When ThreadLens runs inside Docker, the host CLI bridge extends the CLI-backed f
 - Docker localhost vs host networking is a common ambiguity. Inside a Docker container, `localhost` refers to the container, not the host. A bridge running on the host must be reachable via the Docker host gateway address (e.g., `host.docker.internal` or `172.17.0.1`).
 - Bridge status is exposed as a read-only indicator in the Models UI. Users may interpret bridge status as a selectable model mode — it is not. It is a signal about fallback availability.
 - Bridge outages degrade quietly: ThreadLens logs the failure and continues the provider fallback order rather than surfacing an error.
-- The exact helper binary name and packaging location remain an implementation-planning open question and will be documented when finalized.
+- The helper binary is named `scout-ai-bridge` and lives in the open-core Go API module at `open-core/apps/api/cmd/scout-ai-bridge`.
 
 ## Provider keys versus source credentials
 

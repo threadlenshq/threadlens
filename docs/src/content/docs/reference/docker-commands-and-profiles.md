@@ -7,6 +7,8 @@ Run Docker commands from `open-core/`. If this is your first visit, start with t
 
 Docker startup and provider readiness are separate. Containers can run before credentials are configured, but scouting capabilities depend on the provider and source credentials available in `open-core/.env`.
 
+On macOS and Linux, `pnpm run docker:dev` also best-effort bootstraps the host CLI bridge before Compose starts. The bootstrap creates file-based bridge config and token state, starts `scout-ai-bridge` in the background when needed, writes Docker-facing bridge variables into `open-core/.env`, and continues to Compose even if the bridge is unavailable.
+
 | Command | Profile | Result |
 | --- | --- | --- |
 | `pnpm run docker:dev` | `dev` | Starts `api` and `web` services for local development. The web app is available at `http://localhost:4748`, and the Go API is available at `http://localhost:4749`. |

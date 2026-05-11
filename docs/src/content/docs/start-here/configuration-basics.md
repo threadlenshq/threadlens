@@ -31,31 +31,28 @@ For a first useful scout, configure at least one AI provider path before expecti
 
 For first-run Docker docs, prefer an explicit provider key because CLI availability and authentication can vary by host and container setup. The CLI-backed paths are supported runtime paths, but this page intentionally does not provide Docker mount, install, or authentication walkthroughs.
 
-### Host CLI bridge (advanced, Docker only)
+### Host CLI bridge (Docker dev fallback)
 
-When ThreadLens runs inside Docker and the host machine has a supported CLI (Copilot CLI or Claude CLI) installed and authenticated, a host CLI bridge can proxy AI calls from the container to the host CLI runtime over localhost HTTP.
+When ThreadLens runs inside Docker on macOS or Linux and the host machine has Copilot CLI or Claude CLI installed and authenticated, `pnpm run docker:dev` best-effort starts a host helper named `scout-ai-bridge`. The helper lets the Dockerized API route CLI-backed AI calls to the host without mounting CLI credential directories into the container.
 
-The bridge is an advanced fallback path, not the recommended first-run setup. API keys remain the recommended first-run choice.
+The bridge is still a fallback path. API keys remain the recommended explicit first-run choice because they are easier to verify and work the same inside and outside Docker.
 
-**Bridge URL and network safety:**
-- The bridge must listen only on a loopback or private-network address (for example `127.0.0.1` or a Docker internal network). Do not expose the bridge on a public interface.
-- Exposing the bridge publicly is unsafe and unsupported. The bridge command surface is protected by bearer-token authentication, but public exposure is not a supported configuration.
+**What Docker dev creates:**
+- `$XDG_CONFIG_HOME/scout/ai-bridge.token`, or `~/.config/scout/ai-bridge.token`, containing a local bearer token.
+- `$XDG_CONFIG_HOME/scout/ai-bridge.json`, or `~/.config/scout/ai-bridge.json`, pointing host-side clients at `http://127.0.0.1:4761`.
+- `open-core/.env` bridge values that point the API container at `http://host.docker.internal:4761` and mount the token file read-only at `/run/secrets/scout-ai-bridge-token`.
 
-**Auto-launch behaviour:**
-- A helper process can attempt to auto-launch the bridge when needed. This launch is best-effort only: if the helper binary is not present or the host CLI is not authenticated, the bridge will not become available and AI calls will fall back to the next provider in the fallback order.
-- Auto-launch should not run as a hidden always-on background process. If you encounter unexpected background processes, check your runtime configuration.
+**Network safety:**
+- The helper binds to `127.0.0.1:4761` by default and rejects wildcard or public bind addresses.
+- Exposing the bridge publicly is unsafe and unsupported.
+- From inside Docker, `localhost` refers to the container itself, so the Docker-facing URL uses `host.docker.internal` instead.
 
-**Docker networking note:**
-- From inside a Docker container, `localhost` refers to the container itself, not the host. Use the Docker host gateway address (typically `host-gateway` or `172.17.0.1`) or Docker's `host.docker.internal` alias to reach a bridge running on the host.
-- This Docker localhost vs host networking distinction is a common source of confusion. If the bridge status shows unavailable inside Docker, verify the bridge URL points to the host, not the container.
+**Opt out:**
+- Set `SCOUT_AI_BRIDGE_DISABLE=1` before running `pnpm run docker:dev` to skip bridge bootstrap.
+- Bridge bootstrap failures do not block Docker startup. If the helper cannot build, launch, or find an authenticated CLI, ThreadLens falls back to direct in-container providers and configured API keys.
 
 **UI status:**
-- When the bridge is configured, the Models UI shows bridge status as a read-only indicator. Bridge status is not a selectable model mode — it is a signal about fallback availability.
-
-**Open questions (not yet resolved):**
-- The exact helper binary name and packaging location for auto-launch are implementation-planning open questions. This page will be updated when those details are finalized.
-
-The bridge degrades quietly: if the bridge is unreachable, ThreadLens logs the failure and moves to the next provider in the fallback order rather than returning an error to the user.
+- The Models UI shows bridge status as a read-only indicator. It is not a separate model mode or model picker.
 
 ## 3. Add source-specific credentials only when needed
 

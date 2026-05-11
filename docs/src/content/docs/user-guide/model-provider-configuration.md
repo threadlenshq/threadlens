@@ -49,7 +49,7 @@ The bridge is an advanced fallback path. API keys remain the recommended first-r
 - From inside Docker, `localhost` refers to the container, not the host. Use the Docker host gateway (e.g., `host.docker.internal` or `172.17.0.1`) to reach a bridge on the host. A mismatch here is a common source of "bridge unavailable" status.
 - The Models UI shows bridge status as a read-only indicator, not as a selectable model mode.
 - Bridge outages degrade quietly: ThreadLens logs the failure and moves to the next provider rather than surfacing an error to the user.
-- The exact helper binary name and packaging location are not yet finalized and will be documented when resolved.
+- The helper binary is named `scout-ai-bridge`; Docker dev builds it at `open-core/bin/scout-ai-bridge` when the binary is missing and a local Go toolchain is available.
 
 ## Safe operation
 
