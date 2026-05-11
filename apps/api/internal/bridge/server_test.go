@@ -11,8 +11,9 @@ import (
 )
 
 // newTestServer creates a test HTTP server with a single available runtime and a
-// known bearer token. MaxBodyBytes is set to 64 bytes so oversized-body tests
-// are deterministic without large allocations.
+// known bearer token. MaxBodyBytes is set to 128 bytes so oversized-body tests
+// are deterministic without large allocations (the valid dispatch payload is
+// ~101 bytes, and the oversized-body test sends 200 bytes).
 func newTestServer(t *testing.T, rt *fakeRuntime) (*httptest.Server, string) {
 	t.Helper()
 	const token = "test-secret"
@@ -20,7 +21,7 @@ func newTestServer(t *testing.T, rt *fakeRuntime) (*httptest.Server, string) {
 	srv := httptest.NewServer(NewHandler(ServerConfig{
 		Registry:     reg,
 		BearerToken:  token,
-		MaxBodyBytes: 64,
+		MaxBodyBytes: 128,
 	}))
 	t.Cleanup(srv.Close)
 	return srv, token
