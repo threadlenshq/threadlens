@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -240,6 +242,126 @@ func TestDeleteModelConfig_UnknownTask(t *testing.T) {
 	if resp["error"] != expected {
 		t.Fatalf("error = %v, want %q", resp["error"], expected)
 	}
+}
+
+func TestGetModelCatalog_ExternalRuntimeShape(t *testing.T) {
+	router, _ := newModelRouter(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/models/catalog", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+
+	ext, ok := body["externalRuntime"].(map[string]any)
+	if !ok {
+		t.Fatalf("externalRuntime missing or wrong type; body keys: %v", keysOf(body))
+	}
+
+	for _, key := range []string{"type", "detected", "availableRuntimes", "source", "autoLaunchAttempted", "message"} {
+		if _, exists := ext[key]; !exists {
+			t.Fatalf("externalRuntime missing key %q", key)
+		}
+	}
+
+	// Must not expose secrets or paths
+	rawJSON := rr.Body.String()
+	for _, forbidden := range []string{"token", "tokenFile"} {
+		if containsKey(rawJSON, forbidden) {
+			t.Fatalf("response JSON must not contain key %q", forbidden)
+		}
+	}
+}
+
+func TestGetModelCatalog_ExternalRuntimeNoSecretLeak(t *testing.T) {
+	// Even with bridge fully disabled the response must have the externalRuntime key
+	// and must never expose token values or file paths.
+	t.Setenv("SCOUT_AI_BRIDGE_DISABLE", "1")
+
+	router, _ := newModelRouter(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/models/catalog", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+
+	ext, ok := body["externalRuntime"].(map[string]any)
+	if !ok {
+		t.Fatalf("externalRuntime missing or wrong type when disabled")
+	}
+	if ext["detected"] != false {
+		t.Fatalf("detected should be false when disabled, got %v", ext["detected"])
+	}
+
+	rawJSON := rr.Body.String()
+	for _, forbidden := range []string{`"token"`, `"tokenFile"`} {
+		if strings.Contains(rawJSON, forbidden) {
+			t.Fatalf("response JSON must not contain %q", forbidden)
+		}
+	}
+}
+
+func TestGetModelCatalog_ExternalRuntimeNoURLOrPathLeak(t *testing.T) {
+	// Point the bridge at a known URL and token file path. Neither should
+	// appear anywhere in the catalog response, even in field values.
+	const knownURL = "http://127.0.0.1:19999"
+	const knownToken = "supersecrettoken"
+	const knownPath = "/tmp/scout-test-token-file-leak-check.txt"
+
+	// Write a token file so the bridge loader considers it valid.
+	if err := os.WriteFile(knownPath, []byte(knownToken), 0o600); err != nil {
+		t.Fatalf("failed to write temp token file: %v", err)
+	}
+	t.Cleanup(func() { os.Remove(knownPath) })
+
+	t.Setenv("SCOUT_AI_BRIDGE_URL", knownURL)
+	t.Setenv("SCOUT_AI_BRIDGE_TOKEN_FILE", knownPath)
+
+	router, _ := newModelRouter(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/models/catalog", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+
+	rawJSON := rr.Body.String()
+	for _, secret := range []string{knownToken, knownPath, knownURL} {
+		if strings.Contains(rawJSON, secret) {
+			t.Fatalf("response JSON must not contain secret/path value %q", secret)
+		}
+	}
+}
+
+// keysOf returns the key names of a map[string]any for diagnostic messages.
+func keysOf(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+// containsKey reports whether the raw JSON string contains the given key name as a JSON key.
+func containsKey(rawJSON, key string) bool {
+	return strings.Contains(rawJSON, `"`+key+`"`)
 }
 
 func TestConfigPersists_UserOverridesReflectedInConfig(t *testing.T) {

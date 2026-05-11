@@ -85,6 +85,33 @@ func LoadBridgeConfig() (BridgeState, error) {
 	return state, nil
 }
 
+// LoadBridgeStatus is a read-only variant of LoadBridgeConfig that never spawns
+// processes or waits. It is safe to call from hot paths such as the model catalog
+// endpoint. Auto-launch is intentionally skipped; the returned AutoLaunchAttempted
+// will always be false.
+func LoadBridgeStatus() BridgeState {
+	// 1. Explicit disable wins over everything.
+	if os.Getenv("SCOUT_AI_BRIDGE_DISABLE") == "1" {
+		return BridgeState{
+			Enabled:  false,
+			Detected: false,
+			Message:  "bridge disabled via SCOUT_AI_BRIDGE_DISABLE",
+			Source:   "disabled",
+		}
+	}
+
+	// 2. Full env override: URL + token file supplied directly.
+	if envURL := os.Getenv("SCOUT_AI_BRIDGE_URL"); envURL != "" {
+		state, _ := loadFromEnvOverride(envURL)
+		return state
+	}
+
+	// 3. Locate config file (read-only; auto-launch is intentionally skipped).
+	cfgPath := resolveConfigPath()
+	state, _ := loadFromConfigFile(cfgPath)
+	return state
+}
+
 // resolveConfigPath returns the path to the bridge config JSON.
 // Priority: SCOUT_AI_BRIDGE_CONFIG > $XDG_CONFIG_HOME/scout/ai-bridge.json > ~/.config/scout/ai-bridge.json
 func resolveConfigPath() string {

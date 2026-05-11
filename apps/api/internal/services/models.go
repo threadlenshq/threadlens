@@ -28,13 +28,17 @@ func NewModelService(repo *repository.Repository, mode entitlements.RuntimeMode,
 	return &ModelService{repo: repo, mode: mode, resolver: resolver}
 }
 
-// Catalog returns the model catalog with entitlement-aware managed provider metadata.
+// Catalog returns the model catalog with entitlement-aware managed provider metadata
+// and read-only host bridge status.
 func (s *ModelService) Catalog(ctx context.Context) (map[string]any, error) {
 	subject := tenant.SubjectFromContext(ctx, s.mode)
 	decision, err := s.resolver.Check(ctx, entitlements.CheckRequest{Subject: subject, Capability: entitlements.CapabilityManagedAIUse, Action: "models.catalog.managed_ai"})
 	if err != nil {
 		return nil, err
 	}
+
+	bridgeState := ai.LoadBridgeStatus()
+
 	return map[string]any{
 		"models": ai.ModelCatalog,
 		"tasks":  ai.Tasks,
@@ -42,7 +46,26 @@ func (s *ModelService) Catalog(ctx context.Context) (map[string]any, error) {
 			"available":  decision.Allowed,
 			"capability": entitlements.CapabilityManagedAIUse,
 		},
+		"externalRuntime": safeBridgeStatus(bridgeState),
 	}, nil
+}
+
+// safeBridgeStatus maps a BridgeState into a read-only catalog payload.
+// It explicitly excludes token values, token file paths, and the bridge URL
+// so that no secrets or host paths are leaked to the client.
+func safeBridgeStatus(s ai.BridgeState) map[string]any {
+	runtimes := s.Runtimes
+	if runtimes == nil {
+		runtimes = []string{}
+	}
+	return map[string]any{
+		"type":                "host-cli-bridge",
+		"detected":            s.Detected,
+		"availableRuntimes":   runtimes,
+		"source":              s.Source,
+		"autoLaunchAttempted": s.AutoLaunchAttempted,
+		"message":             s.Message,
+	}
 }
 
 // ResolveTaskModel resolves which model to use for the given task, checking user overrides first.
