@@ -28,8 +28,10 @@ var fallbackOrder = []string{
 }
 
 // defaultProviders returns the ordered list of production providers.
+// The bridge provider is prepended so it is tried first for bridge-compatible models.
 func defaultProviders() []Provider {
 	return []Provider{
+		NewBridgeProvider(),
 		NewCLIProvider("copilot"),
 		NewCLIProvider("claude"),
 		&AnthropicProvider{},
@@ -74,6 +76,16 @@ func NewServiceWithProviders(providers []Provider) *Service {
 	return &Service{providers: providers, meter: usage.NoopMeter{}}
 }
 
+// bridgeProvider returns the BridgeProvider from the providers list, if present.
+func (s *Service) bridgeProvider() *BridgeProvider {
+	for _, p := range s.providers {
+		if bp, ok := p.(*BridgeProvider); ok {
+			return bp
+		}
+	}
+	return nil
+}
+
 // providerFor returns the Provider whose Name() matches the given provider tag
 // (e.g. "copilot", "claude-cli", "sdk", "gemini").
 func (s *Service) providerFor(providerTag string) Provider {
@@ -88,6 +100,23 @@ func (s *Service) providerFor(providerTag string) Provider {
 		}
 	}
 	return nil
+}
+
+// invokeModelWithBridge attempts bridge → direct provider for bridge-compatible models,
+// or falls through to the direct provider only for non-bridge-compatible models.
+// The returned model ID is always the catalog model ID (m.ID), regardless of which
+// underlying transport succeeded.
+func (s *Service) invokeModelWithBridge(ctx context.Context, m *ModelEntry, systemPrompt, userMessage string, timeout time.Duration) (string, error) {
+	if isBridgeCompatible(m.Provider) {
+		if bp := s.bridgeProvider(); bp != nil {
+			result, err := bp.Generate(ctx, m.Model, systemPrompt, userMessage, timeout)
+			if err == nil {
+				return result, nil
+			}
+			// Bridge failed — fall through to direct provider.
+		}
+	}
+	return s.invokeModel(ctx, m, systemPrompt, userMessage, timeout)
 }
 
 // invokeModel calls the right provider for a ModelEntry with the given timeout.
@@ -164,15 +193,23 @@ func (s *Service) generateForTaskInner(ctx context.Context, taskID string, syste
 
 	var firstErr error
 	for i, candidate := range candidates {
-		// First candidate is always tried; subsequent ones require Available().
+		// First candidate is always tried without an availability check.
+		// For subsequent candidates:
+		//  - Bridge-compatible providers are gated by the bridge being available OR the direct
+		//    provider being available (either path can succeed).
+		//  - Non-bridge-compatible providers require their direct provider to be available.
 		if i > 0 {
-			p := s.providerFor(candidate.Provider)
-			if p == nil || !p.Available() {
+			bridgeCouldHandle := isBridgeCompatible(candidate.Provider) && s.bridgeProvider() != nil && s.bridgeProvider().Available()
+			directOK := func() bool {
+				p := s.providerFor(candidate.Provider)
+				return p != nil && p.Available()
+			}()
+			if !bridgeCouldHandle && !directOK {
 				continue
 			}
 		}
 
-		result, err := s.invokeModel(ctx, candidate, systemPrompt, userMessage, timeout)
+		result, err := s.invokeModelWithBridge(ctx, candidate, systemPrompt, userMessage, timeout)
 		if err == nil {
 			return result, candidate.ID, nil
 		}
@@ -181,11 +218,11 @@ func (s *Service) generateForTaskInner(ctx context.Context, taskID string, syste
 		}
 	}
 
-	reason := "no available providers"
+	reason := "no available providers — ensure host CLI bridge is reachable, Copilot CLI or Claude CLI is installed, or set ANTHROPIC_API_KEY / GEMINI_API_KEY"
 	if firstErr != nil {
 		reason = firstErr.Error()
 	}
-	return "", "", fmt.Errorf("all AI providers failed for task %q: %s", taskID, reason)
+	return "", "", fmt.Errorf("all AI providers failed for task %q (tried bridge, CLI, API-key providers): %s", taskID, reason)
 }
 
 // GenerateAuto tries the cached provider first, then walks the fallback chain.
