@@ -31,19 +31,27 @@ ensure_env_file() {
 }
 
 # Source env file to make variables available to docker compose (${VAR:-} syntax reads from host env)
-set -a
-source "$ENV_FILE"
-set +a
+source_env_file() {
+  set -a
+  # shellcheck source=/dev/null
+  source "$ENV_FILE"
+  set +a
+}
 
 cd "$ROOT_DIR"
 
 case "$COMMAND" in
   dev)
     ensure_env_file
+    # Best-effort: start the host AI bridge daemon before containers come up.
+    # Non-fatal — dev still works without it (bridge features just won't be available).
+    "$SCRIPT_DIR/bootstrap-ai-bridge.sh" || true
+    source_env_file
     exec docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" --profile dev up --build -d
     ;;
   prod)
     ensure_env_file
+    source_env_file
     exec docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" --profile prod up --build -d
     ;;
   down)
