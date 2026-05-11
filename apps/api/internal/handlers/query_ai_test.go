@@ -267,6 +267,52 @@ func TestQueryAIRefine_InvalidAIJSON_Returns500(t *testing.T) {
 	}
 }
 
+func TestQueryAIRefine_NoAIProviderConfigured_ReturnsContextOnly(t *testing.T) {
+	db := testingpkg.OpenTestDB(t)
+	repo := repository.New(db)
+	aiSvc := ai.NewServiceWithProviders([]ai.Provider{
+		&fakeAIProvider{name: "claude", err: context.DeadlineExceeded},
+	})
+	querySvc := services.NewQueryService(repo, aiSvc)
+	r := chi.NewRouter()
+	handlers.MountProjectRoutes(r, services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)))
+	handlers.MountQueryRoutes(r, querySvc)
+
+	doRequest(t, r, http.MethodPost, "/api/projects", map[string]any{"id": "p1", "name": "Test", "mode": "research"})
+	doRequest(t, r, http.MethodPost, "/api/projects/p1/queries", map[string]any{
+		"platform": "reddit", "query_url": "https://reddit.com/search.json?q=old&sort=new&t=week&limit=100", "angle": "old topic",
+	})
+
+	rr := doRequest(t, r, http.MethodPost, "/api/projects/p1/queries/refine", map[string]any{})
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+
+	summary, _ := resp["summary"].(string)
+	if summary == "" {
+		t.Fatal("expected non-empty summary")
+	}
+	recs, ok := resp["recommendations"].([]any)
+	if !ok {
+		t.Fatal("missing recommendations")
+	}
+	if len(recs) != 0 {
+		t.Fatalf("expected 0 recommendations, got %d", len(recs))
+	}
+	ctxMap, ok := resp["context"].(map[string]any)
+	if !ok {
+		t.Fatal("missing context")
+	}
+	if got := int(ctxMap["query_count"].(float64)); got != 1 {
+		t.Fatalf("query_count = %d, want 1", got)
+	}
+}
+
 func TestQueryAIRefine_DisableRecommendation(t *testing.T) {
 	// Create a project with one query, then refine recommends disabling it
 	var createdQueryID float64

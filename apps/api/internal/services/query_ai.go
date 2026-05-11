@@ -992,7 +992,32 @@ func (s *QueryService) Refine(ctx context.Context, projectID string, req RefineR
 	raw, _, err := s.ai.GenerateForTask(ctx, "query_refinement", refineSystemPrompt, string(userMsg))
 	if err != nil {
 		if strings.Contains(err.Error(), "all AI providers failed") {
-			return RefineResponse{}, http.StatusInternalServerError, err.Error()
+			enabledCount := 0
+			for _, q := range existingQueries {
+				if q.Enabled != 0 {
+					enabledCount++
+				}
+			}
+
+			var socialRef *RefineReportRef
+			if socialRep != nil {
+				socialRef = &RefineReportRef{ID: socialRep.ID, Source: socialSource}
+			}
+			var googleRef *RefineReportRef
+			if googleRep != nil {
+				googleRef = &RefineReportRef{ID: googleRep.ID, Source: googleSource}
+			}
+
+			return RefineResponse{
+				Summary: "AI refinement is unavailable (no AI provider is configured in this runtime). Returning query context without recommendations.",
+				Context: RefineContext{
+					QueryCount:        len(existingQueries),
+					EnabledQueryCount: enabledCount,
+					SocialReport:      socialRef,
+					GoogleReport:      googleRef,
+				},
+				Recommendations: []RefineRecommendation{},
+			}, http.StatusOK, ""
 		}
 		return RefineResponse{}, http.StatusInternalServerError, "Failed to generate refinement suggestions, try again"
 	}
