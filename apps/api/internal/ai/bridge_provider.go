@@ -76,7 +76,16 @@ type bridgeGenerateResponse struct {
 // Generate calls the bridge's /v1/health then /v1/generate endpoints.
 // Returns a trimmed non-empty text response, or an error.
 // Failures are transient — the bridge is not marked as permanently unavailable.
+// It delegates to GenerateWithProvider with an empty provider string for backward compatibility.
 func (p *BridgeProvider) Generate(ctx context.Context, model string, systemPrompt string, userMessage string, timeout time.Duration) (string, error) {
+	return p.GenerateWithProvider(ctx, "", model, systemPrompt, userMessage, timeout)
+}
+
+// GenerateWithProvider calls the bridge's /v1/health then /v1/generate endpoints,
+// sending the explicit provider tag (e.g. "copilot", "claude-cli") in the request body.
+// Returns a trimmed non-empty text response, or an error.
+// Failures are transient — the bridge is not marked as permanently unavailable.
+func (p *BridgeProvider) GenerateWithProvider(ctx context.Context, provider string, model string, systemPrompt string, userMessage string, timeout time.Duration) (string, error) {
 	state, err := p.stateFn()
 	if err != nil {
 		return "", fmt.Errorf("bridge: config error: %w", err)
@@ -94,7 +103,7 @@ func (p *BridgeProvider) Generate(ctx context.Context, model string, systemPromp
 	}
 
 	// Generation.
-	return p.callGenerate(timeoutCtx, state, model, systemPrompt, userMessage, timeout)
+	return p.callGenerate(timeoutCtx, state, provider, model, systemPrompt, userMessage, timeout)
 }
 
 // checkHealth calls GET /v1/health with bearer auth and returns an error if unhealthy.
@@ -119,10 +128,9 @@ func (p *BridgeProvider) checkHealth(ctx context.Context, state BridgeState) err
 }
 
 // callGenerate calls POST /v1/generate and returns the trimmed text.
-func (p *BridgeProvider) callGenerate(ctx context.Context, state BridgeState, model, systemPrompt, userMessage string, timeout time.Duration) (string, error) {
-	// Derive provider tag from model context — the bridge receives the raw model name.
-	// We pass an empty provider string; the bridge resolves routing internally.
+func (p *BridgeProvider) callGenerate(ctx context.Context, state BridgeState, provider, model, systemPrompt, userMessage string, timeout time.Duration) (string, error) {
 	reqBody, err := json.Marshal(bridgeGenerateRequest{
+		Provider:     provider,
 		Model:        model,
 		SystemPrompt: systemPrompt,
 		UserMessage:  userMessage,

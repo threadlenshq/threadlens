@@ -42,6 +42,10 @@ func TestBridgeProvider_HealthAndGenerate(t *testing.T) {
 		case "/v1/generate":
 			var req map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&req)
+			if req["provider"] != "copilot" {
+				http.Error(w, "missing provider field", http.StatusBadRequest)
+				return
+			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"text": "  generated response  ",
 			})
@@ -64,7 +68,7 @@ func TestBridgeProvider_HealthAndGenerate(t *testing.T) {
 		t.Fatal("expected bridge to be available")
 	}
 
-	result, err := p.Generate(context.Background(), "gpt-5-mini", "system prompt", "user message", 5*time.Second)
+	result, err := p.GenerateWithProvider(context.Background(), "copilot", "gpt-5-mini", "system prompt", "user message", 5*time.Second)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
