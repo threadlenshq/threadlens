@@ -23,6 +23,10 @@ services:
       PARALLEL_API_KEY: ${PARALLEL_API_KEY:-}
       BLUESKY_HANDLE: ${BLUESKY_HANDLE:-}
       BLUESKY_APP_PASSWORD: ${BLUESKY_APP_PASSWORD:-}
+      SCOUT_AI_BRIDGE_URL: ${SCOUT_AI_BRIDGE_URL:-}
+      SCOUT_AI_BRIDGE_TOKEN_FILE: ${SCOUT_AI_BRIDGE_TOKEN_FILE:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "4749:4749"
     volumes:
@@ -31,6 +35,10 @@ services:
       - ../../apps/web:/workspace/apps/web
       - ../../packages/shared:/workspace/packages/shared
       - scout_open_core_sqlite_data:/data
+      - type: bind
+        source: ${SCOUT_AI_BRIDGE_HOST_TOKEN_FILE:-../../.env.example}
+        target: /run/secrets/scout-ai-bridge-token
+        read_only: true
 
   web:
     profiles: ["dev"]
