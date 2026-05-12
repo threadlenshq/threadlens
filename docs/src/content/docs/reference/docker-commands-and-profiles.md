@@ -7,9 +7,9 @@ Run Docker commands from `open-core/`. If this is your first visit, start with t
 
 Docker startup and provider readiness are separate. Containers can run before credentials are configured, but scouting capabilities depend on the provider and source credentials available in `open-core/.env`.
 
-On macOS and Linux, `pnpm run docker:dev` also best-effort bootstraps the optional local host CLI bridge before Compose starts. The bootstrap creates file-based bridge config and token state, starts `scout-ai-bridge` when possible, writes Docker-facing bridge variables into `open-core/.env`, and continues to Compose even if the bridge is unavailable.
+On macOS and Linux, `pnpm run docker:dev` also best-effort bootstraps the optional local host CLI bridge before Compose starts. The bootstrap creates file-based bridge config and token state, starts `scout-ai-bridge` when possible, writes Docker-facing bridge variables into `open-core/.env`, and continues to Compose even if the bridge is unavailable. Self-hosted users can also run the bridge alongside a `docker:prod` deployment if they want host-authenticated CLI reuse.
 
-`pnpm run docker:prod` does not run bridge bootstrap, does not require a bridge service, and does not mount bridge token files by default. Use API keys or runtime-local CLI authentication for production AI providers.
+`pnpm run docker:prod` does not run bridge bootstrap, does not require a bridge service, and does not mount bridge token files by default. Use API keys or runtime-local CLI authentication for production AI providers. The bridge is optional for self-hosting, but it is not part of the prod container baseline.
 
 | Command | Profile | Result |
 | --- | --- | --- |

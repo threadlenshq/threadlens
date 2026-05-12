@@ -14,7 +14,7 @@ The core provider runtime runs inside the Go API process environment:
 3. Anthropic SDK calls when `ANTHROPIC_API_KEY` is configured.
 4. Gemini SDK calls when `GEMINI_API_KEY` is configured.
 
-The optional external runtime is the local host CLI bridge. It can satisfy `copilot` and `claude-cli` catalog model requests before direct CLI is attempted, but only when bridge policy and config allow it. `sdk` and `gemini` models never route through the bridge.
+The optional external runtime is the local host CLI bridge. It can satisfy `copilot` and `claude-cli` catalog model requests before direct CLI is attempted, but only when bridge policy and config allow it. `sdk` and `gemini` models never route through the bridge. The bridge is optional for self-hosted deployments as well as local Docker development.
 
 ## Fallback order
 
@@ -27,7 +27,7 @@ Task-aware calls use the model selected in the Models view first, then this exac
 
 ## Production and local development
 
-Production and VPS self-host deployments do not need a bridge daemon, bridge token mount, or bridge bootstrap. They should use API keys or install and authenticate CLIs directly inside the runtime environment when CLI-backed models are desired.
+Production and VPS self-host deployments do not need a bridge daemon, bridge token mount, or bridge bootstrap. They should use API keys or install and authenticate CLIs directly inside the runtime environment when CLI-backed models are desired. If an operator wants host-authenticated CLI reuse later, they can still add the bridge as an optional local transport.
 
 Local desktop and local Docker development may use `SCOUT_AI_BRIDGE_MODE=local` and best-effort Docker dev bootstrap to reuse host CLI sessions. The bridge is local-only convenience infrastructure, not a managed AI route and not a separate model provider.
 

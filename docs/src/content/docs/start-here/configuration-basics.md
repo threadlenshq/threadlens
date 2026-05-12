@@ -27,15 +27,15 @@ For a first useful scout, configure at least one AI provider path before expecti
 | `GEMINI_API_KEY` | Alternative AI provider key | Enables the Gemini-compatible provider path when configured. |
 | Copilot CLI | Supported advanced fallback path | Works only when the Copilot CLI is installed and authenticated in the same runtime environment as ThreadLens. |
 | Claude CLI | Supported advanced fallback path | Works only when the Claude CLI is installed and authenticated in the same runtime environment as ThreadLens. |
-| Host CLI bridge | Advanced fallback path for Dockerized installs | Routes AI calls from a Docker container to a host-authenticated CLI runtime over a loopback HTTP service. See the bridge guidance below. |
+| Host CLI bridge | Optional advanced fallback path | Routes AI calls from Docker or a self-hosted runtime to a host-authenticated CLI runtime over a loopback HTTP service. See the bridge guidance below. |
 
 For first-run Docker docs, prefer an explicit provider key because CLI availability and authentication can vary by host and container setup. The CLI-backed paths are supported runtime paths, but this page intentionally does not provide Docker mount, install, or authentication walkthroughs.
 
-### Host CLI bridge (Docker dev fallback)
+### Host CLI bridge (optional fallback)
 
-When ThreadLens runs inside Docker on macOS or Linux and the host machine has Copilot CLI or Claude CLI installed and authenticated, `pnpm run docker:dev` best-effort starts a host helper named `scout-ai-bridge`. The helper lets the Dockerized API route CLI-backed AI calls to the host without mounting CLI credential directories into the container.
+When ThreadLens runs inside Docker on macOS or Linux and the host machine has Copilot CLI or Claude CLI installed and authenticated, `pnpm run docker:dev` best-effort starts a host helper named `scout-ai-bridge`. Self-hosted operators can also run the same helper alongside a `docker:prod` deployment if they want to reuse a host-authenticated CLI runtime. The helper lets the Dockerized API route CLI-backed AI calls to the host without mounting CLI credential directories into the container.
 
-The bridge is still a fallback path. API keys remain the recommended explicit first-run choice because they are easier to verify and work the same inside and outside Docker.
+The bridge is still a fallback path. API keys remain the recommended explicit first-run choice because they are easier to verify and work the same inside and outside Docker. For self-hosters, the bridge is optional convenience, not a requirement.
 
 **What Docker dev creates:**
 - `$XDG_CONFIG_HOME/scout/ai-bridge.token`, or `~/.config/scout/ai-bridge.token`, containing a local bearer token.

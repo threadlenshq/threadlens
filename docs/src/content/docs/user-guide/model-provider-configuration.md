@@ -9,7 +9,7 @@ ThreadLens uses AI providers for scoring, analysis, query assistance, clustering
 
 Configure provider keys in `open-core/.env`. Keep the existing runtime variable names such as `ANTHROPIC_API_KEY` and `GEMINI_API_KEY`.
 
-For a first Docker-based run, start with one explicit provider key. `ANTHROPIC_API_KEY` is the recommended first documented path, and `GEMINI_API_KEY` is another supported key-backed path. Copilot CLI and Claude CLI are also supported advanced fallback paths when the CLI is installed and authenticated in the same runtime environment as ThreadLens. A host CLI bridge is an additional advanced fallback path available when ThreadLens runs inside Docker and the host has an authenticated CLI; see the bridge guidance below.
+For a first Docker-based run, start with one explicit provider key. `ANTHROPIC_API_KEY` is the recommended first documented path, and `GEMINI_API_KEY` is another supported key-backed path. Copilot CLI and Claude CLI are also supported advanced fallback paths when the CLI is installed and authenticated in the same runtime environment as ThreadLens. A host CLI bridge is an additional optional fallback path available when ThreadLens runs in Docker or a self-hosted runtime and the host has an authenticated CLI; see the bridge guidance below.
 
 ## AI providers are separate from source credentials
 
@@ -41,7 +41,7 @@ The returned model ID and usage metering remain the catalog model ID that succee
 
 The host CLI bridge is an optional local transport for `copilot` and `claude-cli` catalog models. It lets local Docker development reuse AI CLI sessions authenticated on the host machine without mounting host credential directories into the container.
 
-The bridge is not required for production or VPS self-host deployments. Production should use API keys, or CLIs installed and authenticated directly in the API runtime environment. Docker prod does not start bridge bootstrap, does not require a bridge service, and does not mount bridge token files by default.
+The bridge is not required for production or VPS self-host deployments. Production should use API keys, or CLIs installed and authenticated directly in the API runtime environment. Docker prod does not start bridge bootstrap, does not require a bridge service, and does not mount bridge token files by default. Self-hosters may still run the bridge later if they want host-authenticated CLI reuse.
 
 **Key points:**
 - Users select catalog models in the Models view; they do not select bridge as a provider.
