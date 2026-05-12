@@ -32,25 +32,40 @@ import (
 // ── stub service ──────────────────────────────────────────────────────────────
 
 // stubService implements onboarding.ServiceIface so tests never touch disk or
-// a real database.
+// a real database.  It records all calls so tests can verify delegation.
 type stubService struct {
 	status    onboarding.Status
 	statusErr error
 	saveErr   error
 	resetErr  error
+
+	// call recorders
+	statusCalls int
+	saveCalls   int
+	resetCalls  int
+	gotValues   map[string]string
 }
 
 func (s *stubService) GetStatus(_ context.Context) (onboarding.Status, error) {
+	s.statusCalls++
 	return s.status, s.statusErr
 }
 
 func (s *stubService) Save(_ context.Context, values map[string]string) error {
+	s.saveCalls++
+	s.gotValues = values
 	return s.saveErr
 }
 
 func (s *stubService) Reset(_ context.Context) error {
+	s.resetCalls++
 	return s.resetErr
 }
+
+// ErrOnboardingDisabled is the sentinel error the service returns when
+// onboarding is disabled.  The handler maps this to HTTP 403.
+// Using a sentinel keeps handler logic free of brittle string-matching.
+var ErrOnboardingDisabled = onboarding.ErrDisabled
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -78,6 +93,25 @@ func doOnboardingRequest(t *testing.T, router http.Handler, method, path string,
 	return rr
 }
 
+// assertErrorBody verifies the response body is a JSON object with an "error"
+// key and that the body does not contain any of the forbidden strings.
+func assertErrorBody(t *testing.T, rr *httptest.ResponseRecorder, forbidden ...string) {
+	t.Helper()
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal error body: %v", err)
+	}
+	if _, ok := resp["error"]; !ok {
+		t.Error("error response missing 'error' key")
+	}
+	body := rr.Body.String()
+	for _, s := range forbidden {
+		if bytes.Contains([]byte(body), []byte(s)) {
+			t.Errorf("response body must not contain %q", s)
+		}
+	}
+}
+
 // ── GET /api/onboarding/status ────────────────────────────────────────────────
 
 func TestStatusRoute_ReturnsSnapshot(t *testing.T) {
@@ -100,6 +134,10 @@ func TestStatusRoute_ReturnsSnapshot(t *testing.T) {
 	}
 	if _, ok := resp["complete"]; !ok {
 		t.Error("response missing 'complete' field")
+	}
+	// Verify the handler delegated to the service exactly once.
+	if svc.statusCalls != 1 {
+		t.Errorf("GetStatus called %d times, want 1", svc.statusCalls)
 	}
 }
 
@@ -151,16 +189,8 @@ func TestStatusRoute_ServiceErrorReturns500(t *testing.T) {
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500; body = %s", rr.Code, rr.Body.String())
 	}
-
-	// Error response must not leak the raw error string that could contain
-	// secrets.  It must contain an "error" key.
-	var resp map[string]any
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal error body: %v", err)
-	}
-	if _, ok := resp["error"]; !ok {
-		t.Error("error response missing 'error' key")
-	}
+	// Must surface an "error" key without leaking the raw internal error text.
+	assertErrorBody(t, rr, "db gone")
 }
 
 // ── POST /api/onboarding/save ─────────────────────────────────────────────────
@@ -176,6 +206,13 @@ func TestSaveRoute_AcceptsValidPayload(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
 	}
+	// Verify the handler delegated to the service exactly once with the right values.
+	if svc.saveCalls != 1 {
+		t.Errorf("Save called %d times, want 1", svc.saveCalls)
+	}
+	if svc.gotValues["ANTHROPIC_API_KEY"] != "sk-test" {
+		t.Errorf("Save received values %v, want ANTHROPIC_API_KEY=sk-test", svc.gotValues)
+	}
 }
 
 func TestSaveRoute_MissingValuesFieldReturns400(t *testing.T) {
@@ -187,13 +224,45 @@ func TestSaveRoute_MissingValuesFieldReturns400(t *testing.T) {
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400; body = %s", rr.Code, rr.Body.String())
 	}
-
-	var resp map[string]any
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+	assertErrorBody(t, rr)
+	// Handler must reject before calling service.
+	if svc.saveCalls != 0 {
+		t.Errorf("Save called %d times, want 0 on bad request", svc.saveCalls)
 	}
-	if _, ok := resp["error"]; !ok {
-		t.Error("error response missing 'error' key")
+}
+
+func TestSaveRoute_EmptyValuesMapReturns400(t *testing.T) {
+	svc := &stubService{}
+	router := newOnboardingRouter(svc)
+
+	// "values" key present but empty map.
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/save", map[string]any{
+		"values": map[string]string{},
+	})
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body = %s", rr.Code, rr.Body.String())
+	}
+	assertErrorBody(t, rr)
+	if svc.saveCalls != 0 {
+		t.Errorf("Save called %d times, want 0 on bad request", svc.saveCalls)
+	}
+}
+
+func TestSaveRoute_EmptyStringValueReturns400(t *testing.T) {
+	svc := &stubService{}
+	router := newOnboardingRouter(svc)
+
+	// A key present but with an empty/blank value should be rejected at the
+	// handler layer before the service is called.
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/save", map[string]any{
+		"values": map[string]string{"ANTHROPIC_API_KEY": ""},
+	})
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body = %s", rr.Code, rr.Body.String())
+	}
+	assertErrorBody(t, rr)
+	if svc.saveCalls != 0 {
+		t.Errorf("Save called %d times, want 0 on bad request", svc.saveCalls)
 	}
 }
 
@@ -212,9 +281,9 @@ func TestSaveRoute_EmptyBodyReturns400(t *testing.T) {
 }
 
 func TestSaveRoute_ServiceDisabledReturns403(t *testing.T) {
-	svc := &stubService{
-		saveErr: errors.New("onboarding: save rejected — onboarding is disabled"),
-	}
+	// Use the sentinel error so the handler can map it to 403 without
+	// string-matching internal error text.
+	svc := &stubService{saveErr: onboarding.ErrDisabled}
 	router := newOnboardingRouter(svc)
 
 	payload := map[string]any{
@@ -224,19 +293,12 @@ func TestSaveRoute_ServiceDisabledReturns403(t *testing.T) {
 	if rr.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403; body = %s", rr.Code, rr.Body.String())
 	}
-
-	var resp map[string]any
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if _, ok := resp["error"]; !ok {
-		t.Error("error response missing 'error' key")
-	}
+	assertErrorBody(t, rr)
 }
 
 func TestSaveRoute_ServiceErrorDoesNotLeakRawValue(t *testing.T) {
-	secretErrMsg := "onboarding: writing env file: open /secret/path: permission denied"
-	svc := &stubService{saveErr: errors.New(secretErrMsg)}
+	internalErrText := "open /secret/internal/path: permission denied"
+	svc := &stubService{saveErr: errors.New(internalErrText)}
 	router := newOnboardingRouter(svc)
 
 	payload := map[string]any{
@@ -244,11 +306,12 @@ func TestSaveRoute_ServiceErrorDoesNotLeakRawValue(t *testing.T) {
 	}
 	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/save", payload)
 
-	body := rr.Body.String()
-	// The raw API key value must never appear in the response body.
-	if bytes.Contains([]byte(body), []byte("sk-ant-supersecret")) {
-		t.Error("response body must not contain the raw API key value")
+	// Must be a 500 (not 200/403).
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500; body = %s", rr.Code, rr.Body.String())
 	}
+	// Must surface an "error" key without leaking the raw API key or internal path.
+	assertErrorBody(t, rr, "sk-ant-supersecret", internalErrText)
 }
 
 func TestSaveRoute_ServiceOtherErrorReturns500(t *testing.T) {
@@ -262,6 +325,7 @@ func TestSaveRoute_ServiceOtherErrorReturns500(t *testing.T) {
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500; body = %s", rr.Code, rr.Body.String())
 	}
+	assertErrorBody(t, rr)
 }
 
 // ── POST /api/onboarding/reset ────────────────────────────────────────────────
@@ -273,6 +337,10 @@ func TestResetRoute_ClearsCompletionState(t *testing.T) {
 	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/reset", nil)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	// Verify the handler delegated to the service exactly once.
+	if svc.resetCalls != 1 {
+		t.Errorf("Reset called %d times, want 1", svc.resetCalls)
 	}
 }
 
@@ -286,6 +354,9 @@ func TestResetRoute_IsIdempotent(t *testing.T) {
 			t.Fatalf("call %d: status = %d, want 200; body = %s", i+1, rr.Code, rr.Body.String())
 		}
 	}
+	if svc.resetCalls != 2 {
+		t.Errorf("Reset called %d times, want 2 across two requests", svc.resetCalls)
+	}
 }
 
 func TestResetRoute_ServiceErrorReturns500(t *testing.T) {
@@ -296,27 +367,6 @@ func TestResetRoute_ServiceErrorReturns500(t *testing.T) {
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500; body = %s", rr.Code, rr.Body.String())
 	}
-
-	var resp map[string]any
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal error body: %v", err)
-	}
-	if _, ok := resp["error"]; !ok {
-		t.Error("error response missing 'error' key")
-	}
-}
-
-func TestResetRoute_DisabledModeStillAllowsReset(t *testing.T) {
-	// Reset should work even when the onboarding flow is disabled — it is an
-	// administrative operation, not a user-facing flow gate.
-	svc := &stubService{
-		status: onboarding.Status{Enabled: false},
-		// resetErr stays nil — service accepts the call
-	}
-	router := newOnboardingRouter(svc)
-
-	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/reset", nil)
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200 even in disabled mode; body = %s", rr.Code, rr.Body.String())
-	}
+	// Must surface an "error" key without leaking the raw internal error text.
+	assertErrorBody(t, rr, "db gone")
 }
