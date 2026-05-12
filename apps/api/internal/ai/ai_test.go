@@ -340,6 +340,48 @@ func TestGenerateForTask_AllProvidersFailErrorOmitsBridgeStartupAdviceAndSecrets
 	}
 }
 
+func TestGenerateForTask_BridgeReceivesCatalogProviderTag(t *testing.T) {
+	// Verify that invokeModelWithBridge forwards m.Provider to the bridge so it
+	// can route to the correct host runtime (e.g. "copilot" vs "claude-cli").
+	var capturedProvider string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/health" {
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+			return
+		}
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if p, ok := body["provider"].(string); ok {
+			capturedProvider = p
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"text": "bridge-result"})
+	}))
+	defer srv.Close()
+
+	realBridge := newBridgeProviderForTest(BridgeState{Enabled: true, Detected: true, URL: srv.URL, Token: "tok"})
+	svc := &Service{
+		bridge: realBridge,
+		providers: []Provider{
+			&fakeProvider{name: "copilot", available: true, result: "direct-result"},
+		},
+		meter: usage.NoopMeter{},
+	}
+
+	result, usedID, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "bridge-result" {
+		t.Fatalf("result = %q, want bridge-result", result)
+	}
+	if usedID != "copilot:gpt-5-mini" {
+		t.Fatalf("usedID = %q, want copilot:gpt-5-mini", usedID)
+	}
+	if capturedProvider != "copilot" {
+		t.Fatalf("bridge received provider = %q, want copilot", capturedProvider)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // StripMarkdown tests
 // ---------------------------------------------------------------------------

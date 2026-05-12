@@ -115,12 +115,14 @@ func (s *Service) providerFor(providerTag string) Provider {
 
 // invokeModelWithBridge attempts bridge → direct provider for bridge-compatible models,
 // or falls through to the direct provider only for non-bridge-compatible models.
+// The catalog provider tag (e.g. "copilot", "claude-cli") is forwarded to the bridge
+// so it can route to the correct host runtime.
 // The returned model ID is always the catalog model ID (m.ID), regardless of which
 // underlying transport succeeded.
 func (s *Service) invokeModelWithBridge(ctx context.Context, m *ModelEntry, systemPrompt, userMessage string, timeout time.Duration) (string, error) {
 	if isBridgeCompatible(m.Provider) {
 		if bp := s.bridgeProvider(); bp != nil {
-			result, err := bp.Generate(ctx, m.Model, systemPrompt, userMessage, timeout)
+			result, err := bp.GenerateWithProvider(ctx, m.Provider, m.Model, systemPrompt, userMessage, timeout)
 			if err == nil {
 				return result, nil
 			}
