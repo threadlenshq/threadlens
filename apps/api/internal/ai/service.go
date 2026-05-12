@@ -27,11 +27,10 @@ var fallbackOrder = []string{
 	"gemini:2.5-flash",
 }
 
-// defaultProviders returns the ordered list of production providers.
-// The bridge provider is prepended so it is tried first for bridge-compatible models.
+// defaultProviders returns the direct providers that can run inside the API process environment.
+// The host bridge is attached separately as an optional transport adapter.
 func defaultProviders() []Provider {
 	return []Provider{
-		NewBridgeProvider(),
 		NewCLIProvider("copilot"),
 		NewCLIProvider("claude"),
 		&AnthropicProvider{},
@@ -45,6 +44,7 @@ func defaultProviders() []Provider {
 type Service struct {
 	repo      SettingsGetter
 	providers []Provider // ordered: copilot, claude-cli, sdk, gemini
+	bridge    *BridgeProvider
 	meter     usage.Meter
 
 	mu             sync.Mutex
@@ -57,6 +57,7 @@ func NewService(repo SettingsGetter) *Service {
 	return &Service{
 		repo:      repo,
 		providers: defaultProviders(),
+		bridge:    NewBridgeProvider(),
 		meter:     usage.NoopMeter{},
 	}
 }
@@ -66,6 +67,7 @@ func NewServiceWithUsage(repo SettingsGetter, meter usage.Meter) *Service {
 	return &Service{
 		repo:      repo,
 		providers: defaultProviders(),
+		bridge:    NewBridgeProvider(),
 		meter:     meter,
 	}
 }
@@ -73,17 +75,26 @@ func NewServiceWithUsage(repo SettingsGetter, meter usage.Meter) *Service {
 // NewServiceWithProviders creates a Service with the supplied providers list.
 // Intended for testing only.
 func NewServiceWithProviders(providers []Provider) *Service {
-	return &Service{providers: providers, meter: usage.NoopMeter{}}
+	directProviders, bridge := splitDirectProviders(providers)
+	return &Service{providers: directProviders, bridge: bridge, meter: usage.NoopMeter{}}
 }
 
-// bridgeProvider returns the BridgeProvider from the providers list, if present.
-func (s *Service) bridgeProvider() *BridgeProvider {
-	for _, p := range s.providers {
-		if bp, ok := p.(*BridgeProvider); ok {
-			return bp
+func splitDirectProviders(providers []Provider) ([]Provider, *BridgeProvider) {
+	directProviders := make([]Provider, 0, len(providers))
+	var bridge *BridgeProvider
+	for _, provider := range providers {
+		if bp, ok := provider.(*BridgeProvider); ok {
+			bridge = bp
+			continue
 		}
+		directProviders = append(directProviders, provider)
 	}
-	return nil
+	return directProviders, bridge
+}
+
+// bridgeProvider returns the BridgeProvider from the bridge field, if present.
+func (s *Service) bridgeProvider() *BridgeProvider {
+	return s.bridge
 }
 
 // providerFor returns the Provider whose Name() matches the given provider tag

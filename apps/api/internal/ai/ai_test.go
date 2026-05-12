@@ -245,8 +245,10 @@ func TestGenerateForTask_AttemptsUnavailablePrimaryOnce(t *testing.T) {
 }
 
 func TestGenerateForTask_SDKPrimaryNeverUsesBridge(t *testing.T) {
-	// Use a real *BridgeProvider so Service.bridgeProvider() recognises it via type assertion.
-	// Wire it to a test server that records any call — there should be none.
+	// Wire a real *BridgeProvider to a test server that records any call — there should be none.
+	// After Task 2, bridge is stored in s.bridge; these tests construct Service literals with the
+	// bridge still in providers (s.bridge == nil) so bridgeProvider() returns nil and bridge is
+	// never consulted, which is the correct invariant: sdk must never route through bridge.
 	bridgeCalled := false
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		bridgeCalled = true
@@ -280,8 +282,8 @@ func TestGenerateForTask_SDKPrimaryNeverUsesBridge(t *testing.T) {
 }
 
 func TestGenerateForTask_GeminiPrimaryNeverUsesBridge(t *testing.T) {
-	// Use a real *BridgeProvider so Service.bridgeProvider() recognises it via type assertion.
-	// Wire it to a test server that records any call — there should be none.
+	// Wire a real *BridgeProvider to a test server that records any call — there should be none.
+	// gemini must never route through bridge regardless of bridge configuration.
 	bridgeCalled := false
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		bridgeCalled = true
