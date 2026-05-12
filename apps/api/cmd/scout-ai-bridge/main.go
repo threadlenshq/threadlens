@@ -77,7 +77,7 @@ func main() {
 
 	handler := bridge.NewHandler(bridge.ServerConfig{
 		BearerToken:    token,
-		Registry:       bridge.DefaultRegistry(),
+		Registry:       bridge.NewRegistry(5*time.Minute, bridge.NewCopilotRuntime(), bridge.NewClaudeRuntime()),
 		MaxBodyBytes:   1 << 20,
 		RequestTimeout: 5 * time.Minute,
 	})

@@ -127,7 +127,7 @@ health_ok() {
   local token
   token="$(cat "$TOKEN_FILE" 2>/dev/null || echo '')"
   if command -v curl >/dev/null 2>&1; then
-    curl -sf -H "Authorization: Bearer ${token}" "${HOST_URL}/health" >/dev/null 2>&1
+    curl -sf -H "Authorization: Bearer ${token}" "${HOST_URL}/v1/health" >/dev/null 2>&1
   else
     return 1
   fi
@@ -136,9 +136,14 @@ health_ok() {
 build_binary() {
   local bin_dir="${ROOT_DIR}/bin"
   mkdir -p "$bin_dir"
-  if command -v go >/dev/null 2>&1 && [[ -f "${ROOT_DIR}/apps/api/main.go" ]]; then
-    go build -o "${bin_dir}/scout-ai-bridge" "${ROOT_DIR}/apps/api/..." 2>/dev/null && \
-      log "Built scout-ai-bridge binary"
+  local module_dir="${ROOT_DIR}/apps/api"
+  if command -v go >/dev/null 2>&1 && [[ -f "${module_dir}/cmd/scout-ai-bridge/main.go" ]]; then
+    (
+      cd "$module_dir" &&
+      go build -o "${bin_dir}/scout-ai-bridge" ./cmd/scout-ai-bridge
+    ) >/dev/null 2>&1 && \
+      log "Built scout-ai-bridge binary" || \
+      log "Build failed; bridge binary must be compiled manually"
   fi
 }
 
@@ -162,7 +167,7 @@ start_daemon() {
     return 0
   fi
 
-  SCOUT_AI_BRIDGE_PORT="$BRIDGE_PORT" \
+  SCOUT_AI_BRIDGE_BIND="127.0.0.1:${BRIDGE_PORT}" \
   SCOUT_AI_BRIDGE_TOKEN="$token" \
     "$binary" &>/dev/null &
   disown $! 2>/dev/null || true
