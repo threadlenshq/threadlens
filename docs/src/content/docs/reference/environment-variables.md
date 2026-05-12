@@ -25,6 +25,8 @@ Docker reads values from `open-core/.env` unless an embedding repository or comm
 | `SCOUT_AI_BRIDGE_HOST_TOKEN_FILE` | Empty | Optional Docker dev bridge mount | Host token path used only by Docker dev Compose for the read-only token bind mount. |
 | `SCOUT_AI_BRIDGE_DISABLE` | Empty | Optional local host CLI bridge opt-out | Set to `1` to disable bridge discovery, health checks, and generation calls for this runtime. |
 | `THREADLENS_RUNTIME_MODE` | `self-hosted` | Optional runtime mode selection | Selects `self-hosted` or `hosted`. |
+| `SCOUT_ONBOARDING_MODE` | Empty | Optional Docker onboarding persistence | Set to `docker` in container environments so the onboarding wizard persists completed configuration to `/data/.env`. Leave unset for non-containerised installs. |
+| `SCOUT_ONBOARDING_DISABLE` | Empty | Optional onboarding skip | Set to `1` to skip the onboarding wizard entirely. Useful for automated or pre-configured deployments where all required env vars are already supplied. |
 
 ## First-run importance
 
