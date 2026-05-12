@@ -53,17 +53,12 @@ func (p *BridgeProvider) Available() bool {
 	return state.Enabled && state.Detected && state.URL != "" && state.Token != ""
 }
 
-// CanServe returns true when local bridge policy/config says this catalog provider can use the bridge.
-// It is a lightweight check that does not perform network I/O.
+// CanServe returns true when this catalog provider is bridge-compatible and the bridge
+// config is currently available. It is a lightweight check that does not perform
+// network I/O; runtime availability is verified by the live /v1/health call in
+// GenerateWithProvider.
 func (p *BridgeProvider) CanServe(provider string) bool {
-	if !isBridgeCompatible(provider) {
-		return false
-	}
-	state, err := p.stateFn()
-	if err != nil {
-		return false
-	}
-	return state.Enabled && state.Detected && state.URL != "" && state.Token != "" && runtimeListAllows(state.Runtimes, provider)
+	return isBridgeCompatible(provider) && p.Available()
 }
 
 func runtimeListAllows(runtimes []string, provider string) bool {
@@ -117,9 +112,6 @@ func (p *BridgeProvider) GenerateWithProvider(ctx context.Context, provider stri
 	}
 	if !state.Enabled || !state.Detected || state.URL == "" || state.Token == "" {
 		return "", fmt.Errorf("bridge: not available (enabled=%v, detected=%v)", state.Enabled, state.Detected)
-	}
-	if provider != "" && !runtimeListAllows(state.Runtimes, provider) {
-		return "", fmt.Errorf("bridge: runtime unavailable for provider %q", provider)
 	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)

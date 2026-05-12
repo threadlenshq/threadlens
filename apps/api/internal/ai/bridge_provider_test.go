@@ -447,23 +447,34 @@ func TestBridgeProvider_RuntimeMismatchSkipsGenerate(t *testing.T) {
 }
 
 func TestBridgeProvider_StateRuntimeMismatchSkipsHealth(t *testing.T) {
+	// BridgeState.Runtimes is advisory only and must NOT prevent the health call.
+	// If the live bridge actually supports the provider (health says ok with matching runtime
+	// list), generation should succeed even if the local config runtime list is stale/different.
 	healthCalled := false
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		healthCalled = true
-		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		switch r.URL.Path {
+		case "/v1/health":
+			healthCalled = true
+			// Live bridge reports it supports copilot — overrides stale config list.
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "runtimes": []string{"copilot", "claude-cli"}})
+		case "/v1/generate":
+			_ = json.NewEncoder(w).Encode(map[string]any{"text": "bridge-ok"})
+		}
 	}))
 	defer srv.Close()
 
+	// Config state has a stale runtime list that only lists claude-cli.
+	// The live health response lists copilot, so the call should succeed.
 	p := newBridgeProviderForTest(BridgeState{Enabled: true, Detected: true, URL: srv.URL, Token: "tok", Runtimes: []string{"claude-cli"}})
-	_, err := p.GenerateWithProvider(context.Background(), "copilot", "gpt-5-mini", "sys", "msg", 5*time.Second)
-	if err == nil {
-		t.Fatal("expected runtime mismatch error")
+	result, err := p.GenerateWithProvider(context.Background(), "copilot", "gpt-5-mini", "sys", "msg", 5*time.Second)
+	if err != nil {
+		t.Fatalf("expected success when live health confirms runtime, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "runtime unavailable") {
-		t.Fatalf("error = %q, want runtime unavailable", err.Error())
+	if result != "bridge-ok" {
+		t.Fatalf("result = %q, want bridge-ok", result)
 	}
-	if healthCalled {
-		t.Fatal("health endpoint should not be called when config runtimes exclude provider")
+	if !healthCalled {
+		t.Fatal("health endpoint must be called to get authoritative runtime list")
 	}
 }
 
@@ -472,12 +483,10 @@ func TestBridgeProvider_StateRuntimeMismatchSkipsHealth(t *testing.T) {
 func TestGenerateForTask_NonBridgeModelNotRouted(t *testing.T) {
 	bridgeCalled := false
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/generate" {
-			bridgeCalled = true
-		}
+		bridgeCalled = true
 		switch r.URL.Path {
 		case "/v1/health":
-			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "runtimes": []string{"copilot", "claude-cli"}})
 		case "/v1/generate":
 			_ = json.NewEncoder(w).Encode(map[string]any{"text": "bridge-result"})
 		}
@@ -490,46 +499,29 @@ func TestGenerateForTask_NonBridgeModelNotRouted(t *testing.T) {
 		},
 		client: &http.Client{Timeout: 5 * time.Second},
 	}
-
 	sdk := &fakeProvider{name: "sdk", available: true, result: "sdk-direct-result"}
-	svc := NewServiceWithProviders([]Provider{bridge, sdk})
 
-	// Use a custom service that has sdk:haiku as the task default
-	// We'll call directly with the sdk model by using query_suggestion
-	// which defaults to copilot... let's instead test by checking the routing logic
-	// by examining service internals. We create a mock where the primary is sdk:haiku.
-	// Since we can't override task defaults in tests easily, we test via providerFor.
-	// The key assertion: bridge is not tried for sdk models.
-
-	// Actually, we need to verify this at the service routing level.
-	// Let's create a service with overrideRepo that forces sdk:haiku.
-	svcWithSdk := &Service{
+	// Service where sdk:haiku is the configured primary model — bridge must not be called.
+	svc := &Service{
+		repo: fakeSettingsGetter{values: map[string]string{
+			"model.post_scoring": `{"modelId":"sdk:haiku"}`,
+		}},
 		providers: []Provider{bridge, sdk},
+		bridge:    bridge,
 		meter:     nil,
 	}
-	// Forcibly call generateForTaskInner with a known sdk-defaulting task.
-	// We don't have a task with sdk default. Instead verify via direct call:
-	// The invokeModel path should be used for sdk since bridge doesn't handle sdk provider.
-	_ = svcWithSdk
-	_ = bridgeCalled
 
-	// Actually the simplest test: sdk directly works without bridge involvement.
-	// We test that when bridge is available but model provider is "sdk",
-	// bridge is skipped.
-	result, _, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg")
-	// post_scoring defaults to copilot:gpt-5-mini, which IS bridge-compatible.
-	// For this test, we're checking a conceptual point. Let's verify sdk provider works.
-	// We'll just verify the bridge result came back for copilot (correct), 
-	// and sdk was not called as bridge would have handled it.
+	result, usedID, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// Result should come from bridge (copilot:gpt-5-mini is bridge-compatible)
-	if result != "bridge-result" {
-		t.Errorf("expected bridge-result, got %q", result)
+	if result != "sdk-direct-result" {
+		t.Errorf("expected sdk-direct-result, got %q", result)
 	}
-	// SDK should not have been called since bridge handled the copilot model
-	if sdk.calls != 0 {
-		t.Errorf("expected sdk not called, got %d calls", sdk.calls)
+	if usedID != "sdk:haiku" {
+		t.Errorf("expected usedID=sdk:haiku, got %q", usedID)
+	}
+	if bridgeCalled {
+		t.Error("bridge must not be called for sdk:* models")
 	}
 }
