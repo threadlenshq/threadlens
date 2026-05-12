@@ -8,6 +8,7 @@ import (
 
 	"github.com/kyle/scout/open-core/apps/api/internal/handlers"
 	"github.com/kyle/scout/open-core/apps/api/internal/httpx"
+	"github.com/kyle/scout/open-core/apps/api/internal/onboarding"
 )
 
 func (a *App) mountRoutes() {
@@ -17,6 +18,7 @@ func (a *App) mountRoutes() {
 
 	handlers.MountRuntimeRoutes(a.Router, a.RuntimeService)
 	a.ModuleRegistry.MountRoutes(a.Router)
+	onboarding.MountRoutes(a.Router, a.OnboardingService)
 
 	handlers.MountInsightsRoutes(a.Router, a.InsightsService)
 	handlers.MountProjectRoutes(a.Router, a.ProjectService)
