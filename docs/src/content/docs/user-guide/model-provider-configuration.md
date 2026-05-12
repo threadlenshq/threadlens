@@ -24,32 +24,33 @@ AI provider keys unlock scoring, analysis, query assistance, clustering, and rep
 
 Reddit is the lowest-friction first source in the current open-core docs because it has no extra source credential listed here, but it still needs AI provider readiness for useful scoring and reports.
 
-## Fallback behavior
+## Models view and fallback behavior
 
-The Go API uses this provider fallback order:
+The Models view is the source of truth for per-task model selection. ThreadLens stores each task setting in `app_settings` as `model.<taskId>` with a catalog model ID such as `copilot:gpt-5-mini`; it does not store bridge state or bridge credentials.
 
-1. Copilot CLI when available and authenticated.
-2. Claude CLI when available and authenticated.
-3. Anthropic SDK-compatible HTTP calls when `ANTHROPIC_API_KEY` is configured.
-4. Gemini-compatible HTTP calls when `GEMINI_API_KEY` is configured.
+For each task, ThreadLens tries the selected or default catalog model first, then the preserved fallback order below, skipping duplicate model IDs:
 
-Because CLI-backed paths depend on local or container runtime availability and authentication, first-run docs recommend configuring an explicit provider key instead of assuming a CLI path is available. Copilot CLI and Claude CLI are the currently documented supported CLI-backed paths; other AI CLIs are not documented as current supported providers.
+1. `copilot:gpt-5-mini`
+2. `claude-cli:haiku`
+3. `sdk:haiku`
+4. `gemini:2.5-flash`
 
-## Host CLI bridge (advanced, Docker only)
+The returned model ID and usage metering remain the catalog model ID that succeeded. If `copilot` or `claude-cli` succeeds through the local bridge, the used model ID is still the catalog model ID, not a bridge model.
 
-When ThreadLens runs inside Docker, a host CLI bridge can proxy AI calls from the container to a host-authenticated CLI runtime over a loopback HTTP service. The bridge extends the CLI-backed fallback paths to Dockerized installs without requiring the CLI to be installed inside the container.
+## Optional local host CLI bridge
 
-The bridge is an advanced fallback path. API keys remain the recommended first-run choice.
+The host CLI bridge is an optional local transport for `copilot` and `claude-cli` catalog models. It lets local Docker development reuse AI CLI sessions authenticated on the host machine without mounting host credential directories into the container.
+
+The bridge is not required for production or VPS self-host deployments. Production should use API keys, or CLIs installed and authenticated directly in the API runtime environment. Docker prod does not start bridge bootstrap, does not require a bridge service, and does not mount bridge token files by default.
 
 **Key points:**
-- The bridge must listen only on a loopback or private-network address. Do not expose it on a public interface — this is unsafe and unsupported.
-- Bearer-token authentication protects the bridge command surface, but public exposure is not a supported configuration.
-- Auto-launch of the helper process is best-effort only. If the binary is absent or the host CLI is not authenticated, the bridge will be unavailable and ThreadLens will fall back to the next provider.
-- Auto-launch should not run as a hidden always-on background process.
-- From inside Docker, `localhost` refers to the container, not the host. Use the Docker host gateway (e.g., `host.docker.internal` or `172.17.0.1`) to reach a bridge on the host. A mismatch here is a common source of "bridge unavailable" status.
-- The Models UI shows bridge status as a read-only indicator, not as a selectable model mode.
-- Bridge outages degrade quietly: ThreadLens logs the failure and moves to the next provider rather than surfacing an error to the user.
-- The helper binary is named `scout-ai-bridge`; Docker dev builds it at `open-core/bin/scout-ai-bridge` when the binary is missing and a local Go toolchain is available.
+- Users select catalog models in the Models view; they do not select bridge as a provider.
+- The Models UI may show bridge status as read-only external runtime status.
+- Bridge status must not include token values, token file paths, bridge URLs, host usernames, or raw CLI output.
+- `SCOUT_AI_BRIDGE_DISABLE=1` disables bridge discovery, health checks, and generation calls.
+- `SCOUT_AI_BRIDGE_MODE=local` enables local config-file discovery for desktop and Docker development.
+- Explicit `SCOUT_AI_BRIDGE_URL` plus `SCOUT_AI_BRIDGE_TOKEN_FILE` is an advanced local-only override.
+- Bridge failures are recoverable transport failures; ThreadLens falls through to direct CLI or API-key providers.
 
 ## Safe operation
 
