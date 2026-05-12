@@ -3,6 +3,7 @@ package ai
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,6 +27,19 @@ func (f *fakeProvider) Available() bool { return f.available }
 func (f *fakeProvider) Generate(_ context.Context, _ string, _ string, _ string, _ time.Duration) (string, error) {
 	f.calls++
 	return f.result, f.err
+}
+
+// ---------------------------------------------------------------------------
+// fakeSettingsGetter – minimal settings test double
+// ---------------------------------------------------------------------------
+
+type fakeSettingsGetter struct {
+	values map[string]string
+}
+
+func (f fakeSettingsGetter) GetSetting(_ context.Context, key string) (string, bool, error) {
+	value, ok := f.values[key]
+	return value, ok, nil
 }
 
 // newTestService builds a Service with the given fake providers and a NoopMeter.
@@ -187,6 +201,119 @@ func TestGenerateForTask_UnknownTask(t *testing.T) {
 	_, _, err := svc.GenerateForTask(context.Background(), "nonexistent_task", "sys", "msg")
 	if err == nil {
 		t.Fatal("expected error for unknown task")
+	}
+}
+
+func TestFallbackOrderExactCatalogModelIDs(t *testing.T) {
+	want := []string{
+		"copilot:gpt-5-mini",
+		"claude-cli:haiku",
+		"sdk:haiku",
+		"gemini:2.5-flash",
+	}
+	if len(fallbackOrder) != len(want) {
+		t.Fatalf("fallbackOrder length = %d, want %d", len(fallbackOrder), len(want))
+	}
+	for i := range want {
+		if fallbackOrder[i] != want[i] {
+			t.Fatalf("fallbackOrder[%d] = %q, want %q", i, fallbackOrder[i], want[i])
+		}
+	}
+}
+
+func TestGenerateForTask_AttemptsUnavailablePrimaryOnce(t *testing.T) {
+	copilot := &fakeProvider{name: "copilot", available: false, result: "primary-still-tried"}
+	sdk := &fakeProvider{name: "sdk", available: true, result: "sdk-fallback"}
+	svc := newTestService([]Provider{copilot, sdk})
+
+	result, usedID, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "primary-still-tried" {
+		t.Fatalf("result = %q, want primary-still-tried", result)
+	}
+	if usedID != "copilot:gpt-5-mini" {
+		t.Fatalf("usedID = %q, want copilot:gpt-5-mini", usedID)
+	}
+	if copilot.calls != 1 {
+		t.Fatalf("copilot calls = %d, want 1", copilot.calls)
+	}
+}
+
+func TestGenerateForTask_SDKPrimaryNeverUsesBridge(t *testing.T) {
+	bridge := &fakeProvider{name: "bridge", available: true, result: "bridge-result"}
+	sdk := &fakeProvider{name: "sdk", available: true, result: "sdk-result"}
+	svc := &Service{
+		repo: fakeSettingsGetter{values: map[string]string{
+			"model.post_scoring": `{"modelId":"sdk:haiku"}`,
+		}},
+		providers: []Provider{bridge, sdk},
+		meter:     usage.NoopMeter{},
+	}
+
+	result, usedID, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "sdk-result" {
+		t.Fatalf("result = %q, want sdk-result", result)
+	}
+	if usedID != "sdk:haiku" {
+		t.Fatalf("usedID = %q, want sdk:haiku", usedID)
+	}
+	if bridge.calls != 0 {
+		t.Fatalf("bridge calls = %d, want 0", bridge.calls)
+	}
+}
+
+func TestGenerateForTask_GeminiPrimaryNeverUsesBridge(t *testing.T) {
+	bridge := &fakeProvider{name: "bridge", available: true, result: "bridge-result"}
+	gemini := &fakeProvider{name: "gemini", available: true, result: "gemini-result"}
+	svc := &Service{
+		repo: fakeSettingsGetter{values: map[string]string{
+			"model.post_scoring": `{"modelId":"gemini:2.5-flash"}`,
+		}},
+		providers: []Provider{bridge, gemini},
+		meter:     usage.NoopMeter{},
+	}
+
+	result, usedID, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "gemini-result" {
+		t.Fatalf("result = %q, want gemini-result", result)
+	}
+	if usedID != "gemini:2.5-flash" {
+		t.Fatalf("usedID = %q, want gemini:2.5-flash", usedID)
+	}
+	if bridge.calls != 0 {
+		t.Fatalf("bridge calls = %d, want 0", bridge.calls)
+	}
+}
+
+func TestGenerateForTask_AllProvidersFailErrorOmitsBridgeStartupAdviceAndSecrets(t *testing.T) {
+	copilot := &fakeProvider{name: "copilot", available: true, err: errors.New("copilot token /tmp/secret-token unavailable")}
+	claude := &fakeProvider{name: "claude", available: true, err: errors.New("claude credentials missing")}
+	sdk := &fakeProvider{name: "sdk", available: true, err: errors.New("ANTHROPIC_API_KEY missing")}
+	gemini := &fakeProvider{name: "gemini", available: true, err: errors.New("GEMINI_API_KEY missing")}
+	svc := newTestService([]Provider{copilot, claude, sdk, gemini})
+
+	_, _, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg")
+	if err == nil {
+		t.Fatal("expected all providers failure")
+	}
+	errText := err.Error()
+	for _, required := range []string{"post_scoring", "copilot:gpt-5-mini", "claude-cli:haiku", "sdk:haiku", "gemini:2.5-flash"} {
+		if !strings.Contains(errText, required) {
+			t.Fatalf("error %q missing %q", errText, required)
+		}
+	}
+	for _, forbidden := range []string{"/tmp/secret-token", "host CLI bridge is reachable", "start bridge"} {
+		if strings.Contains(errText, forbidden) {
+			t.Fatalf("error %q contains forbidden text %q", errText, forbidden)
+		}
 	}
 }
 
