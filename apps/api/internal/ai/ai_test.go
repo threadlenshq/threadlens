@@ -2,7 +2,10 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -242,13 +245,22 @@ func TestGenerateForTask_AttemptsUnavailablePrimaryOnce(t *testing.T) {
 }
 
 func TestGenerateForTask_SDKPrimaryNeverUsesBridge(t *testing.T) {
-	bridge := &fakeProvider{name: "bridge", available: true, result: "bridge-result"}
+	// Use a real *BridgeProvider so Service.bridgeProvider() recognises it via type assertion.
+	// Wire it to a test server that records any call — there should be none.
+	bridgeCalled := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		bridgeCalled = true
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "text": "bridge-result"})
+	}))
+	defer srv.Close()
+	realBridge := newBridgeProviderForTest(BridgeState{Enabled: true, Detected: true, URL: srv.URL, Token: "tok"})
+
 	sdk := &fakeProvider{name: "sdk", available: true, result: "sdk-result"}
 	svc := &Service{
 		repo: fakeSettingsGetter{values: map[string]string{
 			"model.post_scoring": `{"modelId":"sdk:haiku"}`,
 		}},
-		providers: []Provider{bridge, sdk},
+		providers: []Provider{realBridge, sdk},
 		meter:     usage.NoopMeter{},
 	}
 
@@ -262,19 +274,28 @@ func TestGenerateForTask_SDKPrimaryNeverUsesBridge(t *testing.T) {
 	if usedID != "sdk:haiku" {
 		t.Fatalf("usedID = %q, want sdk:haiku", usedID)
 	}
-	if bridge.calls != 0 {
-		t.Fatalf("bridge calls = %d, want 0", bridge.calls)
+	if bridgeCalled {
+		t.Fatal("bridge server was called for sdk primary — sdk must never route through bridge")
 	}
 }
 
 func TestGenerateForTask_GeminiPrimaryNeverUsesBridge(t *testing.T) {
-	bridge := &fakeProvider{name: "bridge", available: true, result: "bridge-result"}
+	// Use a real *BridgeProvider so Service.bridgeProvider() recognises it via type assertion.
+	// Wire it to a test server that records any call — there should be none.
+	bridgeCalled := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		bridgeCalled = true
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "text": "bridge-result"})
+	}))
+	defer srv.Close()
+	realBridge := newBridgeProviderForTest(BridgeState{Enabled: true, Detected: true, URL: srv.URL, Token: "tok"})
+
 	gemini := &fakeProvider{name: "gemini", available: true, result: "gemini-result"}
 	svc := &Service{
 		repo: fakeSettingsGetter{values: map[string]string{
 			"model.post_scoring": `{"modelId":"gemini:2.5-flash"}`,
 		}},
-		providers: []Provider{bridge, gemini},
+		providers: []Provider{realBridge, gemini},
 		meter:     usage.NoopMeter{},
 	}
 
@@ -288,8 +309,8 @@ func TestGenerateForTask_GeminiPrimaryNeverUsesBridge(t *testing.T) {
 	if usedID != "gemini:2.5-flash" {
 		t.Fatalf("usedID = %q, want gemini:2.5-flash", usedID)
 	}
-	if bridge.calls != 0 {
-		t.Fatalf("bridge calls = %d, want 0", bridge.calls)
+	if bridgeCalled {
+		t.Fatal("bridge server was called for gemini primary — gemini must never route through bridge")
 	}
 }
 
