@@ -319,7 +319,8 @@ func TestGenerateForTask_BridgeCompatibleFallbackChain(t *testing.T) {
 }
 
 // TestGenerateForTask_AllProvidersFail_ReturnsFinalError verifies that when all
-// providers fail, the error message mentions bridge, CLI, and API key paths.
+// providers fail, the error message includes the task ID and the attempted model IDs
+// but does not leak raw provider errors or bridge startup advice.
 func TestGenerateForTask_AllProvidersFail_ReturnsFinalError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bridge error", http.StatusInternalServerError)
@@ -344,8 +345,17 @@ func TestGenerateForTask_AllProvidersFail_ReturnsFinalError(t *testing.T) {
 		t.Fatal("expected error when all providers fail")
 	}
 	errStr := err.Error()
-	if !strings.Contains(errStr, "bridge") && !strings.Contains(errStr, "CLI") && !strings.Contains(errStr, "API") {
-		t.Errorf("expected error to mention bridge/CLI/API fallback paths, got: %q", errStr)
+	// Must include task ID and attempted model IDs.
+	for _, required := range []string{"post_scoring", "copilot:gpt-5-mini", "claude-cli:haiku"} {
+		if !strings.Contains(errStr, required) {
+			t.Errorf("expected error to contain %q, got: %q", required, errStr)
+		}
+	}
+	// Must not leak raw provider errors or bridge startup advice.
+	for _, forbidden := range []string{"copilot down", "claude down", "host CLI bridge is reachable", "start bridge"} {
+		if strings.Contains(errStr, forbidden) {
+			t.Errorf("error contains forbidden text %q: %q", forbidden, errStr)
+		}
 	}
 }
 

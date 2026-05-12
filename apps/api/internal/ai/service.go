@@ -204,7 +204,7 @@ func (s *Service) generateForTaskInner(ctx context.Context, taskID string, syste
 		}
 	}
 
-	var firstErr error
+	var attempted []string
 	for i, candidate := range candidates {
 		// First candidate is always tried without an availability check.
 		// For subsequent candidates:
@@ -226,16 +226,14 @@ func (s *Service) generateForTaskInner(ctx context.Context, taskID string, syste
 		if err == nil {
 			return result, candidate.ID, nil
 		}
-		if firstErr == nil {
-			firstErr = err
-		}
+		attempted = append(attempted, candidate.ID)
 	}
 
-	reason := "no available providers — ensure host CLI bridge is reachable, Copilot CLI or Claude CLI is installed, or set ANTHROPIC_API_KEY / GEMINI_API_KEY"
-	if firstErr != nil {
-		reason = firstErr.Error()
+	triedList := strings.Join(attempted, ", ")
+	if triedList == "" {
+		triedList = "(none available)"
 	}
-	return "", "", fmt.Errorf("all AI providers failed for task %q (tried bridge, CLI, API-key providers): %s", taskID, reason)
+	return "", "", fmt.Errorf("all AI providers failed for task %q (tried: %s) — configure a provider via host settings or environment variables", taskID, triedList)
 }
 
 // GenerateAuto tries the cached provider first, then walks the fallback chain.
