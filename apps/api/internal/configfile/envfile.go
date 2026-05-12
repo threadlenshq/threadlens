@@ -31,12 +31,18 @@ func UpdateFile(path string, values map[string]string, managedOrder []string) (U
 		sort.Strings(order)
 	}
 
+	const managedMarker = "# Scout onboarding managed values"
+
 	seen := map[string]bool{}
 	changed := map[string]bool{}
+	hasManagedMarker := false
 	var out []string
 	scanner := bufio.NewScanner(strings.NewReader(string(original)))
 	for scanner.Scan() {
 		line := scanner.Text()
+		if strings.TrimSpace(line) == managedMarker {
+			hasManagedMarker = true
+		}
 		key, ok := parseKey(line)
 		if ok {
 			if value, managed := values[key]; managed {
@@ -62,7 +68,9 @@ func UpdateFile(path string, values map[string]string, managedOrder []string) (U
 		if len(out) > 0 && strings.TrimSpace(out[len(out)-1]) != "" {
 			out = append(out, "")
 		}
-		out = append(out, "# Scout onboarding managed values")
+		if !hasManagedMarker {
+			out = append(out, managedMarker)
+		}
 		for _, key := range missing {
 			out = append(out, key+"="+formatValue(values[key]))
 			changed[key] = true
