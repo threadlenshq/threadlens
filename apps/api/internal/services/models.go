@@ -65,6 +65,8 @@ func safeBridgeStatus(s ai.BridgeState) map[string]any {
 		"source":              s.Source,
 		"autoLaunchAttempted": s.AutoLaunchAttempted,
 		"message":             s.Message,
+		"scope":               "optional-local",
+		"description":         "Optional local bridge transport for Copilot and Claude CLI catalog models; production can use direct CLI or API-key providers without it.",
 	}
 }
 

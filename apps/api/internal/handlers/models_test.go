@@ -265,10 +265,14 @@ func TestGetModelCatalog_ExternalRuntimeShape(t *testing.T) {
 		t.Fatalf("externalRuntime missing or wrong type; body keys: %v", keysOf(body))
 	}
 
-	for _, key := range []string{"type", "detected", "availableRuntimes", "source", "autoLaunchAttempted", "message"} {
+	for _, key := range []string{"type", "detected", "availableRuntimes", "source", "autoLaunchAttempted", "message", "scope", "description"} {
 		if _, exists := ext[key]; !exists {
 			t.Fatalf("externalRuntime missing key %q", key)
 		}
+	}
+
+	if ext["scope"] != "optional-local" {
+		t.Fatalf("externalRuntime.scope = %v, want optional-local", ext["scope"])
 	}
 
 	// Must not expose secrets or paths
@@ -313,6 +317,42 @@ func TestGetModelCatalog_ExternalRuntimeNoSecretLeak(t *testing.T) {
 		if strings.Contains(rawJSON, forbidden) {
 			t.Fatalf("response JSON must not contain %q", forbidden)
 		}
+	}
+}
+
+func TestGetModelCatalog_ExternalRuntimeProductionLikeNoBridgeIsNotDegraded(t *testing.T) {
+	// Simulate a production environment where no bridge env vars are set.
+	// The catalog must still return 200 and externalRuntime.detected == false
+	// with source == "policy", confirming the bridge is optional.
+	t.Setenv("SCOUT_AI_BRIDGE_URL", "")
+	t.Setenv("SCOUT_AI_BRIDGE_TOKEN_FILE", "")
+	t.Setenv("SCOUT_AI_BRIDGE_DISABLE", "")
+	t.Setenv("SCOUT_AI_BRIDGE_MODE", "")
+
+	router, _ := newModelRouter(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/models/catalog", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+
+	ext, ok := body["externalRuntime"].(map[string]any)
+	if !ok {
+		t.Fatalf("externalRuntime missing or wrong type in production-like no-bridge scenario")
+	}
+	if ext["detected"] != false {
+		t.Fatalf("externalRuntime.detected = %v, want false in no-bridge scenario", ext["detected"])
+	}
+	if ext["source"] != "policy" {
+		t.Fatalf("externalRuntime.source = %v, want policy in no-bridge scenario", ext["source"])
 	}
 }
 
