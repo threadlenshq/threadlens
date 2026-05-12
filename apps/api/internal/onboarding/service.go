@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/configfile"
 	"github.com/kyle/scout/open-core/apps/api/internal/settings"
@@ -18,8 +19,8 @@ type Status struct {
 	// settings repository.
 	Complete bool
 
-	// EnvFilePath is the effective env-file path from Config, empty in native
-	// mode.
+	// EnvFilePath is the effective env-file path from Config. It is non-empty
+	// only when DockerMode is true (native-mode Config leaves it blank).
 	EnvFilePath string
 }
 
@@ -30,10 +31,16 @@ type Service struct {
 }
 
 // NewService constructs a Service. It returns an error if the Config is
-// inconsistent (reserved for future validation; currently always nil).
+// inconsistent or the repository is nil.
 func NewService(cfg Config, repo *settings.Repository) (*Service, error) {
 	if repo == nil {
 		return nil, errors.New("onboarding: settings repository must not be nil")
+	}
+	if cfg.CompletionKey == "" {
+		return nil, errors.New("onboarding: Config.CompletionKey must not be empty")
+	}
+	if cfg.DockerMode && cfg.EnvFilePath == "" {
+		return nil, errors.New("onboarding: Config.EnvFilePath must not be empty in Docker mode")
 	}
 	return &Service{cfg: cfg, repo: repo}, nil
 }
@@ -75,7 +82,7 @@ func (s *Service) Save(ctx context.Context, values map[string]string) error {
 			return errors.New("onboarding: save rejected — no values provided in Docker mode")
 		}
 		for k, v := range values {
-			if v == "" {
+			if strings.TrimSpace(v) == "" {
 				return fmt.Errorf("onboarding: save rejected — empty value for key %q in Docker mode", k)
 			}
 		}
