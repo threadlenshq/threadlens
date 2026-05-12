@@ -420,6 +420,53 @@ func TestGenerateForTask_ClaudeCLIModelRoutedThroughBridge(t *testing.T) {
 	}
 }
 
+func TestBridgeProvider_RuntimeMismatchSkipsGenerate(t *testing.T) {
+	generateCalled := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/health":
+			_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "runtimes": []string{"claude-cli"}})
+		case "/v1/generate":
+			generateCalled = true
+			_ = json.NewEncoder(w).Encode(map[string]any{"text": "should-not-run"})
+		}
+	}))
+	defer srv.Close()
+
+	p := newBridgeProviderForTest(BridgeState{Enabled: true, Detected: true, URL: srv.URL, Token: "tok"})
+	_, err := p.GenerateWithProvider(context.Background(), "copilot", "gpt-5-mini", "sys", "msg", 5*time.Second)
+	if err == nil {
+		t.Fatal("expected runtime mismatch error")
+	}
+	if !strings.Contains(err.Error(), "runtime unavailable") {
+		t.Fatalf("error = %q, want runtime unavailable", err.Error())
+	}
+	if generateCalled {
+		t.Fatal("generate endpoint should not be called when health runtimes exclude provider")
+	}
+}
+
+func TestBridgeProvider_StateRuntimeMismatchSkipsHealth(t *testing.T) {
+	healthCalled := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		healthCalled = true
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+	}))
+	defer srv.Close()
+
+	p := newBridgeProviderForTest(BridgeState{Enabled: true, Detected: true, URL: srv.URL, Token: "tok", Runtimes: []string{"claude-cli"}})
+	_, err := p.GenerateWithProvider(context.Background(), "copilot", "gpt-5-mini", "sys", "msg", 5*time.Second)
+	if err == nil {
+		t.Fatal("expected runtime mismatch error")
+	}
+	if !strings.Contains(err.Error(), "runtime unavailable") {
+		t.Fatalf("error = %q, want runtime unavailable", err.Error())
+	}
+	if healthCalled {
+		t.Fatal("health endpoint should not be called when config runtimes exclude provider")
+	}
+}
+
 // TestGenerateForTask_NonBridgeModelNotRouted verifies that sdk:* models are NOT
 // sent through the bridge, they use their direct provider.
 func TestGenerateForTask_NonBridgeModelNotRouted(t *testing.T) {

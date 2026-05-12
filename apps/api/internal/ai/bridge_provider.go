@@ -53,6 +53,31 @@ func (p *BridgeProvider) Available() bool {
 	return state.Enabled && state.Detected && state.URL != "" && state.Token != ""
 }
 
+// CanServe returns true when local bridge policy/config says this catalog provider can use the bridge.
+// It is a lightweight check that does not perform network I/O.
+func (p *BridgeProvider) CanServe(provider string) bool {
+	if !isBridgeCompatible(provider) {
+		return false
+	}
+	state, err := p.stateFn()
+	if err != nil {
+		return false
+	}
+	return state.Enabled && state.Detected && state.URL != "" && state.Token != "" && runtimeListAllows(state.Runtimes, provider)
+}
+
+func runtimeListAllows(runtimes []string, provider string) bool {
+	if len(runtimes) == 0 {
+		return true
+	}
+	for _, runtimeID := range runtimes {
+		if runtimeID == provider {
+			return true
+		}
+	}
+	return false
+}
+
 // bridgeHealthResponse is the expected shape of GET /v1/health.
 type bridgeHealthResponse struct {
 	OK       bool     `json:"ok"`
@@ -93,12 +118,15 @@ func (p *BridgeProvider) GenerateWithProvider(ctx context.Context, provider stri
 	if !state.Enabled || !state.Detected || state.URL == "" || state.Token == "" {
 		return "", fmt.Errorf("bridge: not available (enabled=%v, detected=%v)", state.Enabled, state.Detected)
 	}
+	if provider != "" && !runtimeListAllows(state.Runtimes, provider) {
+		return "", fmt.Errorf("bridge: runtime unavailable for provider %q", provider)
+	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// Health check.
-	if err := p.checkHealth(timeoutCtx, state); err != nil {
+	if err := p.checkHealth(timeoutCtx, state, provider); err != nil {
 		return "", fmt.Errorf("bridge: health check failed: %w", err)
 	}
 
@@ -107,7 +135,7 @@ func (p *BridgeProvider) GenerateWithProvider(ctx context.Context, provider stri
 }
 
 // checkHealth calls GET /v1/health with bearer auth and returns an error if unhealthy.
-func (p *BridgeProvider) checkHealth(ctx context.Context, state BridgeState) error {
+func (p *BridgeProvider) checkHealth(ctx context.Context, state BridgeState, provider string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, state.URL+"/v1/health", nil)
 	if err != nil {
 		return err
@@ -120,9 +148,22 @@ func (p *BridgeProvider) checkHealth(ctx context.Context, state BridgeState) err
 	}
 	defer resp.Body.Close()
 
+	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("bridge health returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	var health bridgeHealthResponse
+	if len(strings.TrimSpace(string(body))) > 0 {
+		if err := json.Unmarshal(body, &health); err != nil {
+			return fmt.Errorf("bridge health: invalid JSON response: %w", err)
+		}
+	}
+	if !health.OK {
+		return fmt.Errorf("bridge health returned ok=false")
+	}
+	if provider != "" && !runtimeListAllows(health.Runtimes, provider) {
+		return fmt.Errorf("bridge: runtime unavailable for provider %q", provider)
 	}
 	return nil
 }

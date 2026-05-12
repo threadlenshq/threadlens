@@ -212,7 +212,7 @@ func (s *Service) generateForTaskInner(ctx context.Context, taskID string, syste
 		//    provider being available (either path can succeed).
 		//  - Non-bridge-compatible providers require their direct provider to be available.
 		if i > 0 {
-			bridgeCouldHandle := isBridgeCompatible(candidate.Provider) && s.bridgeProvider() != nil && s.bridgeProvider().Available()
+			bridgeCouldHandle := isBridgeCompatible(candidate.Provider) && s.bridgeProvider() != nil && s.bridgeProvider().CanServe(candidate.Provider)
 			directOK := func() bool {
 				p := s.providerFor(candidate.Provider)
 				return p != nil && p.Available()
