@@ -43,6 +43,7 @@ func clearBridgeEnv(t *testing.T) {
 		"SCOUT_AI_BRIDGE_TOKEN_FILE",
 		"SCOUT_AI_BRIDGE_DISABLE",
 		"SCOUT_AI_BRIDGE_HELPER",
+		"SCOUT_AI_BRIDGE_MODE",
 		"XDG_CONFIG_HOME",
 	}
 	for _, k := range keys {
@@ -79,6 +80,7 @@ func TestDefaultConfigPath_XDG(t *testing.T) {
 	}
 
 	os.Setenv("XDG_CONFIG_HOME", xdgDir)
+	os.Setenv("SCOUT_AI_BRIDGE_MODE", "local")
 	state, err := LoadBridgeConfig()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -125,6 +127,7 @@ func TestDefaultConfigPath_Fallback(t *testing.T) {
 		t.Fatalf("write config: %v", err)
 	}
 
+	os.Setenv("SCOUT_AI_BRIDGE_MODE", "local")
 	state, err := LoadBridgeConfig()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -399,6 +402,7 @@ func TestAutoLaunchFieldPresent(t *testing.T) {
 // but the binary doesn't exist (best-effort, should not panic or error fatally).
 func TestAutoLaunchWithHelper(t *testing.T) {
 	clearBridgeEnv(t)
+	os.Setenv("SCOUT_AI_BRIDGE_MODE", "local")
 	os.Setenv("SCOUT_AI_BRIDGE_HELPER", "/this/binary/does/not/exist")
 
 	state, err := LoadBridgeConfig()
@@ -440,5 +444,82 @@ func TestConfigFileMissing(t *testing.T) {
 	}
 	if state.Detected {
 		t.Error("expected Detected=false for missing config file")
+	}
+}
+
+// TestDefaultPolicyDoesNotReadImplicitUserConfig verifies that without SCOUT_AI_BRIDGE_MODE=local,
+// a config file present at the implicit XDG path is NOT read and returns a policy not-detected result.
+func TestDefaultPolicyDoesNotReadImplicitUserConfig(t *testing.T) {
+	clearBridgeEnv(t)
+
+	// Create a valid config at the implicit XDG path.
+	xdgDir := t.TempDir()
+	scoutDir := filepath.Join(xdgDir, "scout")
+	if err := os.MkdirAll(scoutDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	tok := writeTokenFile(t, "should-not-be-read")
+	cfg := map[string]any{
+		"type":      "http-localhost",
+		"url":       "http://127.0.0.1:9910",
+		"tokenFile": tok,
+	}
+	data, _ := json.Marshal(cfg)
+	if err := os.WriteFile(filepath.Join(scoutDir, "ai-bridge.json"), data, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	os.Setenv("XDG_CONFIG_HOME", xdgDir)
+	// SCOUT_AI_BRIDGE_MODE is intentionally NOT set.
+
+	state, err := LoadBridgeConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if state.Detected {
+		t.Error("expected Detected=false: implicit config should not be read without SCOUT_AI_BRIDGE_MODE=local")
+	}
+	if state.Source != "policy" {
+		t.Errorf("expected Source=policy, got %q", state.Source)
+	}
+	if !strings.Contains(state.Message, "SCOUT_AI_BRIDGE_MODE=local") {
+		t.Errorf("expected policy message to mention SCOUT_AI_BRIDGE_MODE=local, got: %q", state.Message)
+	}
+}
+
+// TestLocalModeReadsImplicitUserConfig verifies that with SCOUT_AI_BRIDGE_MODE=local,
+// the implicit XDG config file IS discovered and returned.
+func TestLocalModeReadsImplicitUserConfig(t *testing.T) {
+	clearBridgeEnv(t)
+
+	xdgDir := t.TempDir()
+	scoutDir := filepath.Join(xdgDir, "scout")
+	if err := os.MkdirAll(scoutDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	tok := writeTokenFile(t, "local-mode-token")
+	cfg := map[string]any{
+		"type":      "http-localhost",
+		"url":       "http://127.0.0.1:9911",
+		"tokenFile": tok,
+	}
+	data, _ := json.Marshal(cfg)
+	if err := os.WriteFile(filepath.Join(scoutDir, "ai-bridge.json"), data, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	os.Setenv("XDG_CONFIG_HOME", xdgDir)
+	os.Setenv("SCOUT_AI_BRIDGE_MODE", "local")
+
+	state, err := LoadBridgeConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !state.Detected {
+		t.Errorf("expected Detected=true with SCOUT_AI_BRIDGE_MODE=local (message: %s)", state.Message)
+	}
+	if state.Token != "local-mode-token" {
+		t.Errorf("expected token=local-mode-token, got %q", state.Token)
+	}
+	if state.Source != "config" {
+		t.Errorf("expected Source=config, got %q", state.Source)
 	}
 }

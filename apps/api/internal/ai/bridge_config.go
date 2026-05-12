@@ -49,6 +49,19 @@ func notDetected(msg, source string) BridgeState {
 	return BridgeState{Enabled: true, Detected: false, Message: msg, Source: source}
 }
 
+// bridgeLocalModeEnabled reports whether SCOUT_AI_BRIDGE_MODE is set to an explicit
+// local mode value ("local" or "auto-local"), which opts in to implicit user config discovery.
+func bridgeLocalModeEnabled() bool {
+	mode := os.Getenv("SCOUT_AI_BRIDGE_MODE")
+	return mode == "local" || mode == "auto-local"
+}
+
+// bridgeExplicitConfigPathSet reports whether SCOUT_AI_BRIDGE_CONFIG has been set,
+// which counts as an explicit override and allows config discovery regardless of mode.
+func bridgeExplicitConfigPathSet() bool {
+	return os.Getenv("SCOUT_AI_BRIDGE_CONFIG") != ""
+}
+
 // LoadBridgeConfig discovers the host CLI bridge by reading config and/or env vars.
 // It never returns an error for "expected" failures (missing file, bad JSON, etc.);
 // errors are only returned for unexpected internal problems. Callers should always
@@ -69,7 +82,11 @@ func LoadBridgeConfig() (BridgeState, error) {
 		return loadFromEnvOverride(envURL)
 	}
 
-	// 3. Locate config file.
+	// 3. Locate config file — only when local mode or explicit config path is set.
+	if !bridgeLocalModeEnabled() && !bridgeExplicitConfigPathSet() {
+		return notDetected("bridge auto discovery disabled; set SCOUT_AI_BRIDGE_MODE=local for local bridge config discovery", "policy"), nil
+	}
+
 	cfgPath := resolveConfigPath()
 
 	state, ok := loadFromConfigFile(cfgPath)
@@ -107,6 +124,11 @@ func LoadBridgeStatus() BridgeState {
 	}
 
 	// 3. Locate config file (read-only; auto-launch is intentionally skipped).
+	// Only discover implicit config when local mode or explicit config path is set.
+	if !bridgeLocalModeEnabled() && !bridgeExplicitConfigPathSet() {
+		return notDetected("bridge auto discovery disabled; set SCOUT_AI_BRIDGE_MODE=local for local bridge config discovery", "policy")
+	}
+
 	cfgPath := resolveConfigPath()
 	state, _ := loadFromConfigFile(cfgPath)
 	return state
