@@ -33,9 +33,12 @@ test_creates_env_config_and_token() {
   assert_file "$dir/open-core/.env"
   assert_file "$dir/xdg/scout/ai-bridge.token"
   assert_file "$dir/xdg/scout/ai-bridge.json"
+  assert_contains "$dir/open-core/.env" 'SCOUT_AI_BRIDGE_MODE=local'
   assert_contains "$dir/open-core/.env" 'SCOUT_AI_BRIDGE_URL=http://host.docker.internal:4761'
   assert_contains "$dir/open-core/.env" 'SCOUT_AI_BRIDGE_TOKEN_FILE=/run/secrets/scout-ai-bridge-token'
   assert_contains "$dir/open-core/.env" "SCOUT_AI_BRIDGE_HOST_TOKEN_FILE=$dir/xdg/scout/ai-bridge.token"
+  assert_contains "$dir/xdg/scout/ai-bridge.json" '"type": "http-localhost"'
+  assert_contains "$dir/xdg/scout/ai-bridge.json" '"tokenFile":'
 }
 
 test_preserves_valid_token() {
@@ -61,6 +64,7 @@ test_disable_skips_bridge_variables() {
   dir="$(run_bootstrap disabled SCOUT_AI_BRIDGE_DISABLE=1)"
   assert_file "$dir/open-core/.env"
   assert_not_contains "$dir/open-core/.env" 'SCOUT_AI_BRIDGE_URL=http://host.docker.internal:4761'
+  assert_not_contains "$dir/open-core/.env" 'SCOUT_AI_BRIDGE_MODE=local'
 }
 
 test_unsupported_os_returns_success() {

@@ -91,8 +91,10 @@ ensure_token() {
 write_config() {
   cat > "$CONFIG_FILE" <<EOF
 {
+  "type": "http-localhost",
   "url": "${HOST_URL}",
-  "token_file": "${TOKEN_FILE}"
+  "tokenFile": "${TOKEN_FILE}",
+  "runtimes": ["copilot", "claude-cli"]
 }
 EOF
   log "Wrote $CONFIG_FILE"
@@ -114,6 +116,7 @@ set_env_var() {
 }
 
 write_env_vars() {
+  set_env_var "SCOUT_AI_BRIDGE_MODE" "local" "$ENV_FILE"
   set_env_var "SCOUT_AI_BRIDGE_URL" "$DOCKER_URL" "$ENV_FILE"
   set_env_var "SCOUT_AI_BRIDGE_TOKEN_FILE" "$TOKEN_FILE_IN_CONTAINER" "$ENV_FILE"
   set_env_var "SCOUT_AI_BRIDGE_HOST_TOKEN_FILE" "$TOKEN_FILE" "$ENV_FILE"
