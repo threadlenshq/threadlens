@@ -24,6 +24,21 @@ type Status struct {
 	EnvFilePath string
 }
 
+// ErrDisabled is returned by Save (and any future mutating operations) when the
+// onboarding flow has been administratively disabled. Handlers map this
+// sentinel to HTTP 403 so callers can distinguish "you're not allowed" from a
+// generic server error.
+var ErrDisabled = errors.New("onboarding: disabled")
+
+// ServiceIface is the narrow interface that HTTP handlers depend on. It is
+// satisfied by *Service and by any test stub that needs to drive handler
+// behaviour without touching real I/O.
+type ServiceIface interface {
+	GetStatus(ctx context.Context) (Status, error)
+	Save(ctx context.Context, values map[string]string) error
+	Reset(ctx context.Context) error
+}
+
 // Service encapsulates all business logic for the onboarding flow.
 type Service struct {
 	cfg  Config
@@ -74,7 +89,7 @@ func (s *Service) GetStatus(ctx context.Context) (Status, error) {
 //   - in Docker mode: values is nil or empty, or any value is an empty string
 func (s *Service) Save(ctx context.Context, values map[string]string) error {
 	if s.cfg.Disabled {
-		return errors.New("onboarding: save rejected — onboarding is disabled")
+		return ErrDisabled
 	}
 
 	if s.cfg.DockerMode {
