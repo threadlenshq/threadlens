@@ -31,9 +31,10 @@ func TestNewProgress_DefaultsToRequiredSetupWelcome(t *testing.T) {
 	if p.RequiredSetup.CurrentStep != onboarding.RequiredStepWelcome {
 		t.Errorf("RequiredSetup.CurrentStep = %v; want RequiredStepWelcome", p.RequiredSetup.CurrentStep)
 	}
-	if p.Exploration.Items[onboarding.ExplorationItemStarterProject] != onboarding.ItemStatePending {
-		t.Errorf("Exploration.Items[ExplorationItemStarterProject] = %v; want ItemStatePending",
-			p.Exploration.Items[onboarding.ExplorationItemStarterProject])
+	if value, ok := p.Exploration.Items[onboarding.ExplorationItemStarterProject]; !ok {
+		t.Error("Exploration.Items missing key ExplorationItemStarterProject")
+	} else if value != onboarding.ItemStatePending {
+		t.Errorf("Exploration.Items[ExplorationItemStarterProject] = %v; want ItemStatePending", value)
 	}
 }
 
@@ -83,6 +84,9 @@ func TestProgressJSONDoesNotContainSecrets(t *testing.T) {
 		if strings.Contains(jsonStr, forbidden) {
 			t.Errorf("marshaled JSON contains forbidden string %q: %s", forbidden, jsonStr)
 		}
+	}
+	if !strings.Contains(jsonStr, `"aiProviderPath":"anthropic"`) {
+		t.Errorf("marshaled JSON missing expected field aiProviderPath: %s", jsonStr)
 	}
 }
 
