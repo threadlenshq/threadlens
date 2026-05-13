@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/configfile"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
@@ -554,21 +555,24 @@ func (s *Service) UpdateExploration(ctx context.Context, req ExplorationUpdate) 
 		}
 		p.Exploration.Dismissed = true
 		p.Exploration.Status = ExplorationStatusComplete
+		p.Exploration.CompletedAt = time.Now().UTC().Format(time.RFC3339)
 	} else if req.Item != "" {
 		if !validExplorationItem(req.Item) {
 			return Status{}, fmt.Errorf("onboarding: UpdateExploration: unknown item %q", req.Item)
 		}
-		newState := req.State
-		if newState == "" {
-			newState = ItemStateCompleted
+		// Only apply state when it is explicitly provided; do not silently
+		// default a missing state to completed.
+		if req.State == "" {
+			return Status{}, errors.New("onboarding: UpdateExploration: state is required when item is set")
 		}
-		p.Exploration.Items[req.Item] = newState
+		p.Exploration.Items[req.Item] = req.State
 		// Recompute the current item pointer to the first non-terminal item.
 		next := firstPendingItem(p.Exploration.Items)
 		p.Exploration.CurrentItem = next
 		// If all items are now terminal, mark exploration complete.
 		if next == "" {
 			p.Exploration.Status = ExplorationStatusComplete
+			p.Exploration.CompletedAt = time.Now().UTC().Format(time.RFC3339)
 		}
 	}
 
@@ -589,12 +593,12 @@ func (s *Service) CreateStarterProject(ctx context.Context, req StarterProjectRe
 }
 
 // Reset clears onboarding state according to mode:
-//   - ResetModeProgress: deletes both the v1 state key and the legacy
+//   - ResetModeProgress (or ""): deletes both the v1 state key and the legacy
 //     completion key, returning to a brand-new-install state.
 //   - ResetModeExploration: resets only the exploration portion of the v1
-//     progress record, leaving required-setup intact.
-//   - ResetModeDismissExploration: marks all pending exploration items as
-//     skipped without removing the progress record.
+//     progress record to the active state, leaving required-setup intact.
+//   - ResetModeDismissExploration: delegates to UpdateExploration(Dismiss=true),
+//     applying the same disabled/required-setup guards.
 func (s *Service) Reset(ctx context.Context, mode ResetMode) error {
 	switch mode {
 	case ResetModeExploration:
@@ -604,25 +608,21 @@ func (s *Service) Reset(ctx context.Context, mode ResetMode) error {
 		}
 		fresh := NewProgress()
 		p.Exploration = fresh.Exploration
+		// After exploration reset the status must be active (not not_started),
+		// because required setup is already complete.
+		p.Exploration.Status = ExplorationStatusActive
 		// Clear exploration-derived context while keeping required-setup context.
 		p.Context.SelectedProjectID = ""
 		return s.saveProgress(ctx, p)
 
 	case ResetModeDismissExploration:
-		p, err := s.loadProgress(ctx)
-		if err != nil {
-			return err
-		}
-		for item, state := range p.Exploration.Items {
-			if state == ItemStatePending || state == ItemStateBlocked {
-				p.Exploration.Items[item] = ItemStateSkipped
-			}
-		}
-		p.Exploration.Dismissed = true
-		p.Exploration.Status = ExplorationStatusComplete
-		return s.saveProgress(ctx, p)
+		// Delegate to UpdateExploration so the disabled and required-setup
+		// guards are applied identically — no bypass.
+		_, err := s.UpdateExploration(ctx, ExplorationUpdate{Dismiss: true})
+		return err
 
-	case ResetModeProgress:
+	case ResetModeProgress, "":
+		// Empty string is accepted as a backward-compatible alias for progress reset.
 		if err := s.repo.Delete(ctx, s.cfg.StateKey); err != nil {
 			return fmt.Errorf("onboarding: reset (state key): %w", err)
 		}
