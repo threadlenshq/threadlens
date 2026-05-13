@@ -52,7 +52,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="project-selector">
+<div class="project-selector" data-testid="project-selector">
   <button class="selector-btn" onclick={toggle}>
     {#if selectedProject}
       <span class="project-name">{selectedProject.name}</span>

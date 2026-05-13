@@ -6,14 +6,38 @@
   import ActiveRunBanner from './components/ActiveRunBanner.svelte';
   import PostCard from './components/PostCard.svelte';
   import DetailPanel from './components/DetailPanel.svelte';
-  import { projects as projectsApi, posts as postsApi, scout as scoutApi, queries as queriesApi, runtime as runtimeApi } from './lib/api.js';
+  import { projects as projectsApi, posts as postsApi, scout as scoutApi, queries as queriesApi, runtime as runtimeApi, onboarding as onboardingApi } from './lib/api.js';
   import { readUrlState, writeUrlState, clearUrlState } from './lib/url.js';
+  import OnboardingWizard from './components/OnboardingWizard.svelte';
+  import ExplorationChecklist from './components/onboarding/ExplorationChecklist.svelte';
+  import TourCallout from './components/onboarding/TourCallout.svelte';
+  import { normalizeOnboardingStatus, shouldShowRequiredWizard, shouldShowExploration } from './lib/onboardingState.js';
   import ReportsTab from './components/ReportsTab.svelte';
   import ReportView from './components/ReportView.svelte';
   import GoogleReportsTab from './components/GoogleReportsTab.svelte';
   import GoogleReportView from './components/GoogleReportView.svelte';
   import ModelConfig from './components/ModelConfig.svelte';
   import { POST_STATUSES } from '@scout/shared';
+
+  // --- Onboarding gate ---
+  let onboardingStatus = $state(null);
+  let onboardingChecked = $state(false);
+  let onboardingError = $state('');
+  let showTourCallout = $state(true);
+  let onboardingRequiresSetup = $derived(shouldShowRequiredWizard(onboardingStatus));
+  let onboardingShowsExploration = $derived(shouldShowExploration(onboardingStatus));
+
+  async function checkOnboarding() {
+    onboardingError = '';
+    try {
+      const data = await onboardingApi.status();
+      onboardingStatus = normalizeOnboardingStatus(data);
+    } catch (e) {
+      onboardingError = e.message || 'Failed to load onboarding status.';
+      onboardingStatus = null;
+    }
+    onboardingChecked = true;
+  }
 
   // --- State ---
   let projectList = $state([]);
@@ -241,6 +265,7 @@
 
   onDestroy(() => {
     window.removeEventListener('popstate', handlePopState);
+    // onboarding-complete custom event no longer used (replaced by status reload)
     stopPoll();
     clearInterval(tickTimer);
   });
@@ -601,6 +626,19 @@
     if (appInitialized || typeof window === 'undefined') return;
     appInitialized = true;
     window.addEventListener('popstate', handlePopState);
+    // onboarding-complete custom event no longer used (replaced by status reload)
+    await checkOnboarding();
+    if (onboardingError || onboardingRequiresSetup) return;
+    await continueAppInit();
+  }
+
+  async function handleOnboardingComplete() {
+    await checkOnboarding();
+    if (!appInitialized || onboardingRequiresSetup || onboardingError) return;
+    await continueAppInit();
+  }
+
+  async function continueAppInit() {
     loadCapabilities();
     await loadProjects();
     const urlState = readUrlState();
@@ -661,7 +699,27 @@
 </script>
 
 <div class="app">
+  {#if !onboardingChecked}
+    <div class="setup-loading">Loading setup status...</div>
+  {:else if onboardingError}
+    <div class="setup-error" data-testid="onboarding-status-error">
+      <p>{onboardingError}</p>
+      <button onclick={checkOnboarding}>Retry setup check</button>
+    </div>
+  {:else if onboardingRequiresSetup}
+    <OnboardingWizard status={onboardingStatus} onStatusReload={handleOnboardingComplete} />
+  {:else}
   <ActiveRunBanner runs={activeRuns} {failedRuns} {completedRuns} onDismissFailed={dismissFailedRun} onDismissCompleted={dismissCompletedRun} onCancel={cancelRun} />
+
+  {#if onboardingShowsExploration}
+    <ExplorationChecklist
+      status={onboardingStatus}
+      selectedProjectId={selectedProjectId}
+      onStatusReload={checkOnboarding}
+      onProjectReady={async (projectId) => { await loadProjects(); await selectProject(projectId); }}
+      onNavigate={(nextView) => { view = nextView; writeUrlState({ view: nextView }, 'push'); }}
+    />
+  {/if}
 
   <!-- Header -->
   <header class="header">
@@ -852,7 +910,16 @@
           {#if loadingPosts}
             <div class="loading">Loading posts...</div>
           {:else if postsList.length === 0}
-            <div class="empty-list">No posts found. Try running ThreadLens or adjusting filters.</div>
+            <div class="empty-list">
+              No posts found. Try running ThreadLens or adjusting filters.
+              {#if onboardingShowsExploration && showTourCallout}
+                <TourCallout
+                  title="Scout is user-triggered"
+                  body="The Scout button above starts a new search. ThreadLens never starts external scouting automatically — you control when network-heavy work runs."
+                  onDismiss={() => { showTourCallout = false; }}
+                />
+              {/if}
+            </div>
           {:else}
             {#each postsList as post (post.id)}
               <PostCard
@@ -968,6 +1035,7 @@
       </div>
     {/if}
   </main>
+  {/if}
 </div>
 
 <style>

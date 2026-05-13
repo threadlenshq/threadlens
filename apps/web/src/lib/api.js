@@ -130,3 +130,12 @@ export const runtime = {
 export const templates = {
   promptPacks: () => api('/api/templates/prompt-packs'),
 };
+
+export const onboarding = {
+  status: () => api('/api/onboarding/status'),
+  requiredStep: (body) => api('/api/onboarding/required-step', { method: 'POST', body }),
+  save: (body) => api('/api/onboarding/save', { method: 'POST', body }),
+  exploration: (body) => api('/api/onboarding/exploration', { method: 'POST', body }),
+  starterProject: (body) => api('/api/onboarding/starter-project', { method: 'POST', body }),
+  reset: (mode = 'progress') => api('/api/onboarding/reset', { method: 'POST', body: { mode } }),
+};
