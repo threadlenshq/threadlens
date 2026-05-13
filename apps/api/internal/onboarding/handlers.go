@@ -17,6 +17,7 @@ func MountRoutes(r chi.Router, svc ServiceIface) {
 	r.Post("/api/onboarding/save", handleSave(svc))
 	r.Post("/api/onboarding/reset", handleReset(svc))
 	r.Post("/api/onboarding/steps/{step}", handleSaveRequiredStep(svc))
+	r.Post("/api/onboarding/required-step", handleRequiredStep(svc))
 	r.Post("/api/onboarding/exploration", handleUpdateExploration(svc))
 	r.Post("/api/onboarding/starter-project", handleCreateStarterProject(svc))
 }
@@ -116,6 +117,41 @@ func handleReset(svc ServiceIface) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	}
+}
+
+// ── POST /api/onboarding/required-step ───────────────────────────────────────
+
+type requiredStepRequest struct {
+	Step   RequiredStep      `json:"step"`
+	Values map[string]string `json:"values"`
+}
+
+func handleRequiredStep(svc ServiceIface) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req requiredStepRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if strings.TrimSpace(string(req.Step)) == "" {
+			writeError(w, http.StatusBadRequest, "step is required")
+			return
+		}
+		if !stringInRequiredSteps(req.Step) {
+			writeError(w, http.StatusBadRequest, "unknown step")
+			return
+		}
+		status, err := svc.SaveRequiredStep(r.Context(), req.Step, req.Values)
+		if err != nil {
+			if errors.Is(err, ErrDisabled) {
+				writeError(w, http.StatusForbidden, "onboarding is disabled")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "failed to save required step")
+			return
+		}
+		writeJSON(w, http.StatusOK, status)
 	}
 }
 

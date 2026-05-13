@@ -786,3 +786,73 @@ func TestCreateStarterProjectRoute_ServiceErrorReturns500(t *testing.T) {
 	}
 	assertErrorBody(t, rr, "db error")
 }
+
+// ── POST /api/onboarding/required-step (body-encoded step) ───────────────────
+
+func TestRequiredStepRouteDelegates(t *testing.T) {
+	svc := &stubService{
+		status: onboarding.Status{Phase: onboarding.PhaseRequiredSetup, CurrentRequiredStep: onboarding.RequiredStepAppDatabase},
+	}
+	router := newOnboardingRouter(svc)
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/required-step", map[string]any{
+		"step":   "ai_provider",
+		"values": map[string]string{"AI_PROVIDER": "anthropic"},
+	})
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	if svc.saveRequiredStepCalls != 1 {
+		t.Fatalf("SaveRequiredStep calls = %d, want 1", svc.saveRequiredStepCalls)
+	}
+	if svc.gotStep != onboarding.RequiredStepAIProvider {
+		t.Fatalf("got step %q, want ai_provider", svc.gotStep)
+	}
+}
+
+func TestExplorationRouteDelegates(t *testing.T) {
+	svc := &stubService{
+		status: onboarding.Status{Phase: onboarding.PhaseComplete, ExplorationComplete: true},
+	}
+	router := newOnboardingRouter(svc)
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/exploration", map[string]any{
+		"item":  "reports_intro",
+		"state": "completed",
+	})
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	if svc.updateExplorationCalls != 1 {
+		t.Fatalf("UpdateExploration calls = %d, want 1", svc.updateExplorationCalls)
+	}
+}
+
+func TestStarterProjectRouteDoesNotLeakSecret(t *testing.T) {
+	svc := &stubService{}
+	router := newOnboardingRouter(svc)
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/starter-project", map[string]any{
+		"projectId":   "ai-notes",
+		"projectName": "AI Notes",
+		"query":       "meeting notes too time consuming",
+		"platform":    "reddit",
+	})
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	if bytes.Contains(rr.Body.Bytes(), []byte("sk-ant")) {
+		t.Fatalf("starter response leaked secret-like text: %s", rr.Body.String())
+	}
+}
+
+func TestResetRouteAcceptsMode(t *testing.T) {
+	svc := &stubService{}
+	router := newOnboardingRouter(svc)
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/reset", map[string]any{
+		"mode": "exploration",
+	})
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	if svc.gotResetMode != onboarding.ResetModeExploration {
+		t.Fatalf("resetMode = %q, want exploration", svc.gotResetMode)
+	}
+}
