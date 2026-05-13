@@ -2,11 +2,13 @@ package configfile
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"unicode"
 )
 
@@ -207,5 +209,19 @@ func atomicWrite(path string, data []byte) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, path)
+	if err := os.Rename(tmpName, path); err != nil {
+		if isCrossDeviceOrBusyRename(err) {
+			return os.WriteFile(path, data, 0o600)
+		}
+		return err
+	}
+	return nil
+}
+
+func isCrossDeviceOrBusyRename(err error) bool {
+	var linkErr *os.LinkError
+	if errors.As(err, &linkErr) {
+		return errors.Is(linkErr.Err, syscall.EXDEV) || errors.Is(linkErr.Err, syscall.EBUSY) || errors.Is(linkErr.Err, syscall.EPERM)
+	}
+	return errors.Is(err, syscall.EXDEV) || errors.Is(err, syscall.EBUSY) || errors.Is(err, syscall.EPERM)
 }
