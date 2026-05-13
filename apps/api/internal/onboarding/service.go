@@ -389,13 +389,20 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 		return Status{}, err
 	}
 
-	// Record non-secret context values derived from the step.
-	if provider, ok := values["AI_PROVIDER"]; ok {
+	// For the AI-provider step, the provider path is required and stored in
+	// context. Other steps do not apply this rule.
+	if step == RequiredStepAIProvider {
+		provider := strings.TrimSpace(values["AI_PROVIDER"])
+		if provider == "" {
+			return Status{}, errors.New("onboarding: AI_PROVIDER is required")
+		}
 		p.Context.AIProviderPath = provider
 	}
 
-	// Mark this step complete and advance to the next.
-	p.RequiredSetup.Status = RequiredStatusActive
+	// Promote status from not_started → active; never regress from active or complete.
+	if p.RequiredSetup.Status == RequiredStatusNotStarted {
+		p.RequiredSetup.Status = RequiredStatusActive
+	}
 	alreadyRecorded := false
 	for _, cs := range p.RequiredSetup.CompletedSteps {
 		if cs == step {
@@ -452,21 +459,15 @@ func (s *Service) Save(ctx context.Context, values map[string]string) error {
 		return err
 	}
 	p.RequiredSetup.Status = RequiredStatusComplete
-	if p.RequiredSetup.CurrentStep != RequiredStepReview {
-		p.RequiredSetup.CompletedSteps = make([]RequiredStep, len(RequiredSteps))
-		copy(p.RequiredSetup.CompletedSteps, RequiredSteps)
-		p.RequiredSetup.CurrentStep = RequiredStepReview
-	}
+	p.RequiredSetup.CompletedSteps = make([]RequiredStep, len(RequiredSteps))
+	copy(p.RequiredSetup.CompletedSteps, RequiredSteps)
+	p.RequiredSetup.CurrentStep = RequiredStepReview
+	p.RequiredSetup.RestartRequired = s.cfg.DockerMode && len(values) > 0
 	p.Exploration.Status = ExplorationStatusActive
 	// Copy non-secret provider selection into progress context so GetStatus
 	// can report the chosen provider without re-reading the env file.
-	if provider, ok := values["AI_PROVIDER"]; ok {
+	if provider := strings.TrimSpace(values["AI_PROVIDER"]); provider != "" {
 		p.Context.AIProviderPath = provider
-	}
-	// Signal that a restart is required when running in Docker mode and there
-	// are values being persisted to the env file (env changes require restart).
-	if s.cfg.DockerMode && len(values) > 0 {
-		p.RequiredSetup.RestartRequired = true
 	}
 	if err := s.saveProgress(ctx, p); err != nil {
 		return err
