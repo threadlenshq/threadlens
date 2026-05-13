@@ -23,6 +23,9 @@ import (
 // completionKey is the settings-repository key agreed in Task 3.
 const completionKey = "onboarding.complete"
 
+// stateKey is the versioned settings-repository key for ThreadLens v1.
+const stateKey = "onboarding.threadlens.v1"
+
 // defaultEnvFilePath is the writable path inside the open-core container.
 const defaultEnvFilePath = "/data/.env"
 
@@ -167,6 +170,16 @@ func TestCompletionKeyIsFixed(t *testing.T) {
 	}
 	if cfg.CompletionKey != completionKey {
 		t.Errorf("CompletionKey = %q; want %q", cfg.CompletionKey, completionKey)
+	}
+}
+
+func TestStateKeyIsFixed(t *testing.T) {
+	cfg, err := onboarding.LoadConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.StateKey != stateKey {
+		t.Errorf("StateKey = %q; want %q", cfg.StateKey, stateKey)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 const (
 	defaultEnvFilePath = "/data/.env"
 	completionKey      = "onboarding.complete"
+	stateKey           = "onboarding.threadlens.v1"
 )
 
 // Config holds the resolved onboarding configuration derived from environment
@@ -26,6 +27,10 @@ type Config struct {
 	// CompletionKey is the settings-repository key used to persist the
 	// "onboarding complete" flag.  Fixed at "onboarding.complete".
 	CompletionKey string
+
+	// StateKey is the versioned settings-repository key for ThreadLens v1
+	// onboarding progress. Fixed at "onboarding.threadlens.v1".
+	StateKey string
 }
 
 // LoadConfig reads the onboarding configuration from environment variables and
@@ -48,5 +53,6 @@ func LoadConfig() (Config, error) {
 		Disabled:      disabled,
 		EnvFilePath:   envFilePath,
 		CompletionKey: completionKey,
+		StateKey:      stateKey,
 	}, nil
 }
