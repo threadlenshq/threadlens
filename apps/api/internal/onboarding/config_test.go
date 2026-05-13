@@ -1,18 +1,16 @@
 package onboarding_test
 
-// config_test.go defines the expected behaviour of the onboarding Config
-// loader before the implementation exists.  All tests in this file are
-// intentionally failing until onboarding.LoadConfig (and the Config type) are
-// implemented.
+// config_test.go verifies the behaviour of onboarding.LoadConfig and the
+// Config type it returns.
 //
-// Design constraints kept here:
+// Invariants asserted here:
 //   - Docker mode is active only when SCOUT_ONBOARDING_MODE=docker.
 //   - Onboarding can be fully disabled via SCOUT_ONBOARDING_DISABLE=1.
 //   - When Docker mode is active and SCOUT_ONBOARDING_ENV_FILE is unset or
 //     empty, LoadConfig falls back to the default writable container path
 //     /data/.env.
-//   - The config exposes CompletionKey so callers can persist the "done" flag
-//     via the settings repository without hard-coding the key elsewhere.
+//   - Config exposes CompletionKey and StateKey so callers can persist
+//     onboarding state via the settings repository without hard-coding keys.
 
 import (
 	"testing"
@@ -20,7 +18,7 @@ import (
 	"github.com/kyle/scout/open-core/apps/api/internal/onboarding"
 )
 
-// completionKey is the settings-repository key agreed in Task 3.
+// completionKey is the settings-repository key used to persist the "done" flag.
 const completionKey = "onboarding.complete"
 
 // stateKey is the versioned settings-repository key for ThreadLens v1.
@@ -197,4 +195,5 @@ func TestConfigFieldsPresent(t *testing.T) {
 	_ = cfg.Disabled      // bool
 	_ = cfg.EnvFilePath   // string
 	_ = cfg.CompletionKey // string
+	_ = cfg.StateKey      // string
 }
