@@ -11,22 +11,11 @@ package onboarding_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/onboarding"
 )
-
-// containsAny returns true if s contains any of the given substrings.
-func containsAny(s string, needles []string) bool {
-	for _, n := range needles {
-		for i := 0; i+len(n) <= len(s); i++ {
-			if s[i:i+len(n)] == n {
-				return true
-			}
-		}
-	}
-	return false
-}
 
 // ── 1. NewProgress defaults ───────────────────────────────────────────────────
 
@@ -36,11 +25,15 @@ func TestNewProgress_DefaultsToRequiredSetupWelcome(t *testing.T) {
 	if p.Version != 1 {
 		t.Errorf("Version = %d; want 1", p.Version)
 	}
-	if p.RequiredSetup.Status != onboarding.StatusNotStarted {
-		t.Errorf("RequiredSetup.Status = %v; want StatusNotStarted", p.RequiredSetup.Status)
+	if p.RequiredSetup.Status != onboarding.RequiredStatusNotStarted {
+		t.Errorf("RequiredSetup.Status = %v; want RequiredStatusNotStarted", p.RequiredSetup.Status)
 	}
-	if p.CurrentStep != onboarding.StepWelcome {
-		t.Errorf("CurrentStep = %v; want StepWelcome", p.CurrentStep)
+	if p.RequiredSetup.CurrentStep != onboarding.RequiredStepWelcome {
+		t.Errorf("RequiredSetup.CurrentStep = %v; want RequiredStepWelcome", p.RequiredSetup.CurrentStep)
+	}
+	if p.Exploration.Items[onboarding.ExplorationItemStarterProject] != onboarding.ItemStatePending {
+		t.Errorf("Exploration.Items[ExplorationItemStarterProject] = %v; want ItemStatePending",
+			p.Exploration.Items[onboarding.ExplorationItemStarterProject])
 	}
 }
 
@@ -49,16 +42,28 @@ func TestNewProgress_DefaultsToRequiredSetupWelcome(t *testing.T) {
 func TestProgressStatus_Phases(t *testing.T) {
 	p := onboarding.NewProgress()
 
-	// Onboarding enabled: phase should be PhaseRequiredSetup (initial).
-	phase := onboarding.PhaseForProgress(false, p)
-	if phase != onboarding.PhaseRequiredSetup {
-		t.Errorf("PhaseForProgress(enabled, new) = %v; want PhaseRequiredSetup", phase)
+	// Enabled + fresh progress: should be in required-setup phase.
+	if got := onboarding.PhaseForProgress(true, p); got != onboarding.PhaseRequiredSetup {
+		t.Errorf("PhaseForProgress(true, new) = %v; want PhaseRequiredSetup", got)
 	}
 
-	// Onboarding disabled: phase should be PhaseDisabled regardless of progress.
-	phase = onboarding.PhaseForProgress(true, p)
-	if phase != onboarding.PhaseDisabled {
-		t.Errorf("PhaseForProgress(disabled, new) = %v; want PhaseDisabled", phase)
+	// Disabled: phase must be PhaseDisabled regardless of progress.
+	if got := onboarding.PhaseForProgress(false, p); got != onboarding.PhaseDisabled {
+		t.Errorf("PhaseForProgress(false, new) = %v; want PhaseDisabled", got)
+	}
+
+	// Mark required setup complete and exploration active.
+	p.RequiredSetup.Status = onboarding.RequiredStatusComplete
+	if got := onboarding.PhaseForProgress(true, p); got != onboarding.PhaseExploration {
+		t.Errorf("PhaseForProgress(true, required-complete) = %v; want PhaseExploration", got)
+	}
+
+	// Mark all exploration items skipped.
+	for k := range p.Exploration.Items {
+		p.Exploration.Items[k] = onboarding.ItemStateSkipped
+	}
+	if got := onboarding.PhaseForProgress(true, p); got != onboarding.PhaseComplete {
+		t.Errorf("PhaseForProgress(true, all-skipped) = %v; want PhaseComplete", got)
 	}
 }
 
@@ -66,25 +71,18 @@ func TestProgressStatus_Phases(t *testing.T) {
 
 func TestProgressJSONDoesNotContainSecrets(t *testing.T) {
 	p := onboarding.NewProgress()
-
-	// Inject fake secret values that must never appear in serialised state.
-	p.AnthropicAPIKey = "sk-ant-secret"
-	p.GeminiAPIKey = "gemini-secret-value"
+	p.Context.AIProviderPath = "anthropic"
 
 	data, err := json.Marshal(p)
 	if err != nil {
 		t.Fatalf("json.Marshal failed: %v", err)
 	}
 
-	secrets := []string{
-		"sk-ant-secret",
-		"GEMINI_API_KEY=",
-		"ANTHROPIC_API_KEY=",
-		"gemini-secret-value",
-	}
 	jsonStr := string(data)
-	if containsAny(jsonStr, secrets) {
-		t.Errorf("marshaled JSON contains a secret string: %s", jsonStr)
+	for _, forbidden := range []string{"sk-ant-secret", "GEMINI_API_KEY=", "ANTHROPIC_API_KEY="} {
+		if strings.Contains(jsonStr, forbidden) {
+			t.Errorf("marshaled JSON contains forbidden string %q: %s", forbidden, jsonStr)
+		}
 	}
 }
 
@@ -94,20 +92,22 @@ func TestExplorationCompleteWhenEveryItemCompletedOrSkipped(t *testing.T) {
 	p := onboarding.NewProgress()
 
 	// Not complete when exploration has pending items.
-	if onboarding.ExplorationComplete(p) {
+	if onboarding.ExplorationComplete(p.Exploration.Items) {
 		t.Error("ExplorationComplete should be false for a fresh progress value")
 	}
 
-	// Mark every exploration item as completed or skipped.
-	for i := range p.Exploration.Items {
+	// Mark every item completed or skipped (alternating).
+	i := 0
+	for k := range p.Exploration.Items {
 		if i%2 == 0 {
-			p.Exploration.Items[i].Status = onboarding.StatusCompleted
+			p.Exploration.Items[k] = onboarding.ItemStateCompleted
 		} else {
-			p.Exploration.Items[i].Status = onboarding.StatusSkipped
+			p.Exploration.Items[k] = onboarding.ItemStateSkipped
 		}
+		i++
 	}
 
-	if !onboarding.ExplorationComplete(p) {
+	if !onboarding.ExplorationComplete(p.Exploration.Items) {
 		t.Error("ExplorationComplete should be true when every item is completed or skipped")
 	}
 }
