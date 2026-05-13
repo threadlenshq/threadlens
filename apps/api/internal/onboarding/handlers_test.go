@@ -6,9 +6,12 @@ package onboarding_test
 // helper) are implemented.
 //
 // Endpoints covered:
-//   GET  /api/onboarding/status   – returns a config-status snapshot
-//   POST /api/onboarding/save     – accepts JSON payload, delegates to Service.Save
-//   POST /api/onboarding/reset    – clears the completion state
+//   GET  /api/onboarding/status            – returns a full config-status snapshot
+//   POST /api/onboarding/save              – accepts JSON payload, delegates to Service.Save
+//   POST /api/onboarding/reset             – clears the completion state (accepts optional mode body)
+//   POST /api/onboarding/steps/{step}      – delegates to Service.SaveRequiredStep
+//   POST /api/onboarding/exploration       – delegates to Service.UpdateExploration
+//   POST /api/onboarding/starter-project   – delegates to Service.CreateStarterProject
 //
 // Design constraints kept here:
 //   - Tests are isolated: a stubService drives HTTP responses without touching I/O.
@@ -39,11 +42,27 @@ type stubService struct {
 	saveErr   error
 	resetErr  error
 
+	saveRequiredStepErr error
+	updateExplorationErr error
+	createStarterProjectErr error
+
+	starterResult onboarding.StarterProjectResult
+
 	// call recorders
 	statusCalls int
 	saveCalls   int
 	resetCalls  int
 	gotValues   map[string]string
+
+	gotResetMode    onboarding.ResetMode
+	gotStep         onboarding.RequiredStep
+	gotStepValues   map[string]string
+	gotExploration  onboarding.ExplorationUpdate
+	gotStarterReq   onboarding.StarterProjectRequest
+
+	saveRequiredStepCalls    int
+	updateExplorationCalls   int
+	createStarterProjectCalls int
 }
 
 func (s *stubService) GetStatus(_ context.Context) (onboarding.Status, error) {
@@ -57,21 +76,29 @@ func (s *stubService) Save(_ context.Context, values map[string]string) error {
 	return s.saveErr
 }
 
-func (s *stubService) Reset(_ context.Context, _ onboarding.ResetMode) error {
+func (s *stubService) Reset(_ context.Context, mode onboarding.ResetMode) error {
 	s.resetCalls++
+	s.gotResetMode = mode
 	return s.resetErr
 }
 
-func (s *stubService) SaveRequiredStep(_ context.Context, _ onboarding.RequiredStep, _ map[string]string) (onboarding.Status, error) {
-	return s.status, nil
+func (s *stubService) SaveRequiredStep(_ context.Context, step onboarding.RequiredStep, values map[string]string) (onboarding.Status, error) {
+	s.saveRequiredStepCalls++
+	s.gotStep = step
+	s.gotStepValues = values
+	return s.status, s.saveRequiredStepErr
 }
 
-func (s *stubService) UpdateExploration(_ context.Context, _ onboarding.ExplorationUpdate) (onboarding.Status, error) {
-	return s.status, nil
+func (s *stubService) UpdateExploration(_ context.Context, req onboarding.ExplorationUpdate) (onboarding.Status, error) {
+	s.updateExplorationCalls++
+	s.gotExploration = req
+	return s.status, s.updateExplorationErr
 }
 
-func (s *stubService) CreateStarterProject(_ context.Context, _ onboarding.StarterProjectRequest) (onboarding.StarterProjectResult, error) {
-	return onboarding.StarterProjectResult{}, nil
+func (s *stubService) CreateStarterProject(_ context.Context, req onboarding.StarterProjectRequest) (onboarding.StarterProjectResult, error) {
+	s.createStarterProjectCalls++
+	s.gotStarterReq = req
+	return s.starterResult, s.createStarterProjectErr
 }
 
 // ErrOnboardingDisabled is the sentinel error the service returns when
@@ -203,6 +230,51 @@ func TestStatusRoute_ServiceErrorReturns500(t *testing.T) {
 	}
 	// Must surface an "error" key without leaking the raw internal error text.
 	assertErrorBody(t, rr, "db gone")
+}
+
+// TestStatusRoute_ReturnsExpandedFields asserts that the status response includes
+// all the fields added in the expanded onboarding API (Tasks 5/9).
+func TestStatusRoute_ReturnsExpandedFields(t *testing.T) {
+	svc := &stubService{
+		status: onboarding.Status{
+			Enabled:               true,
+			Complete:              false,
+			RequiredSetupComplete: false,
+			ExplorationComplete:   false,
+			Phase:                 onboarding.PhaseRequiredSetup,
+			CurrentRequiredStep:   onboarding.RequiredStepWelcome,
+		},
+	}
+	router := newOnboardingRouter(svc)
+
+	rr := doOnboardingRequest(t, router, http.MethodGet, "/api/onboarding/status", nil)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	requiredFields := []string{
+		"enabled",
+		"complete",
+		"requiredSetupComplete",
+		"explorationComplete",
+		"phase",
+		"currentRequiredStep",
+		"steps",
+		"items",
+		"capabilities",
+		"appDatabase",
+		"context",
+	}
+	for _, field := range requiredFields {
+		if _, ok := resp[field]; !ok {
+			t.Errorf("response missing field %q", field)
+		}
+	}
 }
 
 // ── POST /api/onboarding/save ─────────────────────────────────────────────────
@@ -381,4 +453,336 @@ func TestResetRoute_ServiceErrorReturns500(t *testing.T) {
 	}
 	// Must surface an "error" key without leaking the raw internal error text.
 	assertErrorBody(t, rr, "db gone")
+}
+
+// TestResetRoute_AcceptsExplicitMode verifies the handler passes the supplied
+// mode string through to the service without rewriting it.
+func TestResetRoute_AcceptsExplicitMode(t *testing.T) {
+	svc := &stubService{}
+	router := newOnboardingRouter(svc)
+
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/reset", map[string]any{
+		"mode": "exploration",
+	})
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	if svc.gotResetMode != onboarding.ResetModeExploration {
+		t.Errorf("Reset called with mode %q, want %q", svc.gotResetMode, onboarding.ResetModeExploration)
+	}
+}
+
+// TestResetRoute_NoBodyDefaultsToProgress verifies that a request with no body
+// defaults to the "progress" reset mode.
+func TestResetRoute_NoBodyDefaultsToProgress(t *testing.T) {
+	svc := &stubService{}
+	router := newOnboardingRouter(svc)
+
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/reset", nil)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	if svc.gotResetMode != onboarding.ResetModeProgress {
+		t.Errorf("Reset called with mode %q, want %q", svc.gotResetMode, onboarding.ResetModeProgress)
+	}
+}
+
+// ── POST /api/onboarding/steps/{step} ─────────────────────────────────────────
+
+func TestSaveRequiredStepRoute_DelegatesStepAndValues(t *testing.T) {
+	svc := &stubService{
+		status: onboarding.Status{Enabled: true, Phase: onboarding.PhaseRequiredSetup},
+	}
+	router := newOnboardingRouter(svc)
+
+	payload := map[string]any{
+		"values": map[string]string{"AI_PROVIDER": "anthropic"},
+	}
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/steps/ai_provider", payload)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	if svc.saveRequiredStepCalls != 1 {
+		t.Errorf("SaveRequiredStep called %d times, want 1", svc.saveRequiredStepCalls)
+	}
+	if svc.gotStep != onboarding.RequiredStepAIProvider {
+		t.Errorf("SaveRequiredStep got step %q, want %q", svc.gotStep, onboarding.RequiredStepAIProvider)
+	}
+	if svc.gotStepValues["AI_PROVIDER"] != "anthropic" {
+		t.Errorf("SaveRequiredStep got values %v, want AI_PROVIDER=anthropic", svc.gotStepValues)
+	}
+}
+
+func TestSaveRequiredStepRoute_ReturnsStatusShape(t *testing.T) {
+	svc := &stubService{
+		status: onboarding.Status{
+			Enabled:               true,
+			Phase:                 onboarding.PhaseRequiredSetup,
+			CurrentRequiredStep:   onboarding.RequiredStepAIProvider,
+			RequiredSetupComplete: false,
+		},
+	}
+	router := newOnboardingRouter(svc)
+
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/steps/welcome", map[string]any{
+		"values": map[string]string{},
+	})
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	for _, field := range []string{"enabled", "complete", "requiredSetupComplete", "explorationComplete", "phase", "currentRequiredStep", "steps", "items"} {
+		if _, ok := resp[field]; !ok {
+			t.Errorf("response missing field %q", field)
+		}
+	}
+}
+
+func TestSaveRequiredStepRoute_UnknownStepReturns400(t *testing.T) {
+	svc := &stubService{}
+	router := newOnboardingRouter(svc)
+
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/steps/not_a_real_step", map[string]any{
+		"values": map[string]string{},
+	})
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body = %s", rr.Code, rr.Body.String())
+	}
+	assertErrorBody(t, rr)
+	if svc.saveRequiredStepCalls != 0 {
+		t.Errorf("SaveRequiredStep called %d times, want 0 on bad request", svc.saveRequiredStepCalls)
+	}
+}
+
+func TestSaveRequiredStepRoute_ServiceDisabledReturns403(t *testing.T) {
+	svc := &stubService{saveRequiredStepErr: onboarding.ErrDisabled}
+	router := newOnboardingRouter(svc)
+
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/steps/welcome", map[string]any{
+		"values": map[string]string{},
+	})
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403; body = %s", rr.Code, rr.Body.String())
+	}
+	assertErrorBody(t, rr)
+}
+
+func TestSaveRequiredStepRoute_ServiceErrorReturns500(t *testing.T) {
+	svc := &stubService{saveRequiredStepErr: errors.New("db gone")}
+	router := newOnboardingRouter(svc)
+
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/steps/welcome", map[string]any{
+		"values": map[string]string{},
+	})
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500; body = %s", rr.Code, rr.Body.String())
+	}
+	assertErrorBody(t, rr, "db gone")
+}
+
+// ── POST /api/onboarding/exploration ──────────────────────────────────────────
+
+func TestUpdateExplorationRoute_DelegatesItemAndState(t *testing.T) {
+	svc := &stubService{
+		status: onboarding.Status{Enabled: true, Phase: onboarding.PhaseExploration},
+	}
+	router := newOnboardingRouter(svc)
+
+	payload := map[string]any{
+		"item":  "starter_project",
+		"state": "completed",
+	}
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/exploration", payload)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	if svc.updateExplorationCalls != 1 {
+		t.Errorf("UpdateExploration called %d times, want 1", svc.updateExplorationCalls)
+	}
+	if svc.gotExploration.Item != onboarding.ExplorationItemStarterProject {
+		t.Errorf("UpdateExploration got item %q, want %q", svc.gotExploration.Item, onboarding.ExplorationItemStarterProject)
+	}
+	if svc.gotExploration.State != onboarding.ItemStateCompleted {
+		t.Errorf("UpdateExploration got state %q, want %q", svc.gotExploration.State, onboarding.ItemStateCompleted)
+	}
+}
+
+func TestUpdateExplorationRoute_DelegateDismiss(t *testing.T) {
+	svc := &stubService{
+		status: onboarding.Status{Enabled: true},
+	}
+	router := newOnboardingRouter(svc)
+
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/exploration", map[string]any{
+		"dismiss": true,
+	})
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	if !svc.gotExploration.Dismiss {
+		t.Error("UpdateExploration got Dismiss=false, want true")
+	}
+}
+
+func TestUpdateExplorationRoute_ReturnsStatusShape(t *testing.T) {
+	svc := &stubService{
+		status: onboarding.Status{Enabled: true, Phase: onboarding.PhaseExploration},
+	}
+	router := newOnboardingRouter(svc)
+
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/exploration", map[string]any{
+		"dismiss": true,
+	})
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	for _, field := range []string{"enabled", "complete", "explorationComplete", "phase", "items"} {
+		if _, ok := resp[field]; !ok {
+			t.Errorf("response missing field %q", field)
+		}
+	}
+}
+
+func TestUpdateExplorationRoute_ServiceDisabledReturns403(t *testing.T) {
+	svc := &stubService{updateExplorationErr: onboarding.ErrDisabled}
+	router := newOnboardingRouter(svc)
+
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/exploration", map[string]any{
+		"dismiss": true,
+	})
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403; body = %s", rr.Code, rr.Body.String())
+	}
+	assertErrorBody(t, rr)
+}
+
+func TestUpdateExplorationRoute_ServiceErrorReturns500(t *testing.T) {
+	svc := &stubService{updateExplorationErr: errors.New("db error")}
+	router := newOnboardingRouter(svc)
+
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/exploration", map[string]any{
+		"item":  "starter_project",
+		"state": "completed",
+	})
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500; body = %s", rr.Code, rr.Body.String())
+	}
+	assertErrorBody(t, rr, "db error")
+}
+
+// ── POST /api/onboarding/starter-project ──────────────────────────────────────
+
+func TestCreateStarterProjectRoute_DelegatesRequest(t *testing.T) {
+	svc := &stubService{}
+	router := newOnboardingRouter(svc)
+
+	payload := map[string]any{
+		"projectId":   "proj-1",
+		"projectName": "My Project",
+		"query":       "saas pain points",
+		"platform":    "reddit",
+	}
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/starter-project", payload)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	if svc.createStarterProjectCalls != 1 {
+		t.Errorf("CreateStarterProject called %d times, want 1", svc.createStarterProjectCalls)
+	}
+	if svc.gotStarterReq.ProjectID != "proj-1" {
+		t.Errorf("CreateStarterProject got ProjectID %q, want %q", svc.gotStarterReq.ProjectID, "proj-1")
+	}
+	if svc.gotStarterReq.ProjectName != "My Project" {
+		t.Errorf("CreateStarterProject got ProjectName %q, want %q", svc.gotStarterReq.ProjectName, "My Project")
+	}
+	if svc.gotStarterReq.Query != "saas pain points" {
+		t.Errorf("CreateStarterProject got Query %q, want %q", svc.gotStarterReq.Query, "saas pain points")
+	}
+	if svc.gotStarterReq.Platform != "reddit" {
+		t.Errorf("CreateStarterProject got Platform %q, want %q", svc.gotStarterReq.Platform, "reddit")
+	}
+}
+
+func TestCreateStarterProjectRoute_ReturnsResultShape(t *testing.T) {
+	svc := &stubService{}
+	router := newOnboardingRouter(svc)
+
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/starter-project", map[string]any{
+		"projectId":   "proj-1",
+		"projectName": "My Project",
+		"query":       "test query",
+		"platform":    "reddit",
+	})
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	for _, field := range []string{"project", "query", "createdProject", "createdQuery"} {
+		if _, ok := resp[field]; !ok {
+			t.Errorf("response missing field %q", field)
+		}
+	}
+}
+
+func TestCreateStarterProjectRoute_MissingRequiredFieldsReturns400(t *testing.T) {
+	svc := &stubService{}
+	router := newOnboardingRouter(svc)
+
+	// Missing projectId
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/starter-project", map[string]any{
+		"projectName": "My Project",
+		"query":       "test query",
+	})
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body = %s", rr.Code, rr.Body.String())
+	}
+	assertErrorBody(t, rr)
+	if svc.createStarterProjectCalls != 0 {
+		t.Errorf("CreateStarterProject called %d times, want 0 on bad request", svc.createStarterProjectCalls)
+	}
+}
+
+func TestCreateStarterProjectRoute_ServiceDisabledReturns403(t *testing.T) {
+	svc := &stubService{createStarterProjectErr: onboarding.ErrDisabled}
+	router := newOnboardingRouter(svc)
+
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/starter-project", map[string]any{
+		"projectId":   "proj-1",
+		"projectName": "My Project",
+		"query":       "test query",
+		"platform":    "reddit",
+	})
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403; body = %s", rr.Code, rr.Body.String())
+	}
+	assertErrorBody(t, rr)
+}
+
+func TestCreateStarterProjectRoute_ServiceErrorReturns500(t *testing.T) {
+	svc := &stubService{createStarterProjectErr: errors.New("db error")}
+	router := newOnboardingRouter(svc)
+
+	rr := doOnboardingRequest(t, router, http.MethodPost, "/api/onboarding/starter-project", map[string]any{
+		"projectId":   "proj-1",
+		"projectName": "My Project",
+		"query":       "test query",
+		"platform":    "reddit",
+	})
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500; body = %s", rr.Code, rr.Body.String())
+	}
+	assertErrorBody(t, rr, "db error")
 }
