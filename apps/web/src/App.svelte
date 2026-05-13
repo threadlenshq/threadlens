@@ -24,6 +24,7 @@
   let onboardingChecked = $state(false);
   let onboardingError = $state('');
   let showTourCallout = $state(true);
+  let checklistOpen = $state(false);
   let onboardingRequiresSetup = $derived(shouldShowRequiredWizard(onboardingStatus));
   let onboardingShowsExploration = $derived(shouldShowExploration(onboardingStatus));
 
@@ -713,11 +714,13 @@
 
   {#if onboardingShowsExploration}
     <ExplorationChecklist
+      open={checklistOpen}
       status={onboardingStatus}
       selectedProjectId={selectedProjectId}
       onStatusReload={checkOnboarding}
       onProjectReady={async (projectId) => { await loadProjects(); await selectProject(projectId); }}
       onNavigate={(nextView) => { view = nextView; writeUrlState({ view: nextView }, 'push'); }}
+      onClose={() => { checklistOpen = false; }}
     />
   {/if}
 
@@ -916,7 +919,7 @@
                 <TourCallout
                   title="Scout is user-triggered"
                   body="The Scout button above starts a new search. ThreadLens never starts external scouting automatically — you control when network-heavy work runs."
-                  onDismiss={() => { showTourCallout = false; }}
+                  onDismiss={() => { showTourCallout = false; checklistOpen = true; }}
                 />
               {/if}
             </div>

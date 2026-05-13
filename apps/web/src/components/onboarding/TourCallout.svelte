@@ -1,5 +1,5 @@
 <script>
-  let { title, body, actionLabel = 'Got it', onDismiss = () => {} } = $props();
+  let { title, body, actionLabel = 'Open checklist', onDismiss = () => {} } = $props();
 </script>
 
 <aside class="tour-callout" data-testid="tour-callout" aria-live="polite">
