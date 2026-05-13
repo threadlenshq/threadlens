@@ -139,7 +139,7 @@ func TestSaveRequiredStepPersistsResumePoint(t *testing.T) {
 
 	// Complete the ai_provider step with the chosen provider path.
 	stepValues := map[string]string{"AI_PROVIDER": "anthropic"}
-	if err := svc.SaveRequiredStep(context.Background(), onboarding.RequiredStepAIProvider, stepValues); err != nil {
+	if _, err := svc.SaveRequiredStep(context.Background(), onboarding.RequiredStepAIProvider, stepValues); err != nil {
 		t.Fatalf("SaveRequiredStep: %v", err)
 	}
 
@@ -226,7 +226,7 @@ func TestUpdateExplorationDismissMarksPendingSkipped(t *testing.T) {
 
 	// Dismiss the exploration checklist via the typed update struct.
 	update := onboarding.ExplorationUpdate{Dismiss: true}
-	if err := svc.UpdateExploration(context.Background(), update); err != nil {
+	if _, err := svc.UpdateExploration(context.Background(), update); err != nil {
 		t.Fatalf("UpdateExploration(dismiss=true): %v", err)
 	}
 

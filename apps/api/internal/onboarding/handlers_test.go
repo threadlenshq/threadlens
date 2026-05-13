@@ -62,12 +62,12 @@ func (s *stubService) Reset(_ context.Context, _ onboarding.ResetMode) error {
 	return s.resetErr
 }
 
-func (s *stubService) SaveRequiredStep(_ context.Context, _ onboarding.RequiredStep, _ map[string]string) error {
-	return nil
+func (s *stubService) SaveRequiredStep(_ context.Context, _ onboarding.RequiredStep, _ map[string]string) (onboarding.Status, error) {
+	return s.status, nil
 }
 
-func (s *stubService) UpdateExploration(_ context.Context, _ onboarding.ExplorationUpdate) error {
-	return nil
+func (s *stubService) UpdateExploration(_ context.Context, _ onboarding.ExplorationUpdate) (onboarding.Status, error) {
+	return s.status, nil
 }
 
 func (s *stubService) CreateStarterProject(_ context.Context, _ onboarding.StarterProjectRequest) (onboarding.StarterProjectResult, error) {

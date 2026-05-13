@@ -25,14 +25,27 @@ const (
 	// ResetModeProgress clears both the v1 progress state and the legacy
 	// completion key, returning the service to a brand-new-install state.
 	ResetModeProgress ResetMode = "progress"
+
+	// ResetModeExploration clears only the exploration phase state,
+	// leaving required-setup progress intact.
+	ResetModeExploration ResetMode = "exploration"
+
+	// ResetModeDismissExploration marks all pending exploration items as
+	// skipped without erasing the underlying progress record.
+	ResetModeDismissExploration ResetMode = "dismiss_exploration"
 )
 
 // ExplorationUpdate carries the parameters for an UpdateExploration call.
 type ExplorationUpdate struct {
+	// Item, when non-empty, identifies the exploration item to update.
+	Item ExplorationItem `json:"item,omitempty"`
+	// State is the new ItemState to apply to Item.
+	State ItemState `json:"state,omitempty"`
 	// Dismiss, when true, marks all pending exploration items as skipped.
 	Dismiss bool `json:"dismiss"`
-	// ItemID, when non-empty, marks a specific item as completed.
-	ItemID ExplorationItem `json:"itemId,omitempty"`
+	// SelectedProjectID, when non-empty, records the project the user chose
+	// during the starter-project exploration step.
+	SelectedProjectID string `json:"selectedProjectId,omitempty"`
 }
 
 // StarterProjectRequest carries input for CreateStarterProject.
@@ -50,9 +63,9 @@ type StarterProjectResult struct {
 // behaviour without touching real I/O.
 type ServiceIface interface {
 	GetStatus(ctx context.Context) (Status, error)
-	SaveRequiredStep(ctx context.Context, step RequiredStep, values map[string]string) error
+	SaveRequiredStep(ctx context.Context, step RequiredStep, values map[string]string) (Status, error)
 	Save(ctx context.Context, values map[string]string) error
-	UpdateExploration(ctx context.Context, req ExplorationUpdate) error
+	UpdateExploration(ctx context.Context, req ExplorationUpdate) (Status, error)
 	CreateStarterProject(ctx context.Context, req StarterProjectRequest) (StarterProjectResult, error)
 	Reset(ctx context.Context, mode ResetMode) error
 }
@@ -95,10 +108,10 @@ func (s *Service) loadProgress(ctx context.Context) (Progress, error) {
 	}
 	if found && raw != "" {
 		var p Progress
-		if jsonErr := json.Unmarshal([]byte(raw), &p); jsonErr == nil {
-			return s.normalizeProgress(p), nil
+		if jsonErr := json.Unmarshal([]byte(raw), &p); jsonErr != nil {
+			return Progress{}, fmt.Errorf("onboarding: loadProgress: corrupt stored JSON: %w", jsonErr)
 		}
-		// Corrupt JSON — fall through to defaults.
+		return s.normalizeProgress(p), nil
 	}
 
 	// Fall back: check the legacy completion key for migration.
@@ -205,7 +218,7 @@ func (s *Service) GetStatus(ctx context.Context) (Status, error) {
 
 	return Status{
 		Enabled:                true,
-		Complete:               phase == PhaseComplete || phase == PhaseExploration,
+		Complete:               phase == PhaseComplete,
 		RequiredSetupComplete:  requiredSetupComplete,
 		ExplorationComplete:    explorationComplete,
 		Phase:                  phase,
@@ -213,8 +226,8 @@ func (s *Service) GetStatus(ctx context.Context) (Status, error) {
 		CurrentExplorationItem: p.Exploration.CurrentItem,
 		Steps:                  buildStepViews(p),
 		Items:                  buildItemViews(p),
-		Capabilities:           Capabilities{},
-		AppDatabase:            AppDatabaseStatus{RuntimeMode: s.cfg.EnvFilePath},
+		Capabilities:           buildCapabilities(),
+		AppDatabase:            buildAppDatabaseStatus(s.cfg),
 		Context:                p.Context,
 		EnvFilePath:            s.cfg.EnvFilePath,
 	}, nil
@@ -288,6 +301,32 @@ func itemLabel(i ExplorationItem) string {
 	}
 }
 
+// buildCapabilities returns the current Capabilities snapshot. In Task 5 the
+// provider list is empty; Tasks 6–7 will populate it from live env inspection.
+func buildCapabilities() Capabilities {
+	return Capabilities{
+		Providers: []ProviderCapability{},
+		Sources:   SourceCapabilities{},
+	}
+}
+
+// buildAppDatabaseStatus derives the AppDatabaseStatus from the service config.
+func buildAppDatabaseStatus(cfg Config) AppDatabaseStatus {
+	runtimeMode := "native"
+	if cfg.DockerMode {
+		runtimeMode = "docker"
+	}
+	envFileLabel := ""
+	if cfg.EnvFilePath != "" {
+		envFileLabel = cfg.EnvFilePath
+	}
+	return AppDatabaseStatus{
+		RuntimeMode:  runtimeMode,
+		EnvFileLabel: envFileLabel,
+		EnvWritable:  cfg.DockerMode,
+	}
+}
+
 // ── mutating operations ────────────────────────────────────────────────────────
 
 // IsComplete reports whether the onboarding completion flag has been stored in
@@ -301,16 +340,16 @@ func (s *Service) IsComplete(ctx context.Context) (bool, error) {
 }
 
 // SaveRequiredStep marks the given step as complete, advances the resume point
-// to the next step, and persists non-secret values in the progress context.
-// It returns the updated Status.
-func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, values map[string]string) error {
+// to the next step, persists non-secret values in the progress context, and
+// returns the updated Status.
+func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, values map[string]string) (Status, error) {
 	if s.cfg.Disabled {
-		return ErrDisabled
+		return Status{}, ErrDisabled
 	}
 
 	p, err := s.loadProgress(ctx)
 	if err != nil {
-		return err
+		return Status{}, err
 	}
 
 	// Record non-secret context values derived from the step.
@@ -332,14 +371,17 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 	}
 
 	// Advance the current-step pointer.
-	for i, s := range RequiredSteps {
-		if s == step && i+1 < len(RequiredSteps) {
+	for i, rs := range RequiredSteps {
+		if rs == step && i+1 < len(RequiredSteps) {
 			p.RequiredSetup.CurrentStep = RequiredSteps[i+1]
 			break
 		}
 	}
 
-	return s.saveProgress(ctx, p)
+	if err := s.saveProgress(ctx, p); err != nil {
+		return Status{}, err
+	}
+	return s.GetStatus(ctx)
 }
 
 // Save writes the supplied key/value pairs to the env file (Docker mode only),
@@ -390,12 +432,12 @@ func (s *Service) Save(ctx context.Context, values map[string]string) error {
 	return s.saveProgress(ctx, p)
 }
 
-// UpdateExploration updates the exploration phase based on req. When
-// Dismiss=true, all pending items are marked as skipped.
-func (s *Service) UpdateExploration(ctx context.Context, req ExplorationUpdate) error {
+// UpdateExploration updates the exploration phase based on req and returns the
+// updated Status. When Dismiss=true, all pending items are marked as skipped.
+func (s *Service) UpdateExploration(ctx context.Context, req ExplorationUpdate) (Status, error) {
 	p, err := s.loadProgress(ctx)
 	if err != nil {
-		return err
+		return Status{}, err
 	}
 
 	if req.Dismiss {
@@ -406,11 +448,22 @@ func (s *Service) UpdateExploration(ctx context.Context, req ExplorationUpdate) 
 		}
 		p.Exploration.Dismissed = true
 		p.Exploration.Status = ExplorationStatusComplete
-	} else if req.ItemID != "" {
-		p.Exploration.Items[req.ItemID] = ItemStateCompleted
+	} else if req.Item != "" {
+		newState := req.State
+		if newState == "" {
+			newState = ItemStateCompleted
+		}
+		p.Exploration.Items[req.Item] = newState
 	}
 
-	return s.saveProgress(ctx, p)
+	if req.SelectedProjectID != "" {
+		p.Context.SelectedProjectID = req.SelectedProjectID
+	}
+
+	if err := s.saveProgress(ctx, p); err != nil {
+		return Status{}, err
+	}
+	return s.GetStatus(ctx)
 }
 
 // CreateStarterProject creates a starter project. This is a stub implementation
@@ -431,9 +484,11 @@ func (s *Service) Reset(ctx context.Context, mode ResetMode) error {
 	return nil
 }
 
-// DebugProgressJSONForTest returns the raw JSON string stored under StateKey.
-// It is intended only for use in tests that need to assert the serialised form
-// of progress does not contain secrets.
-func (s *Service) DebugProgressJSONForTest(ctx context.Context) (string, bool, error) {
-	return s.repo.Get(ctx, s.cfg.StateKey)
+// DebugProgressJSONForTest returns the raw JSON string stored under StateKey,
+// or an empty string if no state has been saved yet. It is intended only for
+// use in tests that need to assert the serialised form of progress does not
+// contain secrets.
+func (s *Service) DebugProgressJSONForTest(ctx context.Context) string {
+	raw, _, _ := s.repo.Get(ctx, s.cfg.StateKey)
+	return raw
 }
