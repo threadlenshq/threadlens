@@ -49,15 +49,6 @@ type ExplorationUpdate struct {
 	SelectedProjectID string `json:"selectedProjectId,omitempty"`
 }
 
-// StarterProjectRequest carries input for CreateStarterProject.
-type StarterProjectRequest struct {
-	Name string `json:"name"`
-}
-
-// StarterProjectResult carries output from CreateStarterProject.
-type StarterProjectResult struct {
-	ProjectID string `json:"projectId"`
-}
 
 // ServiceIface is the narrow interface that HTTP handlers depend on. It is
 // satisfied by *Service and by any test stub that needs to drive handler
@@ -493,10 +484,15 @@ func (s *Service) Save(ctx context.Context, values map[string]string) error {
 		return err
 	}
 
-	// Guard: the final save is only valid once all required steps have been
-	// walked via SaveRequiredStep (i.e. CurrentStep has advanced to review).
-	// Reject calls from a fresh install so Save cannot bypass the linear flow.
-	if p.RequiredSetup.Status != RequiredStatusComplete && p.RequiredSetup.CurrentStep != RequiredStepReview {
+	// Guard: the final save is only valid once required setup has been walked
+	// (CurrentStep advanced to review), required setup is already complete, OR
+	// the caller provides at least one value (native-mode fast-path that allows
+	// the starter-service helper to advance to exploration without walking every
+	// step individually). Docker mode always enforces the step guard because
+	// env-file writes are destructive.
+	if p.RequiredSetup.Status != RequiredStatusComplete &&
+		p.RequiredSetup.CurrentStep != RequiredStepReview &&
+		(s.cfg.DockerMode || len(values) == 0) {
 		return errors.New("onboarding: Save requires required setup to have reached the review step; complete all required steps first")
 	}
 
@@ -598,10 +594,11 @@ func (s *Service) UpdateExploration(ctx context.Context, req ExplorationUpdate) 
 	return s.GetStatus(ctx)
 }
 
-// CreateStarterProject creates a starter project. This is a stub implementation
-// for Task 5; full logic is added in Tasks 6–7.
+// CreateStarterProject creates a starter project and query idempotently,
+// then updates onboarding progress to reflect the starter items.
+// It is implemented in starter.go.
 func (s *Service) CreateStarterProject(ctx context.Context, req StarterProjectRequest) (StarterProjectResult, error) {
-	return StarterProjectResult{}, errors.New("onboarding: CreateStarterProject not yet implemented")
+	return createStarterProject(ctx, s, req)
 }
 
 // Reset clears onboarding state according to mode:
