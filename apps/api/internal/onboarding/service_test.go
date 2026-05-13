@@ -376,6 +376,130 @@ func TestResetProgressClearsV1AndLegacyState(t *testing.T) {
 	}
 }
 
+// ── 8. Reopening exploration ──────────────────────────────────────────────────
+
+// TestUpdateExploration_ReopenItemBecomesActive verifies that moving an already-
+// terminal exploration item back to pending or blocked clears the completion
+// state and returns the phase to exploration (active).
+func TestUpdateExploration_ReopenItemBecomesActive(t *testing.T) {
+	cfg := onboarding.Config{CompletionKey: completionKey, StateKey: stateKey}
+	svc := newTestService(t, cfg)
+
+	// Enter exploration phase.
+	completeRequiredSteps(t, svc, map[string]string{"AI_PROVIDER": "anthropic"})
+	if err := svc.Save(context.Background(), map[string]string{}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	ctx := context.Background()
+
+	// Complete every exploration item so the phase advances to complete.
+	for _, item := range onboarding.ExplorationItems {
+		_, err := svc.UpdateExploration(ctx, onboarding.ExplorationUpdate{
+			Item:  item,
+			State: onboarding.ItemStateCompleted,
+		})
+		if err != nil {
+			t.Fatalf("UpdateExploration(complete %q): %v", item, err)
+		}
+	}
+
+	status, err := svc.GetStatus(ctx)
+	if err != nil {
+		t.Fatalf("GetStatus after completing all items: %v", err)
+	}
+	if status.Phase != onboarding.PhaseComplete {
+		t.Fatalf("Phase = %q before reopen; want complete", status.Phase)
+	}
+
+	// Reopen the first item back to pending — exploration should become active.
+	_, err = svc.UpdateExploration(ctx, onboarding.ExplorationUpdate{
+		Item:  onboarding.ExplorationItemStarterProject,
+		State: onboarding.ItemStatePending,
+	})
+	if err != nil {
+		t.Fatalf("UpdateExploration(reopen to pending): %v", err)
+	}
+
+	status, err = svc.GetStatus(ctx)
+	if err != nil {
+		t.Fatalf("GetStatus after reopen: %v", err)
+	}
+	if status.Phase != onboarding.PhaseExploration {
+		t.Errorf("Phase = %q after reopen; want %q", status.Phase, onboarding.PhaseExploration)
+	}
+	if status.ExplorationComplete {
+		t.Error("want ExplorationComplete=false after reopening an item, got true")
+	}
+}
+
+// ── 9. Stable CompletedAt ─────────────────────────────────────────────────────
+
+// TestUpdateExploration_RepeatedDismissPreservesCompletedAt verifies that
+// calling UpdateExploration with Dismiss=true a second time does not overwrite
+// the original CompletedAt timestamp.
+func TestUpdateExploration_RepeatedDismissPreservesCompletedAt(t *testing.T) {
+	cfg := onboarding.Config{CompletionKey: completionKey, StateKey: stateKey}
+	svc := newTestService(t, cfg)
+
+	completeRequiredSteps(t, svc, map[string]string{"AI_PROVIDER": "anthropic"})
+	if err := svc.Save(context.Background(), map[string]string{}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	ctx := context.Background()
+
+	// First dismiss.
+	if _, err := svc.UpdateExploration(ctx, onboarding.ExplorationUpdate{Dismiss: true}); err != nil {
+		t.Fatalf("first dismiss: %v", err)
+	}
+
+	// Capture the CompletedAt from the stored progress JSON.
+	firstJSON := svc.DebugProgressJSONForTest(ctx)
+	if firstJSON == "" {
+		t.Fatal("no progress JSON found after first dismiss")
+	}
+
+	// Second dismiss — must not overwrite CompletedAt.
+	if _, err := svc.UpdateExploration(ctx, onboarding.ExplorationUpdate{Dismiss: true}); err != nil {
+		t.Fatalf("second dismiss: %v", err)
+	}
+
+	secondJSON := svc.DebugProgressJSONForTest(ctx)
+
+	// Extract completedAt from the exploration block of both snapshots via
+	// simple string search so the test does not depend on a separate JSON
+	// unmarshal helper.
+	extractExplorationCompletedAt := func(raw string) string {
+		const explKey = `"exploration":`
+		ei := strings.Index(raw, explKey)
+		if ei == -1 {
+			return ""
+		}
+		expl := raw[ei:]
+		const key = `"completedAt":"`
+		idx := strings.Index(expl, key)
+		if idx == -1 {
+			return ""
+		}
+		rest := expl[idx+len(key):]
+		end := strings.Index(rest, `"`)
+		if end == -1 {
+			return ""
+		}
+		return rest[:end]
+	}
+
+	first := extractExplorationCompletedAt(firstJSON)
+	second := extractExplorationCompletedAt(secondJSON)
+	if first == "" {
+		t.Fatal("CompletedAt not set after first dismiss")
+	}
+	if first != second {
+		t.Errorf("CompletedAt changed on repeated dismiss: first=%q second=%q", first, second)
+	}
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 // contains is a thin wrapper so tests don't need to import strings directly.

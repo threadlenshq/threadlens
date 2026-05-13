@@ -554,8 +554,11 @@ func (s *Service) UpdateExploration(ctx context.Context, req ExplorationUpdate) 
 			}
 		}
 		p.Exploration.Dismissed = true
+		// Only stamp CompletedAt on the first transition to complete.
+		if p.Exploration.Status != ExplorationStatusComplete {
+			p.Exploration.CompletedAt = time.Now().UTC().Format(time.RFC3339)
+		}
 		p.Exploration.Status = ExplorationStatusComplete
-		p.Exploration.CompletedAt = time.Now().UTC().Format(time.RFC3339)
 	} else if req.Item != "" {
 		if !validExplorationItem(req.Item) {
 			return Status{}, fmt.Errorf("onboarding: UpdateExploration: unknown item %q", req.Item)
@@ -569,10 +572,19 @@ func (s *Service) UpdateExploration(ctx context.Context, req ExplorationUpdate) 
 		// Recompute the current item pointer to the first non-terminal item.
 		next := firstPendingItem(p.Exploration.Items)
 		p.Exploration.CurrentItem = next
-		// If all items are now terminal, mark exploration complete.
 		if next == "" {
+			// All items terminal: mark complete, stamp timestamp only on
+			// the first transition.
+			if p.Exploration.Status != ExplorationStatusComplete {
+				p.Exploration.CompletedAt = time.Now().UTC().Format(time.RFC3339)
+			}
 			p.Exploration.Status = ExplorationStatusComplete
-			p.Exploration.CompletedAt = time.Now().UTC().Format(time.RFC3339)
+		} else {
+			// At least one item is non-terminal: exploration is (re-)opened.
+			// Clear any prior completion state so the phase reflects active.
+			p.Exploration.Status = ExplorationStatusActive
+			p.Exploration.Dismissed = false
+			p.Exploration.CompletedAt = ""
 		}
 	}
 
