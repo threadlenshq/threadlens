@@ -57,9 +57,21 @@ func (s *stubService) Save(_ context.Context, values map[string]string) error {
 	return s.saveErr
 }
 
-func (s *stubService) Reset(_ context.Context) error {
+func (s *stubService) Reset(_ context.Context, _ onboarding.ResetMode) error {
 	s.resetCalls++
 	return s.resetErr
+}
+
+func (s *stubService) SaveRequiredStep(_ context.Context, _ onboarding.RequiredStep, _ map[string]string) error {
+	return nil
+}
+
+func (s *stubService) UpdateExploration(_ context.Context, _ onboarding.ExplorationUpdate) error {
+	return nil
+}
+
+func (s *stubService) CreateStarterProject(_ context.Context, _ onboarding.StarterProjectRequest) (onboarding.StarterProjectResult, error) {
+	return onboarding.StarterProjectResult{}, nil
 }
 
 // ErrOnboardingDisabled is the sentinel error the service returns when

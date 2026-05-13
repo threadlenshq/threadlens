@@ -65,7 +65,7 @@ func New(cfg Config, db *sql.DB) *App {
 	if err != nil {
 		panic("onboarding: failed to load config: " + err.Error())
 	}
-	onboardingSvc, err := onboarding.NewService(onboardingCfg, settings.NewRepository(db))
+	onboardingSvc, err := onboarding.NewService(onboardingCfg, settings.NewRepository(db), nil)
 	if err != nil {
 		panic("onboarding: failed to construct service: " + err.Error())
 	}

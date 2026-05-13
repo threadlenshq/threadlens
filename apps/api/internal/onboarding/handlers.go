@@ -86,7 +86,7 @@ func handleSave(svc ServiceIface) http.HandlerFunc {
 
 func handleReset(svc ServiceIface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := svc.Reset(r.Context()); err != nil {
+		if err := svc.Reset(r.Context(), ResetModeProgress); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to reset onboarding state")
 			return
 		}
