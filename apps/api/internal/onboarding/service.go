@@ -372,8 +372,13 @@ func (s *Service) IsComplete(ctx context.Context) (bool, error) {
 }
 
 // SaveRequiredStep marks the given step as complete, advances the resume point
-// to the next step, persists non-secret values in the progress context, and
-// returns the updated Status.
+// to the next incomplete required step, persists non-secret values in the
+// progress context, and returns the updated Status.
+//
+// The step must equal the current resume point (p.RequiredSetup.CurrentStep).
+// Attempts to save a step out of order — whether skipping ahead or repeating an
+// earlier step — are rejected with a descriptive error. This keeps the linear
+// flow strict and deterministic.
 func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, values map[string]string) (Status, error) {
 	if s.cfg.Disabled {
 		return Status{}, ErrDisabled
@@ -387,6 +392,16 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 	p, err := s.loadProgress(ctx)
 	if err != nil {
 		return Status{}, err
+	}
+
+	// Enforce strict linear ordering: only the current resume-point step may be
+	// saved. This prevents skipping ahead and avoids rewinding already-advanced
+	// progress when an earlier step is re-submitted.
+	if step != p.RequiredSetup.CurrentStep {
+		return Status{}, fmt.Errorf(
+			"onboarding: SaveRequiredStep: step %q is not the current step (expected %q)",
+			step, p.RequiredSetup.CurrentStep,
+		)
 	}
 
 	// For the AI-provider step, the provider path is required and stored in
@@ -403,6 +418,8 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 	if p.RequiredSetup.Status == RequiredStatusNotStarted {
 		p.RequiredSetup.Status = RequiredStatusActive
 	}
+
+	// Mark this step complete (idempotent).
 	alreadyRecorded := false
 	for _, cs := range p.RequiredSetup.CompletedSteps {
 		if cs == step {
@@ -414,13 +431,25 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 		p.RequiredSetup.CompletedSteps = append(p.RequiredSetup.CompletedSteps, step)
 	}
 
-	// Advance the current-step pointer.
-	for i, rs := range RequiredSteps {
-		if rs == step && i+1 < len(RequiredSteps) {
-			p.RequiredSetup.CurrentStep = RequiredSteps[i+1]
+	// Advance the current-step pointer to the first step not yet completed,
+	// rather than simply step+1. This is correct even after re-entry from a
+	// partially-completed flow where some later steps are already done.
+	completed := make(map[RequiredStep]bool, len(p.RequiredSetup.CompletedSteps))
+	for _, cs := range p.RequiredSetup.CompletedSteps {
+		completed[cs] = true
+	}
+	nextStep := RequiredStep("")
+	for _, rs := range RequiredSteps {
+		if !completed[rs] {
+			nextStep = rs
 			break
 		}
 	}
+	if nextStep != "" {
+		p.RequiredSetup.CurrentStep = nextStep
+	}
+	// If all steps are complete the pointer stays at the last step (review);
+	// Save() is the terminal transition rather than SaveRequiredStep.
 
 	if err := s.saveProgress(ctx, p); err != nil {
 		return Status{}, err
@@ -432,6 +461,10 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 // persists v1 progress advancing to the exploration phase, then marks the
 // legacy completion flag. Progress is written first so a failure on the legacy
 // write does not leave the system in a misleading partially-migrated state.
+//
+// Save is only valid once the linear required-step flow has reached its
+// terminal state (CurrentStep == review). Callers that have not walked through
+// all required steps via SaveRequiredStep receive a descriptive error.
 func (s *Service) Save(ctx context.Context, values map[string]string) error {
 	if s.cfg.Disabled {
 		return ErrDisabled
@@ -458,6 +491,14 @@ func (s *Service) Save(ctx context.Context, values map[string]string) error {
 	if err != nil {
 		return err
 	}
+
+	// Guard: the final save is only valid once all required steps have been
+	// walked via SaveRequiredStep (i.e. CurrentStep has advanced to review).
+	// Reject calls from a fresh install so Save cannot bypass the linear flow.
+	if p.RequiredSetup.Status != RequiredStatusComplete && p.RequiredSetup.CurrentStep != RequiredStepReview {
+		return errors.New("onboarding: Save requires required setup to have reached the review step; complete all required steps first")
+	}
+
 	p.RequiredSetup.Status = RequiredStatusComplete
 	p.RequiredSetup.CompletedSteps = make([]RequiredStep, len(RequiredSteps))
 	copy(p.RequiredSetup.CompletedSteps, RequiredSteps)

@@ -9,8 +9,10 @@ package onboarding_test
 //     legacy-migration behaviour.
 //   - SaveRequiredStep persists resume-point progress and does NOT store secrets
 //     in the progress state.
+//   - SaveRequiredStep rejects steps that are not the current resume point.
 //   - Save (the final required-setup save) writes env secrets and advances to
-//     exploration phase.
+//     exploration phase, but only after all required steps have been completed.
+//   - Save rejects calls from a fresh install.
 //   - UpdateExploration marks pending items as skipped when dismissed.
 //   - Reset(ctx, mode) clears v1 state and the legacy completion key.
 //   - When Disabled=true, GetStatus returns PhaseDisabled without touching the
@@ -53,6 +55,24 @@ func tempEnvFile(t *testing.T, content string) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+// completeRequiredSteps walks the service through every required step in order
+// so that Save can be called. stepValues is merged into the values map for each
+// call, which is the right place to inject AI_PROVIDER etc. for the relevant
+// step.
+func completeRequiredSteps(t *testing.T, svc *onboarding.Service, stepValues map[string]string) {
+	t.Helper()
+	ctx := context.Background()
+	for _, step := range onboarding.RequiredSteps {
+		vals := map[string]string{}
+		for k, v := range stepValues {
+			vals[k] = v
+		}
+		if _, err := svc.SaveRequiredStep(ctx, step, vals); err != nil {
+			t.Fatalf("completeRequiredSteps: SaveRequiredStep(%q): %v", step, err)
+		}
+	}
 }
 
 // ── 1. GetStatus – new install ────────────────────────────────────────────────
@@ -131,16 +151,21 @@ func TestGetStatus_LegacyCompleteMigratesToExploration(t *testing.T) {
 	}
 }
 
-// ── 4. SaveRequiredStep ───────────────────────────────────────────────────────
+// ── 4. SaveRequiredStep – happy path ─────────────────────────────────────────
 
 func TestSaveRequiredStepPersistsResumePoint(t *testing.T) {
 	cfg := onboarding.Config{CompletionKey: completionKey, StateKey: stateKey}
 	svc := newTestService(t, cfg)
 
-	// Complete the ai_provider step with the chosen provider path.
+	// Complete the welcome step first (the linear flow starts there).
+	if _, err := svc.SaveRequiredStep(context.Background(), onboarding.RequiredStepWelcome, nil); err != nil {
+		t.Fatalf("SaveRequiredStep(welcome): %v", err)
+	}
+
+	// Now complete the ai_provider step with the chosen provider path.
 	stepValues := map[string]string{"AI_PROVIDER": "anthropic"}
 	if _, err := svc.SaveRequiredStep(context.Background(), onboarding.RequiredStepAIProvider, stepValues); err != nil {
-		t.Fatalf("SaveRequiredStep: %v", err)
+		t.Fatalf("SaveRequiredStep(ai_provider): %v", err)
 	}
 
 	status, err := svc.GetStatus(context.Background())
@@ -156,6 +181,33 @@ func TestSaveRequiredStepPersistsResumePoint(t *testing.T) {
 	if status.Context.AIProviderPath != "anthropic" {
 		t.Errorf("Context.AIProviderPath = %q; want %q",
 			status.Context.AIProviderPath, "anthropic")
+	}
+}
+
+// ── 4b. SaveRequiredStep – out-of-order rejection ────────────────────────────
+
+func TestSaveRequiredStep_RejectsOutOfOrder(t *testing.T) {
+	cfg := onboarding.Config{CompletionKey: completionKey, StateKey: stateKey}
+	svc := newTestService(t, cfg)
+
+	// On a fresh install the current step is welcome. Attempting to save
+	// ai_provider (the second step) must be rejected.
+	_, err := svc.SaveRequiredStep(
+		context.Background(),
+		onboarding.RequiredStepAIProvider,
+		map[string]string{"AI_PROVIDER": "anthropic"},
+	)
+	if err == nil {
+		t.Fatal("SaveRequiredStep(ai_provider) on fresh install: expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "not the current step") {
+		t.Errorf("error %q does not mention 'not the current step'", err.Error())
+	}
+
+	// Skipping ahead to review must also be rejected.
+	_, err = svc.SaveRequiredStep(context.Background(), onboarding.RequiredStepReview, nil)
+	if err == nil {
+		t.Fatal("SaveRequiredStep(review) on fresh install: expected error, got nil")
 	}
 }
 
@@ -175,6 +227,9 @@ func TestSaveFinalRequiredSetupWritesEnvAndDoesNotStoreSecretInProgress(t *testi
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
 	}
+
+	// Walk through all required steps before calling Save.
+	completeRequiredSteps(t, svc, map[string]string{"AI_PROVIDER": "anthropic"})
 
 	secrets := map[string]string{
 		"AI_PROVIDER":       "anthropic",
@@ -213,13 +268,39 @@ func TestSaveFinalRequiredSetupWritesEnvAndDoesNotStoreSecretInProgress(t *testi
 	}
 }
 
+// ── 5b. Save – rejected before required setup is complete ────────────────────
+
+func TestSave_RejectsBeforeRequiredSetupComplete(t *testing.T) {
+	cfg := onboarding.Config{CompletionKey: completionKey, StateKey: stateKey}
+	svc := newTestService(t, cfg)
+
+	// Calling Save on a brand-new install (no steps completed) must fail.
+	err := svc.Save(context.Background(), map[string]string{})
+	if err == nil {
+		t.Fatal("Save on fresh install: expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "review step") {
+		t.Errorf("error %q does not mention 'review step'", err.Error())
+	}
+
+	// Phase must remain at required_setup — Save must not have mutated state.
+	status, statusErr := svc.GetStatus(context.Background())
+	if statusErr != nil {
+		t.Fatalf("GetStatus: %v", statusErr)
+	}
+	if status.Phase != onboarding.PhaseRequiredSetup {
+		t.Errorf("Phase = %q after rejected Save; want %q", status.Phase, onboarding.PhaseRequiredSetup)
+	}
+}
+
 // ── 6. UpdateExploration ─────────────────────────────────────────────────────
 
 func TestUpdateExplorationDismissMarksPendingSkipped(t *testing.T) {
 	cfg := onboarding.Config{CompletionKey: completionKey, StateKey: stateKey}
 	svc := newTestService(t, cfg)
 
-	// Advance through required setup so the service is in exploration phase.
+	// Advance through all required steps, then call Save to enter exploration.
+	completeRequiredSteps(t, svc, map[string]string{"AI_PROVIDER": "anthropic"})
 	if err := svc.Save(context.Background(), map[string]string{}); err != nil {
 		t.Fatalf("Save (native mode, advance to exploration): %v", err)
 	}
@@ -256,7 +337,9 @@ func TestResetProgressClearsV1AndLegacyState(t *testing.T) {
 	}
 	svc := newTestService(t, cfg)
 
-	// Save to write both the legacy completion flag and v1 progress.
+	// Walk through all required steps then Save to write both the legacy
+	// completion flag and v1 progress.
+	completeRequiredSteps(t, svc, map[string]string{"AI_PROVIDER": "anthropic"})
 	if err := svc.Save(context.Background(), map[string]string{"ANTHROPIC_API_KEY": "sk-test"}); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
