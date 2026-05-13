@@ -379,6 +379,11 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 		return Status{}, ErrDisabled
 	}
 
+	// Validate the step is a known required step.
+	if !stringInRequiredSteps(step) {
+		return Status{}, fmt.Errorf("onboarding: SaveRequiredStep: unknown step %q", step)
+	}
+
 	p, err := s.loadProgress(ctx)
 	if err != nil {
 		return Status{}, err
@@ -457,6 +462,11 @@ func (s *Service) Save(ctx context.Context, values map[string]string) error {
 	// can report the chosen provider without re-reading the env file.
 	if provider, ok := values["AI_PROVIDER"]; ok {
 		p.Context.AIProviderPath = provider
+	}
+	// Signal that a restart is required when running in Docker mode and there
+	// are values being persisted to the env file (env changes require restart).
+	if s.cfg.DockerMode && len(values) > 0 {
+		p.RequiredSetup.RestartRequired = true
 	}
 	if err := s.saveProgress(ctx, p); err != nil {
 		return err
