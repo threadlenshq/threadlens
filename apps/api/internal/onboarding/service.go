@@ -182,7 +182,7 @@ func (s *Service) normalizeProgress(p Progress) Progress {
 			}
 		}
 	}
-	if p.Exploration.CurrentItem == "" {
+	if p.Exploration.CurrentItem == "" && p.Exploration.Status != ExplorationStatusComplete {
 		p.Exploration.CurrentItem = ExplorationItemStarterProject
 	}
 	if p.Exploration.Status == "" {
@@ -537,6 +537,15 @@ func (s *Service) UpdateExploration(ctx context.Context, req ExplorationUpdate) 
 		return Status{}, errors.New("onboarding: UpdateExploration requires required setup to be complete")
 	}
 
+	// Validate req.State independently when provided — even without an Item.
+	if req.State != "" && !validItemState(req.State) {
+		return Status{}, fmt.Errorf("onboarding: UpdateExploration: unknown state %q", req.State)
+	}
+	// A non-empty State without an Item is not a meaningful operation.
+	if req.State != "" && req.Item == "" && !req.Dismiss {
+		return Status{}, errors.New("onboarding: UpdateExploration: state requires item")
+	}
+
 	if req.Dismiss {
 		for item, state := range p.Exploration.Items {
 			if state == ItemStatePending || state == ItemStateBlocked {
@@ -553,12 +562,14 @@ func (s *Service) UpdateExploration(ctx context.Context, req ExplorationUpdate) 
 		if newState == "" {
 			newState = ItemStateCompleted
 		}
-		if !validItemState(newState) {
-			return Status{}, fmt.Errorf("onboarding: UpdateExploration: unknown state %q", newState)
-		}
 		p.Exploration.Items[req.Item] = newState
 		// Recompute the current item pointer to the first non-terminal item.
-		p.Exploration.CurrentItem = firstPendingItem(p.Exploration.Items)
+		next := firstPendingItem(p.Exploration.Items)
+		p.Exploration.CurrentItem = next
+		// If all items are now terminal, mark exploration complete.
+		if next == "" {
+			p.Exploration.Status = ExplorationStatusComplete
+		}
 	}
 
 	if req.SelectedProjectID != "" {
@@ -593,6 +604,8 @@ func (s *Service) Reset(ctx context.Context, mode ResetMode) error {
 		}
 		fresh := NewProgress()
 		p.Exploration = fresh.Exploration
+		// Clear exploration-derived context while keeping required-setup context.
+		p.Context.SelectedProjectID = ""
 		return s.saveProgress(ctx, p)
 
 	case ResetModeDismissExploration:
@@ -609,7 +622,7 @@ func (s *Service) Reset(ctx context.Context, mode ResetMode) error {
 		p.Exploration.Status = ExplorationStatusComplete
 		return s.saveProgress(ctx, p)
 
-	default: // ResetModeProgress (and any unrecognised value falls through to full reset)
+	case ResetModeProgress:
 		if err := s.repo.Delete(ctx, s.cfg.StateKey); err != nil {
 			return fmt.Errorf("onboarding: reset (state key): %w", err)
 		}
@@ -617,6 +630,9 @@ func (s *Service) Reset(ctx context.Context, mode ResetMode) error {
 			return fmt.Errorf("onboarding: reset (completion key): %w", err)
 		}
 		return nil
+
+	default:
+		return fmt.Errorf("onboarding: Reset: unknown mode %q", mode)
 	}
 }
 
