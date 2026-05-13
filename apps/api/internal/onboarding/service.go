@@ -10,20 +10,6 @@ import (
 	"github.com/kyle/scout/open-core/apps/api/internal/settings"
 )
 
-// Status is the snapshot returned by Service.GetStatus.
-type Status struct {
-	// Enabled reports whether the onboarding flow is active (i.e. not disabled).
-	Enabled bool
-
-	// Complete reports whether the onboarding.complete key is set in the
-	// settings repository.
-	Complete bool
-
-	// EnvFilePath is the effective env-file path from Config. It is non-empty
-	// only when DockerMode is true (native-mode Config leaves it blank).
-	EnvFilePath string
-}
-
 // ErrDisabled is returned by Save (and any future mutating operations) when the
 // onboarding flow has been administratively disabled. Handlers map this
 // sentinel to HTTP 403 so callers can distinguish "you're not allowed" from a

@@ -163,8 +163,8 @@ type AppDatabaseStatus struct {
 	RestartRequired   bool   `json:"restartRequired"`
 }
 
-// FullStatus is the full onboarding status returned to the frontend.
-type FullStatus struct {
+// Status is the full onboarding status returned to the frontend.
+type Status struct {
 	Enabled                bool              `json:"enabled"`
 	Complete               bool              `json:"complete"`
 	RequiredSetupComplete  bool              `json:"requiredSetupComplete"`
@@ -177,7 +177,7 @@ type FullStatus struct {
 	Capabilities           Capabilities      `json:"capabilities"`
 	AppDatabase            AppDatabaseStatus `json:"appDatabase"`
 	Context                OnboardingContext `json:"context"`
-	EnvFilePath            string            `json:"envFilePath"`
+	EnvFilePath            string            `json:"-"`
 }
 
 // NewProgress returns a fresh Progress with sensible defaults.
@@ -195,8 +195,9 @@ func NewProgress() Progress {
 			CompletedSteps: []RequiredStep{},
 		},
 		Exploration: ExplorationState{
-			Status: ExplorationStatusNotStarted,
-			Items:  items,
+			Status:      ExplorationStatusNotStarted,
+			CurrentItem: ExplorationItemStarterProject,
+			Items:       items,
 		},
 		Context: OnboardingContext{
 			AIProviderPath: "anthropic",
@@ -214,7 +215,7 @@ func PhaseForProgress(enabled bool, p Progress) Phase {
 	if p.RequiredSetup.Status != RequiredStatusComplete {
 		return PhaseRequiredSetup
 	}
-	if ExplorationComplete(p.Exploration.Items) || p.Exploration.Dismissed {
+	if ExplorationComplete(p.Exploration.Items) || p.Exploration.Dismissed || p.Exploration.Status == ExplorationStatusComplete {
 		return PhaseComplete
 	}
 	return PhaseExploration
