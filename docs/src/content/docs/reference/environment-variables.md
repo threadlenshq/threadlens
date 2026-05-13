@@ -26,6 +26,7 @@ Docker reads values from `open-core/.env` unless an embedding repository or comm
 | `SCOUT_AI_BRIDGE_DISABLE` | Empty | Optional local host CLI bridge opt-out | Set to `1` to disable bridge discovery, health checks, and generation calls for this runtime. |
 | `THREADLENS_RUNTIME_MODE` | `self-hosted` | Optional runtime mode selection | Selects `self-hosted` or `hosted`. |
 | `SCOUT_ONBOARDING_MODE` | Empty | Optional Docker onboarding persistence | Set to `docker` in container environments so the onboarding wizard persists completed configuration to `/data/.env`. Leave unset for non-containerised installs. |
+| `SCOUT_ONBOARDING_ENV_FILE` | `/data/.env` when onboarding Docker mode is active | Optional Docker onboarding persistence override | Writable env-file path used by the backend onboarding service when `SCOUT_ONBOARDING_MODE=docker`. |
 | `SCOUT_ONBOARDING_DISABLE` | Empty | Optional onboarding skip | Set to `1` to skip the onboarding wizard entirely. Useful for automated or pre-configured deployments where all required env vars are already supplied. |
 
 ## First-run importance
@@ -37,4 +38,4 @@ Docker reads values from `open-core/.env` unless an embedding repository or comm
 
 Use obviously fake values in docs, examples, and bug reports. Do not commit real provider keys, private URLs, hosted credentials, billing tokens, or customer data.
 
-For a guided setup sequence, see [Configuration Basics](../start-here/configuration-basics/). For Docker command behavior, see [Docker Commands and Profiles](docker-commands-and-profiles/).
+For guided setup, see [Configuration Basics](../start-here/configuration-basics/). For Docker command behavior, see [Docker Commands and Profiles](docker-commands-and-profiles/). For support resets, `POST /api/onboarding/reset` resets onboarding progress without deleting env values, projects, queries, posts, reports, or the database.

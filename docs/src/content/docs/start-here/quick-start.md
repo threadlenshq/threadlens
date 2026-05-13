@@ -31,21 +31,21 @@ Expected local services:
 
 ## Verify the app is reachable
 
-Open `http://localhost:4748` in a browser. The app should load the ThreadLens interface and call the API through the Vite proxy.
+Open `http://localhost:4748` in a browser. On a new database, ThreadLens should show the required setup wizard before the main workspace. Complete the wizard in the app to choose an AI provider path and confirm local app/database readiness.
 
 You can also check the API directly:
 
 ```bash
-curl -i http://localhost:4749/api/runtime/capabilities
+curl -i http://localhost:4749/api/onboarding/status
 ```
 
-Expected result: an HTTP `200` response with JSON runtime information.
+Expected result: an HTTP `200` response with JSON fields such as `enabled`, `phase`, `requiredSetupComplete`, and `appDatabase`.
 
 ## Before you scout
 
-Docker startup and provider readiness are separate steps. A no-key launch confirms the containers, web app, and API can run, but it does not provide a complete first-scout outcome.
+Docker startup and provider readiness are separate steps. The in-app setup wizard can write supported Docker-mode provider settings to the configured env file, then tell you when a Docker/API restart is needed. You can still configure `.env` manually by following [Configuration Basics](configuration-basics/) if your env file is read-only or you prefer editor-based setup.
 
-Before creating a real first scout, follow [Configuration Basics](configuration-basics/) to configure at least one AI provider path. For most first runs, use a provider key. Add `PARALLEL_API_KEY` only if you plan to scout Google Search, and add `BLUESKY_HANDLE` plus `BLUESKY_APP_PASSWORD` only if you plan to scout Bluesky.
+Add `PARALLEL_API_KEY` only if you plan to scout Google Search, and add `BLUESKY_HANDLE` plus `BLUESKY_APP_PASSWORD` only if you plan to scout Bluesky.
 
 ## Start the production self-host profile
 

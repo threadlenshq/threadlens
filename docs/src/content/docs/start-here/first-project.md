@@ -3,7 +3,7 @@ title: Create Your First Project
 description: Create a project, add a narrow query, run a first scout, review findings, and decide whether to generate a report.
 ---
 
-Use this walkthrough after Docker is running and [Configuration Basics](configuration-basics/) is complete for at least one AI provider path. Without provider setup, you can still open the app, but real scouting, scoring, analysis, and reports will not produce useful first-run results.
+Use this walkthrough after Docker is running and the required in-app setup is complete. The optional onboarding checklist in the app follows the same path: create or select a research project, add a narrow query, run a scout manually, review findings, then decide whether to generate a report.
 
 ## 1. Open the local web app
 
@@ -28,6 +28,8 @@ Fill in the three required fields and click **Create**:
 
 Keep the first project narrow. `ai-note-taking` is easier to evaluate than `productivity` because the results will use more specific language.
 
+If the onboarding checklist is visible, you can use **Create a starter research project** to create normal project data from the guided panel. The starter path is optional and idempotent; retrying it should reuse the same starter project/query instead of creating duplicates.
+
 ## 3. Add one first query
 
 Start with one source and one narrow query so you can inspect the results manually.
@@ -40,7 +42,7 @@ Good first queries describe a problem, audience, or workflow. For an AI note-tak
 
 ## 4. Run a scout
 
-Run the scout for the source you configured and wait for completion before changing the query.
+Run the scout for the source you configured and wait for completion before changing the query. Onboarding never starts external scouting automatically; this remains an explicit user action from the Scout button so you control network-heavy work.
 
 A completed first scout should show that the run finished and that ThreadLens checked the source for matching posts or results. If a run fails, check whether the missing credential is an AI provider key, a Google source key, or Bluesky credentials before changing project settings.
 

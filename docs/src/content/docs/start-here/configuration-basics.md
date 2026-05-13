@@ -90,16 +90,19 @@ These variables are useful for advanced local development, embedding repositorie
 
 ## Onboarding flow and first-run persistence
 
-ThreadLens shows a guided onboarding wizard to new users on first launch. Two variables control that flow:
+ThreadLens shows a guided onboarding flow to new users on first launch. The blocking required setup covers provider selection and local app/database readiness. After required setup, the normal workspace opens and an optional checklist can help you create a starter project, add a query, run a scout, review findings, open reports, and visit Models/Settings.
+
+Onboarding progress is stored server-side in the app database, so refreshes and browser changes resume from the backend state. In Docker mode, supported configuration values are written through the backend to the configured env file. Environment variables are still read by the running API process at startup, so provider or source changes may require restarting Docker before they affect AI calls.
+
+Three variables control first-run behavior:
 
 | Variable | Purpose |
 | --- | --- |
-| `SCOUT_ONBOARDING_MODE` | Set to `docker` in container environments. When set, the wizard writes completed configuration back to `/data/.env` so it persists across container restarts. Leave unset for non-containerised installs. |
-| `SCOUT_ONBOARDING_DISABLE` | Set to `1` to skip the wizard entirely. Use this for automated or pre-configured deployments where all required env vars are already present. |
+| `SCOUT_ONBOARDING_MODE` | Set to `docker` in container environments. When set, the wizard writes supported completed configuration back to `/data/.env` or the configured onboarding env file so it persists across container restarts. Leave unset for non-containerised installs. |
+| `SCOUT_ONBOARDING_ENV_FILE` | Overrides the Docker-mode onboarding env-file write target. Use this only when the container has a writable mounted env file at a different path. |
+| `SCOUT_ONBOARDING_DISABLE` | Set to `1` to skip the required wizard and optional checklist entirely. Use this for automated or pre-configured deployments where all required env vars are already present. |
 
 The Docker Compose files in this repository set `SCOUT_ONBOARDING_MODE=docker` automatically, so the default Docker path handles persistence without manual configuration.
-
-Onboarding runs only once per installation. After the wizard completes (or is skipped), ThreadLens does not show it again.
 
 ## Safe sample values
 
