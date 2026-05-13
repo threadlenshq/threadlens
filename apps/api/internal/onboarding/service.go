@@ -327,6 +327,38 @@ func buildAppDatabaseStatus(cfg Config) AppDatabaseStatus {
 	}
 }
 
+// validExplorationItem reports whether item is one of the approved enum values.
+func validExplorationItem(item ExplorationItem) bool {
+	for _, known := range ExplorationItems {
+		if item == known {
+			return true
+		}
+	}
+	return false
+}
+
+// validItemState reports whether state is one of the approved enum values.
+func validItemState(state ItemState) bool {
+	switch state {
+	case ItemStatePending, ItemStateCompleted, ItemStateSkipped, ItemStateBlocked:
+		return true
+	}
+	return false
+}
+
+// firstPendingItem returns the first ExplorationItem whose state is pending or
+// blocked, walking ExplorationItems in canonical order. If all items are
+// terminal it returns an empty string.
+func firstPendingItem(items map[ExplorationItem]ItemState) ExplorationItem {
+	for _, id := range ExplorationItems {
+		switch items[id] {
+		case ItemStatePending, ItemStateBlocked:
+			return id
+		}
+	}
+	return ""
+}
+
 // ── mutating operations ────────────────────────────────────────────────────────
 
 // IsComplete reports whether the onboarding completion flag has been stored in
@@ -385,9 +417,9 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 }
 
 // Save writes the supplied key/value pairs to the env file (Docker mode only),
-// marks the legacy completion flag, and advances the progress to the
-// exploration phase. It returns an error when onboarding is disabled or, in
-// Docker mode, when values are missing/empty.
+// persists v1 progress advancing to the exploration phase, then marks the
+// legacy completion flag. Progress is written first so a failure on the legacy
+// write does not leave the system in a misleading partially-migrated state.
 func (s *Service) Save(ctx context.Context, values map[string]string) error {
 	if s.cfg.Disabled {
 		return ErrDisabled
@@ -407,37 +439,50 @@ func (s *Service) Save(ctx context.Context, values map[string]string) error {
 		}
 	}
 
-	// Set the legacy completion flag.
-	if err := s.repo.Set(ctx, s.cfg.CompletionKey, "true"); err != nil {
-		return fmt.Errorf("onboarding: marking complete: %w", err)
-	}
-
-	// Update v1 progress to show required setup complete and move to exploration.
+	// Update v1 progress first — marks required setup complete and transitions
+	// to exploration.  Only non-secret context values are written here; secrets
+	// stay in the env file.
 	p, err := s.loadProgress(ctx)
 	if err != nil {
 		return err
 	}
 	p.RequiredSetup.Status = RequiredStatusComplete
 	if p.RequiredSetup.CurrentStep != RequiredStepReview {
-		// Mark all steps as completed.
 		p.RequiredSetup.CompletedSteps = make([]RequiredStep, len(RequiredSteps))
 		copy(p.RequiredSetup.CompletedSteps, RequiredSteps)
 		p.RequiredSetup.CurrentStep = RequiredStepReview
 	}
 	p.Exploration.Status = ExplorationStatusActive
+	// Copy non-secret provider selection into progress context so GetStatus
+	// can report the chosen provider without re-reading the env file.
+	if provider, ok := values["AI_PROVIDER"]; ok {
+		p.Context.AIProviderPath = provider
+	}
+	if err := s.saveProgress(ctx, p); err != nil {
+		return err
+	}
 
-	// Do not persist any secret values — only the non-secret provider path.
-	// Secrets stay only in the env file.
-
-	return s.saveProgress(ctx, p)
+	// Write the legacy completion flag only after v1 progress is safely stored.
+	if err := s.repo.Set(ctx, s.cfg.CompletionKey, "true"); err != nil {
+		return fmt.Errorf("onboarding: marking complete: %w", err)
+	}
+	return nil
 }
 
 // UpdateExploration updates the exploration phase based on req and returns the
 // updated Status. When Dismiss=true, all pending items are marked as skipped.
 func (s *Service) UpdateExploration(ctx context.Context, req ExplorationUpdate) (Status, error) {
+	if s.cfg.Disabled {
+		return Status{}, ErrDisabled
+	}
+
 	p, err := s.loadProgress(ctx)
 	if err != nil {
 		return Status{}, err
+	}
+
+	if p.RequiredSetup.Status != RequiredStatusComplete {
+		return Status{}, errors.New("onboarding: UpdateExploration requires required setup to be complete")
 	}
 
 	if req.Dismiss {
@@ -449,11 +494,19 @@ func (s *Service) UpdateExploration(ctx context.Context, req ExplorationUpdate) 
 		p.Exploration.Dismissed = true
 		p.Exploration.Status = ExplorationStatusComplete
 	} else if req.Item != "" {
+		if !validExplorationItem(req.Item) {
+			return Status{}, fmt.Errorf("onboarding: UpdateExploration: unknown item %q", req.Item)
+		}
 		newState := req.State
 		if newState == "" {
 			newState = ItemStateCompleted
 		}
+		if !validItemState(newState) {
+			return Status{}, fmt.Errorf("onboarding: UpdateExploration: unknown state %q", newState)
+		}
 		p.Exploration.Items[req.Item] = newState
+		// Recompute the current item pointer to the first non-terminal item.
+		p.Exploration.CurrentItem = firstPendingItem(p.Exploration.Items)
 	}
 
 	if req.SelectedProjectID != "" {
@@ -472,16 +525,47 @@ func (s *Service) CreateStarterProject(ctx context.Context, req StarterProjectRe
 	return StarterProjectResult{}, errors.New("onboarding: CreateStarterProject not yet implemented")
 }
 
-// Reset clears onboarding state according to mode. ResetModeProgress removes
-// both the v1 progress state and the legacy completion key.
+// Reset clears onboarding state according to mode:
+//   - ResetModeProgress: deletes both the v1 state key and the legacy
+//     completion key, returning to a brand-new-install state.
+//   - ResetModeExploration: resets only the exploration portion of the v1
+//     progress record, leaving required-setup intact.
+//   - ResetModeDismissExploration: marks all pending exploration items as
+//     skipped without removing the progress record.
 func (s *Service) Reset(ctx context.Context, mode ResetMode) error {
-	if err := s.repo.Delete(ctx, s.cfg.StateKey); err != nil {
-		return fmt.Errorf("onboarding: reset (state key): %w", err)
+	switch mode {
+	case ResetModeExploration:
+		p, err := s.loadProgress(ctx)
+		if err != nil {
+			return err
+		}
+		fresh := NewProgress()
+		p.Exploration = fresh.Exploration
+		return s.saveProgress(ctx, p)
+
+	case ResetModeDismissExploration:
+		p, err := s.loadProgress(ctx)
+		if err != nil {
+			return err
+		}
+		for item, state := range p.Exploration.Items {
+			if state == ItemStatePending || state == ItemStateBlocked {
+				p.Exploration.Items[item] = ItemStateSkipped
+			}
+		}
+		p.Exploration.Dismissed = true
+		p.Exploration.Status = ExplorationStatusComplete
+		return s.saveProgress(ctx, p)
+
+	default: // ResetModeProgress (and any unrecognised value falls through to full reset)
+		if err := s.repo.Delete(ctx, s.cfg.StateKey); err != nil {
+			return fmt.Errorf("onboarding: reset (state key): %w", err)
+		}
+		if err := s.repo.Delete(ctx, s.cfg.CompletionKey); err != nil {
+			return fmt.Errorf("onboarding: reset (completion key): %w", err)
+		}
+		return nil
 	}
-	if err := s.repo.Delete(ctx, s.cfg.CompletionKey); err != nil {
-		return fmt.Errorf("onboarding: reset (completion key): %w", err)
-	}
-	return nil
 }
 
 // DebugProgressJSONForTest returns the raw JSON string stored under StateKey,
