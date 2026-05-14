@@ -12,6 +12,9 @@
   import ExplorationChecklist from './components/onboarding/ExplorationChecklist.svelte';
   import TourCallout from './components/onboarding/TourCallout.svelte';
   import { normalizeOnboardingStatus, shouldShowRequiredWizard, shouldShowExploration } from './lib/onboardingState.js';
+  import AppShell from './components/layout/AppShell.svelte';
+  import WorkspaceRail from './components/layout/WorkspaceRail.svelte';
+  import TopContextBar from './components/layout/TopContextBar.svelte';
   import ReportsTab from './components/ReportsTab.svelte';
   import ReportView from './components/ReportView.svelte';
   import GoogleReportsTab from './components/GoogleReportsTab.svelte';
@@ -719,76 +722,61 @@
     />
   {/if}
 
-  <!-- Header -->
-  <header class="header">
-    <div class="header-left">
-      <img src="/logo.svg" alt="ThreadLens" class="logo-icon" />
-      <span class="logo">ThreadLens</span>
-      <ProjectSelector
+  <AppShell>
+    {#snippet rail()}
+      <WorkspaceRail
         projects={projectList}
-        selectedId={selectedProjectId}
-        onSelect={handleProjectSelect}
-        onCreate={handleProjectCreate}
+        selectedProjectId={selectedProjectId}
+        {view}
+        onSelectProject={handleProjectSelect}
+        onCreateProject={handleProjectCreate}
+        onNavigate={(nextView) => {
+          if (nextView === 'sources') {
+            view = 'settings';
+            writeUrlState({ view: 'settings' }, 'push');
+            return;
+          }
+          view = nextView;
+          if (nextView === 'posts') {
+            writeUrlState({ view: 'posts', tab: 'general' }, 'push');
+            return;
+          }
+          if (nextView === 'reports') {
+            activeReportId = null;
+            activeGoogleReportId = null;
+            writeUrlState({ view: 'reports', report: null, greport: null }, 'push');
+            return;
+          }
+          writeUrlState({ view: nextView }, 'push');
+        }}
       />
-    </div>
+    {/snippet}
 
-    <nav class="nav">
-      <button
-        class="nav-btn"
-        class:active={view === 'posts'}
-        onclick={() => { view = 'posts'; writeUrlState({ view: 'posts', tab: 'general' }, 'push'); }}
+    {#snippet topbar()}
+      <TopContextBar
+        {view}
+        projectName={currentProject?.name}
       >
-        Posts
-      </button>
-      {#if showInsights}
+        {#if selectedProjectId}
+          <ScoutRunButton
+            projectId={selectedProjectId}
+            externalRunning={activeRuns.length > 0}
+            {lastRunLabel}
+            {enabledQueryCount}
+            capabilities={capabilitySnapshot}
+            onScoutComplete={handleScoutTriggered}
+          />
+        {/if}
         <button
-          class="nav-btn"
-          class:active={view === 'reports'}
-          onclick={() => { view = 'reports'; activeReportId = null; activeGoogleReportId = null; writeUrlState({ view: 'reports', report: null, greport: null }, 'push'); }}
+          class="icon-btn"
+          disabled={!selectedProjectId || loadingPosts}
+          onclick={loadPosts}
+          title="Refresh"
         >
-          Reports
+          &#8635;
         </button>
-      {/if}
-      <button
-        class="nav-btn"
-        class:active={view === 'settings'}
-        onclick={() => { view = 'settings'; writeUrlState({ view: 'settings' }, 'push'); }}
-      >
-        Settings
-      </button>
-      <button
-        class="nav-btn"
-        class:active={view === 'models'}
-        onclick={() => { view = 'models'; writeUrlState({ view: 'models' }, 'push'); }}
-      >
-        Models
-      </button>
-    </nav>
-
-    <div class="header-right">
-      {#if selectedProjectId}
-        <ScoutRunButton
-          projectId={selectedProjectId}
-          externalRunning={activeRuns.length > 0}
-          {lastRunLabel}
-          {enabledQueryCount}
-          capabilities={capabilitySnapshot}
-          onScoutComplete={handleScoutTriggered}
-        />
-      {/if}
-      <button
-        class="icon-btn"
-        disabled={!selectedProjectId || loadingPosts}
-        onclick={loadPosts}
-        title="Refresh"
-      >
-        &#8635;
-      </button>
-    </div>
-  </header>
-
-  <!-- Main -->
-  <main class="main">
+      </TopContextBar>
+    {/snippet}
     {#if !selectedProjectId && view !== 'models'}
       <div class="empty-screen">
         <p class="empty-title">No project selected</p>
@@ -1032,7 +1020,7 @@
         {/if}
       </div>
     {/if}
-  </main>
+  </AppShell>
   {/if}
 </div>
 
@@ -1088,108 +1076,33 @@
   }
 
   .app {
-    display: flex;
-    flex-direction: column;
     height: 100vh;
     overflow: hidden;
   }
 
-  /* Header */
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
-    height: 56px;
-    background: #1a1a24;
-    border-bottom: 1px solid #2a2a3a;
-    flex-shrink: 0;
-    gap: 16px;
-  }
-
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .logo-icon {
-    height: 32px;
-    width: auto;
-    filter: brightness(1.6);
-  }
-
-  .logo {
-    font-size: 18px;
-    font-weight: 700;
-    color: #7c6af5;
-    letter-spacing: -0.5px;
-    margin-left: -10px;
-  }
-
-  .nav {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .nav-btn {
-    padding: 6px 14px;
-    background: none;
-    border: none;
-    border-radius: 6px;
-    color: #888;
-    font-size: 14px;
-    cursor: pointer;
-    transition: color 0.15s, background 0.15s;
-  }
-
-  .nav-btn:hover {
-    color: #e2e2e8;
-    background: #23233a;
-  }
-
-  .nav-btn.active {
-    color: #e2e2e8;
-    background: #2a2a45;
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
+  /* Main */
   .icon-btn {
     width: 34px;
     height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #23233a;
-    border: 1px solid #2a2a3a;
+    background: var(--color-surface, #23233a);
+    border: 1px solid var(--color-border, #2a2a3a);
     border-radius: 6px;
-    color: #e2e2e8;
+    color: var(--color-text, #e2e2e8);
     font-size: 16px;
     cursor: pointer;
     transition: background 0.15s;
   }
 
   .icon-btn:hover:not(:disabled) {
-    background: #2a2a45;
+    background: var(--color-surface-hover, #2a2a45);
   }
 
   .icon-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-
-  /* Main */
-  .main {
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
   }
 
   .empty-screen {
