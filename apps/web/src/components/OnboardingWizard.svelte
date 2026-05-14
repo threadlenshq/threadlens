@@ -12,16 +12,28 @@
   const providerSecretKeys = { anthropic: 'ANTHROPIC_API_KEY', gemini: 'GEMINI_API_KEY' };
 
   const AI_PROVIDERS = [
-    { value: 'copilot', label: 'GitHub Copilot' },
-    { value: 'anthropic', label: 'Anthropic (Claude)' },
-    { value: 'gemini', label: 'Google Gemini' },
-    { value: 'openai', label: 'OpenAI' },
+    {
+      value: 'anthropic',
+      label: 'Anthropic (Claude)',
+      description: 'Uses your ANTHROPIC_API_KEY. Recommended for first-time setup.',
+    },
+    {
+      value: 'gemini',
+      label: 'Google Gemini',
+      description: 'Uses your GEMINI_API_KEY.',
+    },
+    {
+      value: 'copilot',
+      label: 'GitHub Copilot',
+      description: 'Uses your local Copilot CLI session. No API key required.',
+    },
   ];
 
   let providerConfigured = $derived(
     !!status?.capabilities?.providers?.find((provider) => provider.id === aiProvider && provider.configured)
   );
   let requiresSecret = $derived(['anthropic', 'gemini'].includes(aiProvider) && !providerConfigured);
+  let providerDescription = $derived(AI_PROVIDERS.find((p) => p.value === aiProvider)?.description || '');
   let canContinue = $derived(
     currentStep !== 'ai_provider' || (aiProvider && (!requiresSecret || providerSecret.trim().length > 0))
   );
@@ -119,6 +131,9 @@
           <option value={p.value}>{p.label}</option>
         {/each}
       </select>
+      {#if providerDescription}
+        <p class="field-hint provider-description">{providerDescription}</p>
+      {/if}
       {#if requiresSecret}
         <label class="field-label" for="provider-secret-input">
           {providerSecretKeys[aiProvider] || 'API Key'}
@@ -318,6 +333,11 @@
     font-size: 12px;
     color: #8080a0;
     margin: 0;
+  }
+
+  .provider-description {
+    color: #a0a0c0;
+    margin-top: 2px;
   }
 
   .readiness-card,
