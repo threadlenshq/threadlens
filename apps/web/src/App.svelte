@@ -48,7 +48,6 @@
   let activeGoogleReportId = $state(null);
   let reportSource = $state('social'); // 'social' | 'google'
   let capabilitySnapshot = $state(null);
-  let capabilityError = $state('');
 
   // Posts state
   let postsList = $state([]);
@@ -100,11 +99,10 @@
   let lastRunLabel = $derived((timeTick, relativeTime(lastCompletedRun?.completed_at)));
 
   async function loadCapabilities() {
-    capabilityError = '';
     try {
       capabilitySnapshot = await runtimeApi.capabilities();
-    } catch (e) {
-      capabilityError = e.message;
+    } catch {
+      // advisory only - ScoutRunButton falls back to allow-all when null
     }
   }
 
@@ -266,7 +264,6 @@
 
   onDestroy(() => {
     window.removeEventListener('popstate', handlePopState);
-    // onboarding-complete custom event no longer used (replaced by status reload)
     stopPoll();
     clearInterval(tickTimer);
   });
@@ -627,7 +624,6 @@
     if (appInitialized || typeof window === 'undefined') return;
     appInitialized = true;
     window.addEventListener('popstate', handlePopState);
-    // onboarding-complete custom event no longer used (replaced by status reload)
     await checkOnboarding();
     if (onboardingError || onboardingRequiresSetup) return;
     await continueAppInit();
@@ -640,8 +636,7 @@
   }
 
   async function continueAppInit() {
-    loadCapabilities();
-    await loadProjects();
+    await Promise.all([loadCapabilities(), loadProjects()]);
     const urlState = readUrlState();
 
     const validViews = ['posts', 'settings', 'reports', 'models'];
