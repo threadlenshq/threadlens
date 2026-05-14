@@ -387,10 +387,17 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 		return Status{}, err
 	}
 
-	// Enforce strict linear ordering: only the current resume-point step may be
-	// saved. This prevents skipping ahead and avoids rewinding already-advanced
-	// progress when an earlier step is re-submitted.
-	if step != p.RequiredSetup.CurrentStep {
+	// Allow re-saving an already-completed step (user went back and pressed
+	// Continue again). Only reject steps that would skip ahead past the current
+	// resume point.
+	alreadyCompleted := false
+	for _, cs := range p.RequiredSetup.CompletedSteps {
+		if cs == step {
+			alreadyCompleted = true
+			break
+		}
+	}
+	if !alreadyCompleted && step != p.RequiredSetup.CurrentStep {
 		return Status{}, fmt.Errorf(
 			"onboarding: SaveRequiredStep: step %q is not the current step (expected %q)",
 			step, p.RequiredSetup.CurrentStep,
@@ -413,14 +420,7 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 	}
 
 	// Mark this step complete (idempotent).
-	alreadyRecorded := false
-	for _, cs := range p.RequiredSetup.CompletedSteps {
-		if cs == step {
-			alreadyRecorded = true
-			break
-		}
-	}
-	if !alreadyRecorded {
+	if !alreadyCompleted {
 		p.RequiredSetup.CompletedSteps = append(p.RequiredSetup.CompletedSteps, step)
 	}
 
