@@ -201,7 +201,12 @@ func (s *Service) GetStatus(ctx context.Context) (Status, error) {
 	if err != nil {
 		return Status{}, err
 	}
+	return s.statusFromProgress(p), nil
+}
 
+// statusFromProgress assembles a Status from an already-loaded Progress,
+// avoiding a second DB round-trip in mutating operations.
+func (s *Service) statusFromProgress(p Progress) Status {
 	phase := PhaseForProgress(true, p)
 	requiredSetupComplete := p.RequiredSetup.Status == RequiredStatusComplete
 	explorationComplete := ExplorationComplete(p.Exploration.Items) ||
@@ -222,7 +227,7 @@ func (s *Service) GetStatus(ctx context.Context) (Status, error) {
 		AppDatabase:            buildAppDatabaseStatus(s.cfg),
 		Context:                p.Context,
 		EnvFilePath:            s.cfg.EnvFilePath,
-	}, nil
+	}
 }
 
 // buildStepViews produces the ordered display list of required-setup steps.
@@ -387,16 +392,17 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 		return Status{}, err
 	}
 
+	// Build completed set once; reused for the skip-ahead guard, idempotent
+	// append, and current-step advancement below.
+	completed := make(map[RequiredStep]bool, len(p.RequiredSetup.CompletedSteps))
+	for _, cs := range p.RequiredSetup.CompletedSteps {
+		completed[cs] = true
+	}
+	alreadyCompleted := completed[step]
+
 	// Allow re-saving an already-completed step (user went back and pressed
 	// Continue again). Only reject steps that would skip ahead past the current
 	// resume point.
-	alreadyCompleted := false
-	for _, cs := range p.RequiredSetup.CompletedSteps {
-		if cs == step {
-			alreadyCompleted = true
-			break
-		}
-	}
 	if !alreadyCompleted && step != p.RequiredSetup.CurrentStep {
 		return Status{}, fmt.Errorf(
 			"onboarding: SaveRequiredStep: step %q is not the current step (expected %q)",
@@ -422,15 +428,12 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 	// Mark this step complete (idempotent).
 	if !alreadyCompleted {
 		p.RequiredSetup.CompletedSteps = append(p.RequiredSetup.CompletedSteps, step)
+		completed[step] = true
 	}
 
 	// Advance the current-step pointer to the first step not yet completed,
 	// rather than simply step+1. This is correct even after re-entry from a
 	// partially-completed flow where some later steps are already done.
-	completed := make(map[RequiredStep]bool, len(p.RequiredSetup.CompletedSteps))
-	for _, cs := range p.RequiredSetup.CompletedSteps {
-		completed[cs] = true
-	}
 	nextStep := RequiredStep("")
 	for _, rs := range RequiredSteps {
 		if !completed[rs] {
@@ -447,7 +450,7 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 	if err := s.saveProgress(ctx, p); err != nil {
 		return Status{}, err
 	}
-	return s.GetStatus(ctx)
+	return s.statusFromProgress(p), nil
 }
 
 // Save writes the supplied key/value pairs to the env file (Docker mode only),
@@ -592,7 +595,7 @@ func (s *Service) UpdateExploration(ctx context.Context, req ExplorationUpdate) 
 	if err := s.saveProgress(ctx, p); err != nil {
 		return Status{}, err
 	}
-	return s.GetStatus(ctx)
+	return s.statusFromProgress(p), nil
 }
 
 // CreateStarterProject creates a starter project and query idempotently,
