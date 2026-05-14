@@ -1,6 +1,5 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import ProjectSelector from './components/ProjectSelector.svelte';
   import ProjectSettings from './components/ProjectSettings.svelte';
   import ScoutRunButton from './components/ScoutRunButton.svelte';
   import ActiveRunBanner from './components/ActiveRunBanner.svelte';
