@@ -210,7 +210,27 @@
       <div class="review-summary">
         <div class="readiness-row">
           <span class="readiness-label">AI provider</span>
-          <span class="readiness-value">{aiProvider}</span>
+          <span class="readiness-value">{AI_PROVIDERS.find((p) => p.value === aiProvider)?.label || aiProvider}</span>
+        </div>
+        <div class="readiness-row">
+          <span class="readiness-label">API key</span>
+          <span class="readiness-value">{providerConfigured ? 'Already configured' : requiresSecret ? 'Provided' : 'Not required'}</span>
+        </div>
+        <div class="readiness-row">
+          <span class="readiness-label">Database location</span>
+          <span class="readiness-value">{status?.appDatabase?.databasePathLabel || '—'}</span>
+        </div>
+        <div class="readiness-row">
+          <span class="readiness-label">Runtime</span>
+          <span class="readiness-value">{status?.appDatabase?.runtimeMode || '—'}</span>
+        </div>
+        <div class="readiness-row">
+          <span class="readiness-label">Environment file</span>
+          <span class="readiness-value">{status?.appDatabase?.envFileLabel || '—'}</span>
+        </div>
+        <div class="readiness-row">
+          <span class="readiness-label">Can write to env file</span>
+          <span class="readiness-value">{status?.appDatabase?.envWritable ? 'Yes' : 'No'}</span>
         </div>
       </div>
     </section>
