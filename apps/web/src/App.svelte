@@ -45,7 +45,7 @@
   // --- State ---
   let projectList = $state([]);
   let selectedProjectId = $state(null);
-  let view = $state('posts'); // 'posts' | 'settings' | 'reports' | 'models'
+  let view = $state('posts'); // 'posts' | 'settings' | 'sources' | 'reports' | 'models'
   let activeReportId = $state(null);
   let activeGoogleReportId = $state(null);
   let reportSource = $state('social'); // 'social' | 'google'
@@ -416,6 +416,21 @@
     writeUrlState({ reportSource: source, report: null, greport: null });
   }
 
+  function navigateTo(nextView) {
+    view = nextView;
+    if (nextView === 'posts') {
+      writeUrlState({ view: 'posts', tab: 'general' }, 'push');
+      return;
+    }
+    if (nextView === 'reports') {
+      activeReportId = null;
+      activeGoogleReportId = null;
+      writeUrlState({ view: 'reports', report: null, greport: null }, 'push');
+      return;
+    }
+    writeUrlState({ view: nextView }, 'push');
+  }
+
   $effect(() => {
     if (!hasGoogleQueries && reportSource === 'google') {
       reportSource = 'social';
@@ -641,7 +656,7 @@
     await Promise.all([loadCapabilities(), loadProjects()]);
     const urlState = readUrlState();
 
-    const validViews = ['posts', 'settings', 'reports', 'models'];
+    const validViews = ['posts', 'settings', 'sources', 'reports', 'models'];
     const validReportSources = ['social', 'google'];
     const validPlatforms = ['all', 'reddit', 'bluesky'];
     const validStatuses = [...POST_STATUSES, 'all'];
@@ -716,7 +731,7 @@
       selectedProjectId={selectedProjectId}
       onStatusReload={checkOnboarding}
       onProjectReady={async (projectId) => { await loadProjects(); await selectProject(projectId); }}
-      onNavigate={(nextView) => { view = nextView; writeUrlState({ view: nextView }, 'push'); }}
+      onNavigate={(nextView) => navigateTo(nextView)}
       onClose={() => { checklistOpen = false; }}
     />
   {/if}
@@ -729,25 +744,7 @@
         {view}
         onSelectProject={handleProjectSelect}
         onCreateProject={handleProjectCreate}
-        onNavigate={(nextView) => {
-          if (nextView === 'sources') {
-            view = 'settings';
-            writeUrlState({ view: 'settings' }, 'push');
-            return;
-          }
-          view = nextView;
-          if (nextView === 'posts') {
-            writeUrlState({ view: 'posts', tab: 'general' }, 'push');
-            return;
-          }
-          if (nextView === 'reports') {
-            activeReportId = null;
-            activeGoogleReportId = null;
-            writeUrlState({ view: 'reports', report: null, greport: null }, 'push');
-            return;
-          }
-          writeUrlState({ view: nextView }, 'push');
-        }}
+        onNavigate={(nextView) => navigateTo(nextView)}
       />
     {/snippet}
 
@@ -954,7 +951,7 @@
         </div>
       </div>
 
-    {:else if view === 'settings'}
+    {:else if view === 'settings' || view === 'sources'}
       <div class="full-width-view">
         <ProjectSettings
           projectId={selectedProjectId}
