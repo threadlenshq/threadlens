@@ -779,7 +779,7 @@
     {#if !selectedProjectId && view !== 'models'}
       <div class="empty-screen">
         <p class="empty-title">No project selected</p>
-        <p class="empty-sub">Use the dropdown above to select or create a project.</p>
+        <p class="empty-sub">Use the workspace rail to select or create a project.</p>
       </div>
     {:else if view === 'models'}
       <div class="full-width-view">
