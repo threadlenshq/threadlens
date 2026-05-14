@@ -19,11 +19,11 @@
   </div>
 
   <nav class="rail-nav">
-    <button class="nav-item" class:active={view === 'posts'} onclick={() => onNavigate('posts')}>Inbox</button>
-    <button class="nav-item" class:active={view === 'reports'} onclick={() => onNavigate('reports')}>Reports</button>
-    <button class="nav-item" class:active={view === 'sources'} onclick={() => onNavigate('settings')}>Sources</button>
-    <button class="nav-item" class:active={view === 'settings'} onclick={() => onNavigate('settings')}>Settings</button>
-    <button class="nav-item" class:active={view === 'models'} onclick={() => onNavigate('models')}>Models</button>
+    <button type="button" class="nav-item" class:active={view === 'posts'} onclick={() => onNavigate('posts')}>Inbox</button>
+    <button type="button" class="nav-item" class:active={view === 'reports'} onclick={() => onNavigate('reports')}>Reports</button>
+    <button type="button" class="nav-item" class:active={view === 'sources'} onclick={() => onNavigate('sources')}>Sources</button>
+    <button type="button" class="nav-item" class:active={view === 'settings'} onclick={() => onNavigate('settings')}>Settings</button>
+    <button type="button" class="nav-item" class:active={view === 'models'} onclick={() => onNavigate('models')}>Models</button>
   </nav>
 </div>
 
