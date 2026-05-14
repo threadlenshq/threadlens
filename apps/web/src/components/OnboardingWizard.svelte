@@ -169,27 +169,27 @@
   <!-- App & Database step -->
   {#if currentStep === 'app_database'}
     <section data-testid="app-database-section" class="wizard-section">
-      <h3 class="step-title">App &amp; Database Readiness</h3>
-      <p class="step-body">Review your local configuration before finalising setup. No changes are required here — this step confirms your environment.</p>
+      <h3 class="step-title">App &amp; Database Setup</h3>
+      <p class="step-body">Review your local environment before finishing setup. This step is read-only — it confirms what the app can access.</p>
       <div data-testid="app-database-readiness" class="readiness-card">
         <div class="readiness-row">
-          <span class="readiness-label">Database path</span>
-          <span class="readiness-value">{status?.appDatabase?.databasePathLabel || '—'}</span>
+          <span class="readiness-label">Database location</span>
+          <span class="readiness-value">{status?.appDatabase?.databasePathLabel || 'Not set'}</span>
         </div>
         <div class="readiness-row">
-          <span class="readiness-label">Runtime mode</span>
+          <span class="readiness-label">Runtime</span>
           <span class="readiness-value">{status?.appDatabase?.runtimeMode || '—'}</span>
         </div>
         <div class="readiness-row">
-          <span class="readiness-label">Env file</span>
+          <span class="readiness-label">Environment file</span>
           <span class="readiness-value">{status?.appDatabase?.envFileLabel || '—'}</span>
         </div>
         <div class="readiness-row">
-          <span class="readiness-label">Env writable</span>
+          <span class="readiness-label">Can write to env file</span>
           <span class="readiness-value">{status?.appDatabase?.envWritable ? 'Yes' : 'No'}</span>
         </div>
       </div>
-      <p class="restart-note">Environment-backed changes may require restarting Docker or the API before the running process uses them.</p>
+      <p class="restart-note">Environment changes may not take effect until you restart Docker or the API.</p>
     </section>
     <div class="wizard-actions">
       <button class="ghost-btn" onclick={() => goToStep('ai_provider')}>Back</button>

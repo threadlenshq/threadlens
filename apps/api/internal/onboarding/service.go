@@ -313,9 +313,10 @@ func buildAppDatabaseStatus(cfg Config) AppDatabaseStatus {
 		envFileLabel = cfg.EnvFilePath
 	}
 	return AppDatabaseStatus{
-		RuntimeMode:  runtimeMode,
-		EnvFileLabel: envFileLabel,
-		EnvWritable:  cfg.DockerMode,
+		DatabasePathLabel: cfg.DBPath,
+		RuntimeMode:       runtimeMode,
+		EnvFileLabel:      envFileLabel,
+		EnvWritable:       cfg.DockerMode,
 	}
 }
 

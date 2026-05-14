@@ -24,6 +24,10 @@ type Config struct {
 	// Defaults to /data/.env when SCOUT_ONBOARDING_ENV_FILE is unset or empty.
 	EnvFilePath string
 
+	// DBPath is the resolved path to the SQLite database file. Injected by the
+	// caller after app config is loaded; not read from environment variables.
+	DBPath string
+
 	// CompletionKey is the settings-repository key used to persist the
 	// "onboarding complete" flag.  Fixed at "onboarding.complete".
 	CompletionKey string
