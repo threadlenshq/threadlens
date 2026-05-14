@@ -2,6 +2,7 @@ package configfile
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -39,7 +40,7 @@ func UpdateFile(path string, values map[string]string, managedOrder []string) (U
 	changed := map[string]bool{}
 	hasManagedMarker := false
 	var out []string
-	scanner := bufio.NewScanner(strings.NewReader(string(original)))
+	scanner := bufio.NewScanner(bytes.NewReader(original))
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.TrimSpace(line) == managedMarker {
@@ -105,7 +106,7 @@ func ReadValues(path string, keys []string) (map[string]string, error) {
 		wanted[key] = true
 	}
 	values := map[string]string{}
-	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
 		line := scanner.Text()
 		key, ok := parseKey(line)
