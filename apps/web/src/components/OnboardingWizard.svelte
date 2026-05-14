@@ -14,7 +14,7 @@
   const AI_PROVIDERS = [
     {
       value: 'anthropic',
-      label: 'Anthropic (Claude)',
+      label: 'Anthropic API (Claude)',
       description: 'Uses your ANTHROPIC_API_KEY. Recommended for first-time setup.',
     },
     {
@@ -26,6 +26,11 @@
       value: 'copilot',
       label: 'GitHub Copilot',
       description: 'Uses your local Copilot CLI session. No API key required.',
+    },
+    {
+      value: 'claude-cli',
+      label: 'Claude CLI',
+      description: 'Uses your local Claude CLI session. No API key required.',
     },
   ];
 
