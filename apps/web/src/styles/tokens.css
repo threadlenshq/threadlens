@@ -1,0 +1,43 @@
+:root {
+  /* Colors */
+  --color-canvas: #0f0f13;
+  --color-surface: #1a1a24;
+  --color-surface-elevated: #23233a;
+  --color-border: #2a2a3a;
+  --color-border-hover: #3a3a50;
+  
+  --color-text-primary: #e2e2e8;
+  --color-text-secondary: #8f8fa5;
+  --color-text-muted: #5e5e70;
+  
+  --color-brand: #7c6af5;
+  --color-brand-hover: #9082f7;
+  
+  --color-success: #98c379;
+  --color-warning: #e5c07b;
+  --color-danger: #e06c75;
+  
+  /* Source brands */
+  --color-reddit: #ff4500;
+  --color-bluesky: #0085ff;
+  --color-google: #34a853;
+  
+  /* Layout */
+  --rail-width: 240px;
+  --topbar-height: 56px;
+  
+  /* Spacing */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-text-primary);
+  font-family: system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 0;
+}
