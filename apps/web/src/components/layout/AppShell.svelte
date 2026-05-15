@@ -2,7 +2,7 @@
   let { rail, topbar, children, insight } = $props();
 </script>
 
-<div class="flex h-screen w-full bg-canvas text-primary overflow-hidden flex-col md:flex-row">
+<div class="app-shell">
   <aside class="app-rail">
     {@render rail()}
   </aside>
@@ -10,40 +10,45 @@
     <header class="app-topbar">
       {@render topbar()}
     </header>
-    <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+    <main class="app-content">
       {@render children()}
     </main>
   </div>
   {#if insight}
-    <aside class="app-insight hidden xl:flex xl:flex-col" aria-label="Insight pane">
+    <aside class="app-insight" aria-label="Insight pane">
       {@render insight()}
     </aside>
   {/if}
 </div>
 
 <style>
+  .app-shell {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background: var(--color-canvas);
+    color: var(--color-text-primary);
+    flex-direction: row;
+  }
+
   .app-rail {
-    width: 100%;
+    width: var(--rail-width);
     flex-shrink: 0;
-    border-bottom: 1px solid var(--color-border);
+    border-right: 1px solid var(--color-border);
     background: var(--color-surface);
     display: flex;
     flex-direction: column;
   }
 
-  @media (min-width: 768px) {
-    .app-rail {
-      width: var(--rail-width);
-      border-bottom: none;
-      border-right: 1px solid var(--color-border);
-    }
-  }
   .app-main {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
   }
+
   .app-topbar {
     height: var(--topbar-height);
     flex-shrink: 0;
@@ -52,5 +57,41 @@
     display: flex;
     align-items: center;
     padding: 0 var(--space-16);
+  }
+
+  .app-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .app-insight {
+    width: 300px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--color-border);
+    background: var(--color-canvas);
+    overflow: hidden;
+    display: none;
+  }
+
+  @media (min-width: 1280px) {
+    .app-insight {
+      display: flex;
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .app-shell {
+      flex-direction: column;
+    }
+
+    .app-rail {
+      width: 100%;
+      border-right: none;
+      border-bottom: 1px solid var(--color-border);
+    }
   }
 </style>
