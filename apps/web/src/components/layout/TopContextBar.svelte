@@ -1,12 +1,17 @@
 <script>
   let { view = '', projectName = '', children } = $props();
+
+  let showProjectCrumb = $derived(view !== 'models');
+  let normalizedView = $derived(view ? view.charAt(0).toUpperCase() + view.slice(1) : '');
 </script>
 
 <div class="topbar-inner">
   <div class="breadcrumbs">
-    <span class="project-name">{projectName || 'No Project'}</span>
-    <span class="divider">/</span>
-    <span class="view-name">{view.charAt(0).toUpperCase() + view.slice(1)}</span>
+    {#if showProjectCrumb}
+      <span class="project-name">{projectName || 'No Project'}</span>
+      <span class="divider">/</span>
+    {/if}
+    <span class="view-name">{normalizedView}</span>
   </div>
   <div class="actions">
     {@render children?.()}

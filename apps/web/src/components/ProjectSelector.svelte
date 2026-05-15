@@ -194,7 +194,7 @@
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
-    min-width: 220px;
+    min-width: 280px;
     background: #1a1a24;
     border: 1px solid #2a2a3a;
     border-radius: 8px;

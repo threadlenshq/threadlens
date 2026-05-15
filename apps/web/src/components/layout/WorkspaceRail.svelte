@@ -183,9 +183,8 @@
     width: 100%;
   }
 
-  .nav-item-wrap {
-    position: relative;
-    width: 100%;
+  .nav-item-wrap:last-child {
+    margin-top: auto;
   }
 
   .collapsed .nav-item-wrap {
