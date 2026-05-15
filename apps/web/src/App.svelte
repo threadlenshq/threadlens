@@ -923,13 +923,15 @@
             <div class="loading">Loading posts...</div>
           {:else if postsList.length === 0}
             <div class="empty-list">
-              No posts found. Try running ThreadLens or adjusting filters.
+              <div class="empty-message">No posts found. Try running ThreadLens or adjusting filters.</div>
               {#if onboardingShowsExploration && showTourCallout}
-                <TourCallout
-                  title="Scout is user-triggered"
-                  body="The Scout button above starts a new search. ThreadLens never starts external scouting automatically — you control when network-heavy work runs."
-                  onDismiss={() => { showTourCallout = false; checklistOpen = true; }}
-                />
+                <div class="tour-callout-wrapper">
+                  <TourCallout
+                    title="Scout is user-triggered"
+                    body="The Scout button above starts a new search. ThreadLens never starts external scouting automatically — you control when network-heavy work runs."
+                    onDismiss={() => { showTourCallout = false; checklistOpen = true; }}
+                  />
+                </div>
               {/if}
             </div>
           {:else}
@@ -1405,12 +1407,32 @@
     cursor: not-allowed;
   }
 
-  .loading,
+  .loading {
+    padding: 20px;
+    text-align: center;
+    color: #8f8fa5;
+    font-size: 14px;
+  }
+
   .empty-list {
     padding: 20px;
     text-align: center;
-    color: #666;
+    color: #8f8fa5;
     font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    align-items: center;
+  }
+  
+  .empty-message {
+    margin-top: 20px;
+    line-height: 1.5;
+  }
+  
+  .tour-callout-wrapper {
+    text-align: left;
+    width: 100%;
   }
 
   .detail-panel {

@@ -142,11 +142,11 @@
   {/if}
 
   {#if loading}
-    <div class="max-w-4xl mx-auto p-6">
+    <div class="loading-wrapper">
       <LoadingSkeleton type="card" count={3} />
     </div>
   {:else if reportsList.length === 0}
-    <div class="max-w-4xl mx-auto p-6 mt-12">
+    <div class="empty-state-wrapper">
       <EmptyState
         title="No Reports Yet"
         description="Select posts from your Inbox and click 'Create Report' to generate an AI analysis of pain points and product angles."
@@ -393,6 +393,18 @@
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
+  }
+
+  .loading-wrapper {
+    padding: 24px;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .empty-state-wrapper {
+    padding: 48px 24px;
+    max-width: 600px;
+    margin: 0 auto;
   }
 
   .report-meta {

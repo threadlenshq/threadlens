@@ -2,19 +2,82 @@
     let { title, description, icon = 'inbox', actionLabel = null, onaction = null } = $props();
 </script>
 
-<div class="flex flex-col items-center justify-center p-8 text-center rounded-lg border border-dashed border-subtle bg-canvas-sunken">
-    <div class="w-12 h-12 mb-4 rounded-full bg-surface flex items-center justify-center text-muted">
+<div class="empty-state">
+    <div class="icon-container">
         <!-- Minimal icon placeholder -->
-        <span class="text-xl">
+        <span class="icon">
             {#if icon === 'inbox'}📭{:else if icon === 'search'}🔍{:else if icon === 'settings'}⚙️{:else}✨{/if}
         </span>
     </div>
-    <h3 class="text-section-title font-semibold text-primary mb-1">{title}</h3>
-    <p class="text-body text-secondary max-w-sm mb-5">{description}</p>
+    <h3 class="title">{title}</h3>
+    <p class="description">{description}</p>
     
     {#if actionLabel && onaction}
-        <button class="btn btn-primary px-4 py-2 rounded-md bg-brand text-white font-medium hover:bg-brand-hover transition-colors" onclick={onaction}>
+        <button class="action-btn" onclick={onaction}>
             {actionLabel}
         </button>
     {/if}
 </div>
+
+<style>
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 32px;
+        text-align: center;
+        border-radius: 12px;
+        border: 1px dashed var(--color-border);
+        background-color: rgba(26, 26, 36, 0.3); /* subtle surface blend */
+    }
+
+    .icon-container {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 16px;
+        border-radius: 50%;
+        background-color: var(--color-surface-elevated);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-text-muted);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .icon {
+        font-size: 20px;
+    }
+
+    .title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--color-text-primary);
+        margin: 0 0 8px 0;
+    }
+
+    .description {
+        font-size: 14px;
+        color: var(--color-text-secondary);
+        max-width: 400px;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .action-btn {
+        margin-top: 20px;
+        padding: 8px 16px;
+        border-radius: 6px;
+        background-color: var(--color-brand);
+        color: white;
+        font-weight: 500;
+        font-size: 14px;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .action-btn:hover {
+        background-color: var(--color-brand-hover);
+    }
+</style>

@@ -12,20 +12,23 @@
 
 <style>
   .tour-callout {
-    border: 1px solid #3a3a5a;
-    background: #171726;
+    border: 1px solid #4a4a68;
+    background: linear-gradient(180deg, #1f1f33 0%, #171726 100%);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     color: #e2e2e8;
     border-radius: 10px;
-    padding: 14px;
+    padding: 16px;
     display: flex;
-    justify-content: space-between;
-    gap: 12px;
+    flex-direction: column;
+    gap: 16px;
     align-items: flex-start;
   }
 
   h3 {
-    margin: 0 0 4px;
-    font-size: 14px;
+    margin: 0 0 6px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
   }
 
   p {
@@ -37,11 +40,18 @@
 
   .tour-dismiss {
     border: 1px solid #4a4a68;
-    background: #23233a;
+    background: #2a2a40;
     color: #e2e2e8;
     border-radius: 6px;
-    padding: 6px 10px;
+    padding: 8px 12px;
     cursor: pointer;
     white-space: nowrap;
+    width: 100%;
+    font-weight: 500;
+    transition: background 0.2s;
+  }
+  
+  .tour-dismiss:hover {
+    background: #363652;
   }
 </style>
