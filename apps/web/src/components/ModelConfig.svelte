@@ -17,6 +17,7 @@
   let savedTaskId = null;
   let savedTimer = null;
   let initialized = false;
+  let hasLoadedCatalog = false;
 
   $: modelGroups = Object.entries(
     catalogModels.reduce((acc, model) => {
@@ -60,6 +61,7 @@
       tasks = Array.isArray(catalog.tasks) ? catalog.tasks : [];
       managedProvider = catalog.managedProvider || { available: false };
       config = currentConfig || {};
+      hasLoadedCatalog = true;
     } catch (e) {
       error = e.message;
     } finally {
@@ -122,18 +124,20 @@
   </div>
 
   {#if managedProvider !== null}
-    <Surface elevation={managedProvider.available ? 'elevated' : 'base'} padding="dense" class={managedProvider.available ? 'provider-surface provider-surface--available' : 'provider-surface provider-surface--local'}>
-      <div class="provider-row">
-        <span class="provider-label">
-          {managedProvider.available
-            ? 'Managed AI provider routing is available for this server session.'
-            : 'Managed AI is not enabled. Self-hosted provider configuration and local fallbacks remain available.'}
-        </span>
-        <span class="readiness-chip {managedProvider.available ? 'readiness-chip--ready' : 'readiness-chip--missing'}">
-          {managedProvider.available ? 'Ready' : 'Local'}
-        </span>
-      </div>
-    </Surface>
+    <div class="provider-surface-wrap {managedProvider.available ? 'provider-surface-wrap--available' : 'provider-surface-wrap--local'}">
+      <Surface elevation={managedProvider.available ? 'elevated' : 'base'} padding="dense" class="">
+        <div class="provider-row">
+          <span class="provider-label">
+            {managedProvider.available
+              ? 'Managed AI provider routing is available for this server session.'
+              : 'Managed AI is not enabled. Self-hosted provider configuration and local fallbacks remain available.'}
+          </span>
+          <span class="readiness-chip {managedProvider.available ? 'readiness-chip--ready' : 'readiness-chip--missing'}">
+            {managedProvider.available ? 'Ready' : 'Local'}
+          </span>
+        </div>
+      </Surface>
+    </div>
   {/if}
 
   {#if error}
@@ -146,7 +150,7 @@
         <div class="task-skeleton"></div>
       {/each}
     </div>
-  {:else if tasks.length === 0}
+  {:else if hasLoadedCatalog && tasks.length === 0}
     <EmptyState
       title="No Tasks Configured"
       description="No AI task definitions were found. Check your model catalog configuration."
@@ -158,7 +162,8 @@
         {@const current = config[task.id] || { modelId: task.default, source: 'default' }}
         {@const mismatch = getMismatch(task, current.modelId)}
         {@const selectedModel = getModel(current.modelId)}
-        <Surface elevation="elevated" padding="none" class="task-surface {mismatch ? 'task-surface--mismatch' : ''}">
+        <div class="task-surface-wrap {mismatch ? 'task-surface-wrap--mismatch' : ''}">
+          <Surface elevation="elevated" padding="none" class="">
           <div class="task-row">
             <div class="task-meta">
               <div class="task-label-row">
@@ -214,7 +219,8 @@
               </div>
             </div>
           </div>
-        </Surface>
+          </Surface>
+        </div>
       {/each}
     </div>
   {/if}
@@ -268,17 +274,17 @@
     flex: 1;
   }
 
-  /* Override Surface background colors via cascade for provider surfaces */
-  :global(.provider-surface--available) {
-    color: #86efac !important;
-    background: #0f2417 !important;
-    border-color: #1d4a2e !important;
+  /* Colorize Surface wrapper for provider availability state */
+  .provider-surface-wrap--available :global(div) {
+    color: #86efac;
+    background: #0f2417;
+    border-color: #1d4a2e;
   }
 
-  :global(.provider-surface--local) {
-    color: #c4b5fd !important;
-    background: #181528 !important;
-    border-color: #2d2a4a !important;
+  .provider-surface-wrap--local :global(div) {
+    color: #c4b5fd;
+    background: #181528;
+    border-color: #2d2a4a;
   }
 
   .readiness-chip {
@@ -334,13 +340,14 @@
     .task-skeleton { animation: none; opacity: 0.5; }
   }
 
-  /* Override Surface styling for task rows */
-  :global(.task-surface) {
+  /* Wrap Surface for task rows to allow overflow:hidden and mismatch border */
+  .task-surface-wrap {
     overflow: hidden;
+    border-radius: 8px;
   }
 
-  :global(.task-surface--mismatch) {
-    border-left: 3px solid #665726 !important;
+  .task-surface-wrap--mismatch :global(div.rounded-lg) {
+    border-left: 3px solid #665726;
   }
 
   .task-row {
