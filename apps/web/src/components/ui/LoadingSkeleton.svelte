@@ -1,8 +1,9 @@
 <script>
     let { type = 'row', count = 1, class: className = '' } = $props();
 
-    // Clamp to a safe integer [1, 20] to prevent Array(NaN/Infinity/negative) throws
-    let safeCount = $derived(Math.min(Math.max(Math.trunc(Number(count) || 1), 1), 20));
+    // Clamp to a safe integer [1, 20]. parseFloat avoids Symbol/object coercion throws
+    // that Number() can raise; it returns NaN for non-numeric types, which || 1 catches.
+    let safeCount = $derived(Math.min(Math.max(Math.trunc(parseFloat(count) || 1), 1), 20));
 </script>
 
 <div class="animate-pulse space-y-4 {className}">
