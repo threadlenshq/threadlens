@@ -175,6 +175,7 @@
     flex-direction: column;
     gap: 2px;
     padding: 0 var(--space-8);
+    flex: 1;
   }
 
   .collapsed .rail-nav {
