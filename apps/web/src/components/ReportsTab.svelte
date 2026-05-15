@@ -2,6 +2,9 @@
   import { onDestroy } from 'svelte';
   import { reports as reportsApi } from '../lib/api.js';
   import { formatDate } from '../lib/format.js';
+  import Surface from './ui/Surface.svelte';
+  import EmptyState from './ui/EmptyState.svelte';
+  import LoadingSkeleton from './ui/LoadingSkeleton.svelte';
 
   let { projectId, onViewReport } = $props();
 
@@ -139,11 +142,16 @@
   {/if}
 
   {#if loading}
-    <div class="loading">Loading reports...</div>
+    <div class="max-w-4xl mx-auto p-6">
+      <LoadingSkeleton type="card" count={3} />
+    </div>
   {:else if reportsList.length === 0}
-    <div class="empty-state">
-      <p class="empty-title">No reports yet</p>
-      <p class="empty-desc">Run ThreadLens on some posts first, then run an analysis to discover pain point patterns and product angles.</p>
+    <div class="max-w-4xl mx-auto p-6 mt-12">
+      <EmptyState
+        title="No Reports Yet"
+        description="Select posts from your Inbox and click 'Create Report' to generate an AI analysis of pain points and product angles."
+        icon="✨"
+      />
     </div>
   {:else}
     <div class="reports-list">
@@ -312,28 +320,6 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
-  }
-
-  .loading {
-    padding: 40px;
-    text-align: center;
-    color: #666;
-  }
-
-  .empty-state {
-    padding: 60px 20px;
-    text-align: center;
-  }
-
-  .empty-title {
-    font-size: 18px;
-    color: #e2e2e8;
-    margin-bottom: 8px;
-  }
-
-  .empty-desc {
-    font-size: 14px;
-    color: #666;
   }
 
   .reports-list {
