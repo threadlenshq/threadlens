@@ -1,9 +1,12 @@
 <script>
-    let { type = 'row', count = 1, class: className = '' } = $props();
+    let { type = 'row', count = 1, class: className = '', ...restProps } = $props();
+
+    // Clamp count to a safe integer range to prevent runaway renders
+    let safeCount = $derived(Math.max(1, Math.min(Math.floor(Number(count) || 1), 20)));
 </script>
 
-<div class="animate-pulse space-y-4 {className}">
-    {#each Array(count) as _}
+<div class="animate-pulse space-y-4 {className}" {...restProps}>
+    {#each Array(safeCount) as _}
         {#if type === 'row'}
             <div class="flex items-center space-x-4 p-4 border border-base rounded-md bg-surface">
                 <div class="h-10 w-10 bg-muted/20 rounded-full"></div>
@@ -20,6 +23,9 @@
                 <div class="h-4 bg-muted/20 rounded w-4/6"></div>
             </div>
         {:else if type === 'text'}
+            <div class="h-4 bg-muted/20 rounded w-full"></div>
+        {:else}
+            <!-- Fallback for unknown type values: render a generic single-line bar -->
             <div class="h-4 bg-muted/20 rounded w-full"></div>
         {/if}
     {/each}
