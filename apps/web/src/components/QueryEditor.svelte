@@ -1,6 +1,7 @@
 <script>
   import { onDestroy } from 'svelte';
   import { queries as queriesApi } from '../lib/api.js';
+  import Surface from './ui/Surface.svelte';
 
   let { projectId, onQueriesChanged } = $props();
 
@@ -64,26 +65,22 @@
   let angleCount = $derived(uniqueAngles.size);
   let showCountWarning = $derived(enabledCount < MIN_RECOMMENDED_QUERIES);
   let showAngleTip = $derived(!showCountWarning && angleCount < MIN_RECOMMENDED_ANGLES);
-  let groupedQueries = $derived((() => {
-    const groups = new Map();
-    for (const query of visibleQueries) {
-      const keyword = extractKeyword(query) || '(empty)';
-      const key = keyword.toLowerCase();
-      if (!groups.has(key)) {
-        groups.set(key, { keyword, items: [] });
-      }
-      groups.get(key).items.push(query);
-    }
-    return [...groups.values()]
-      .map(group => ({
-        ...group,
-        items: [...group.items].sort((a, b) =>
-          `${a.platform}:${a.angle || ''}:${a.id}`.localeCompare(`${b.platform}:${b.angle || ''}:${b.id}`)
-        )
-      }))
-      .sort((a, b) => a.keyword.localeCompare(b.keyword));
-  })());
   let loading = $state(false);
+  let redditQueries = $derived(
+    visibleQueries
+      .filter(q => q.platform === 'reddit')
+      .sort((a, b) => `${extractKeyword(a)}:${a.angle || ''}:${a.id}`.localeCompare(`${extractKeyword(b)}:${b.angle || ''}:${b.id}`))
+  );
+  let blueskyQueries = $derived(
+    visibleQueries
+      .filter(q => q.platform === 'bluesky')
+      .sort((a, b) => `${extractKeyword(a)}:${a.angle || ''}:${a.id}`.localeCompare(`${extractKeyword(b)}:${b.angle || ''}:${b.id}`))
+  );
+  let googleQueries = $derived(
+    visibleQueries
+      .filter(q => q.platform === 'google')
+      .sort((a, b) => `${a.query_url}:${a.angle || ''}:${a.id}`.localeCompare(`${b.query_url}:${b.angle || ''}:${b.id}`))
+  );
   let error = $state('');
 
   // Add form state
@@ -530,58 +527,61 @@
   {:else if visibleQueries.length === 0}
     <div class="empty-msg">{emptyMessage}</div>
   {:else}
-    <div class="query-list">
-      {#each groupedQueries as group (group.keyword)}
-        <div class="query-group">
-          <div class="query-group-header">
-            <span class="keyword-label">{group.keyword}</span>
-            <span class="keyword-count">{group.items.length}</span>
-          </div>
-          {#each group.items as q (q.id)}
-            <div class="query-row">
-              <div class="query-row-primary">
-                <div class="query-row-main">
-                  <span class="platform-badge" class:reddit={q.platform === 'reddit'} class:bluesky={q.platform === 'bluesky'} class:google={q.platform === 'google'}>
-                    {PLATFORM_LABELS[q.platform] || q.platform}
-                  </span>
-                  <span class="query-url" title={q.query_url}>{truncate(q.query_url)}</span>
-                  <a class="external-link" href={webUrl(q)} target="_blank" rel="noopener noreferrer" title="Open in browser">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                      <polyline points="15 3 21 3 21 9"/>
-                      <line x1="10" y1="14" x2="21" y2="3"/>
-                    </svg>
-                  </a>
-                  {#if q.angle}
-                    <span class="angle-tag">{q.angle}</span>
-                  {/if}
-                </div>
-
-                <div class="query-row-actions">
-                  <label class="toggle" title={q.enabled ? 'Disable' : 'Enable'}>
-                    <input type="checkbox" checked={q.enabled} onchange={() => toggleEnabled(q)} />
-                    <span class="toggle-slider"></span>
-                  </label>
-                  <button class="delete-btn" onclick={() => deleteQuery(q)} title="Delete query">&#x2715;</button>
-                </div>
+    <div class="platform-sections">
+      {#each [{ key: 'reddit', label: 'Reddit', items: redditQueries }, { key: 'bluesky', label: 'Bluesky', items: blueskyQueries }, { key: 'google', label: 'Google Search', items: googleQueries }] as platform (platform.key)}
+        {#if platform.items.length > 0}
+          <Surface elevation="base" padding="none">
+            <div class="platform-section">
+              <div class="platform-section-header">
+                <span class="platform-section-title">{platform.label}</span>
+                <span class="keyword-count">{platform.items.length}</span>
               </div>
+              <div class="query-list">
+                {#each platform.items as q (q.id)}
+                  <div class="query-row">
+                    <div class="query-row-primary">
+                      <div class="query-row-main">
+                        <span class="query-url" title={q.query_url}>{truncate(q.query_url)}</span>
+                        <a class="external-link" href={webUrl(q)} target="_blank" rel="noopener noreferrer" title="Open in browser">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                            <polyline points="15 3 21 3 21 9"/>
+                            <line x1="10" y1="14" x2="21" y2="3"/>
+                          </svg>
+                        </a>
+                        {#if q.angle}
+                          <span class="angle-tag">{q.angle}</span>
+                        {/if}
+                      </div>
 
-              <div class="query-row-secondary" title={q.quality?.summary || 'No quality signal yet'}>
-                <span class="quality-score">{formatQualityScore(q)}</span>
-                <span
-                  class="quality-badge"
-                  class:strong={qualityTone(q) === 'strong'}
-                  class:mixed={qualityTone(q) === 'mixed'}
-                  class:weak={qualityTone(q) === 'weak'}
-                  class:unknown={qualityTone(q) === 'unknown'}
-                >
-                  {q.quality?.label || 'No signal yet'}
-                </span>
-                <span class="quality-summary">{q.quality?.summary || 'No completed social or Google reports yet.'}</span>
+                      <div class="query-row-actions">
+                        <label class="toggle" title={q.enabled ? 'Disable' : 'Enable'}>
+                          <input type="checkbox" checked={q.enabled} onchange={() => toggleEnabled(q)} />
+                          <span class="toggle-slider"></span>
+                        </label>
+                        <button class="delete-btn" onclick={() => deleteQuery(q)} title="Delete query">&#x2715;</button>
+                      </div>
+                    </div>
+
+                    <div class="query-row-secondary" title={q.quality?.summary || 'No quality signal yet'}>
+                      <span class="quality-score">{formatQualityScore(q)}</span>
+                      <span
+                        class="quality-badge"
+                        class:strong={qualityTone(q) === 'strong'}
+                        class:mixed={qualityTone(q) === 'mixed'}
+                        class:weak={qualityTone(q) === 'weak'}
+                        class:unknown={qualityTone(q) === 'unknown'}
+                      >
+                        {q.quality?.label || 'No signal yet'}
+                      </span>
+                      <span class="quality-summary">{q.quality?.summary || 'No completed social or Google reports yet.'}</span>
+                    </div>
+                  </div>
+                {/each}
               </div>
             </div>
-          {/each}
-        </div>
+          </Surface>
+        {/if}
       {/each}
     </div>
   {/if}
@@ -896,30 +896,37 @@
     padding: 20px 0;
   }
 
-  .query-list {
+  .platform-sections {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 14px;
   }
 
-  .query-group {
+  .platform-section {
     display: flex;
     flex-direction: column;
-    gap: 6px;
   }
 
-  .query-group-header {
+  .platform-section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 2px;
+    padding: 12px 16px 8px;
+    border-bottom: 1px solid #2a2a3a;
   }
 
-  .keyword-label {
+  .platform-section-title {
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
     color: #c9c9dc;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .query-list {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 0;
   }
 
   .keyword-count {
@@ -938,10 +945,12 @@
     grid-template-columns: minmax(0, 1fr) auto;
     column-gap: 12px;
     row-gap: 6px;
-    padding: 12px 14px;
-    background: #1a1a24;
-    border: 1px solid #2a2a3a;
-    border-radius: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #1e1e2c;
+  }
+
+  .query-row:last-child {
+    border-bottom: none;
   }
 
   .query-row-primary {
