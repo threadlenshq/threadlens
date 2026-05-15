@@ -1,8 +1,8 @@
 <script>
-  let { rail, topbar, children } = $props();
+  let { rail, topbar, children, insight } = $props();
 </script>
 
-<div class="app-shell">
+<div class="flex h-screen w-full bg-canvas text-primary overflow-hidden flex-col md:flex-row">
   <aside class="app-rail">
     {@render rail()}
   </aside>
@@ -10,20 +10,17 @@
     <header class="app-topbar">
       {@render topbar()}
     </header>
-    <main class="app-content">
+    <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
       {@render children()}
     </main>
+  </div>
+  <!-- Insight Pane (Desktop Only) -->
+  <div class="hidden xl:block">
+    {@render insight?.()}
   </div>
 </div>
 
 <style>
-  .app-shell {
-    display: flex;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
-    background: var(--color-canvas);
-  }
   .app-rail {
     width: var(--rail-width);
     flex-shrink: 0;
@@ -46,11 +43,5 @@
     display: flex;
     align-items: center;
     padding: 0 var(--space-16);
-  }
-  .app-content {
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
   }
 </style>
