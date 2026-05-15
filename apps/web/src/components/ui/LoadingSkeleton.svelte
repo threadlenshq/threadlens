@@ -1,9 +1,12 @@
 <script>
     let { type = 'row', count = 1, class: className = '' } = $props();
+
+    // Clamp to a safe integer [1, 20] to prevent Array(NaN/Infinity/negative) throws
+    let safeCount = $derived(Math.min(Math.max(Math.trunc(Number(count) || 1), 1), 20));
 </script>
 
 <div class="animate-pulse space-y-4 {className}">
-    {#each Array(count) as _}
+    {#each Array(safeCount) as _}
         {#if type === 'row'}
             <div class="flex items-center space-x-4 p-4 border border-base rounded-md bg-surface">
                 <div class="h-10 w-10 bg-muted/20 rounded-full"></div>
