@@ -3,7 +3,7 @@
   import ProjectSettings from './components/ProjectSettings.svelte';
   import ScoutRunButton from './components/ScoutRunButton.svelte';
   import ActiveRunBanner from './components/ActiveRunBanner.svelte';
-  import PostCard from './components/PostCard.svelte';
+  import FindingCard from './components/inbox/FindingCard.svelte';
   import DetailPanel from './components/DetailPanel.svelte';
   import { projects as projectsApi, posts as postsApi, scout as scoutApi, queries as queriesApi, runtime as runtimeApi, onboarding as onboardingApi } from './lib/api.js';
   import { readUrlState, writeUrlState, clearUrlState } from './lib/url.js';
@@ -416,6 +416,10 @@
     writeUrlState({ reportSource: source, report: null, greport: null });
   }
 
+  function projectSettingsTabForView(nextView) {
+    return nextView === 'sources' ? 'queries' : 'general';
+  }
+
   function navigateTo(nextView) {
     view = nextView;
     if (nextView === 'posts') {
@@ -426,6 +430,10 @@
       activeReportId = null;
       activeGoogleReportId = null;
       writeUrlState({ view: 'reports', report: null, greport: null }, 'push');
+      return;
+    }
+    if (nextView === 'settings' || nextView === 'sources') {
+      writeUrlState({ view: nextView, tab: projectSettingsTabForView(nextView) }, 'push');
       return;
     }
     writeUrlState({ view: nextView }, 'push');
@@ -904,7 +912,7 @@
             </div>
           {:else}
             {#each postsList as post (post.id)}
-              <PostCard
+              <FindingCard
                 {post}
                 selected={!!(selectedPost && selectedPost.id === post.id)}
                 {projectMode}
@@ -953,16 +961,18 @@
 
     {:else if view === 'settings' || view === 'sources'}
       <div class="full-width-view">
-        <ProjectSettings
-          projectId={selectedProjectId}
-          project={currentProject}
-          initialTab={readUrlState().tab}
-          onProjectUpdated={handleProjectUpdated}
-          onQueriesChanged={handleQueriesChanged}
-          onProjectDeleted={handleProjectDeleted}
-          onProjectCloned={handleProjectCloned}
-          onTabChange={(tab) => writeUrlState({ tab })}
-        />
+        {#key `${selectedProjectId}:${view}`}
+          <ProjectSettings
+            projectId={selectedProjectId}
+            project={currentProject}
+            initialTab={projectSettingsTabForView(view)}
+            onProjectUpdated={handleProjectUpdated}
+            onQueriesChanged={handleQueriesChanged}
+            onProjectDeleted={handleProjectDeleted}
+            onProjectCloned={handleProjectCloned}
+            onTabChange={(tab) => writeUrlState({ tab })}
+          />
+        {/key}
       </div>
 
     {:else if view === 'reports'}
