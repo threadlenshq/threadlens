@@ -286,6 +286,8 @@
     }, {})
   ));
 
+  let railCollapsed = $state(false);
+
   // --- Derived ---
   let currentProject = $derived(projectList.find(p => p.id === selectedProjectId) || null);
   let showInsights = $derived(currentProject && currentProject.mode === 'research');
@@ -744,12 +746,14 @@
     />
   {/if}
 
-  <AppShell>
+  <AppShell collapsed={railCollapsed}>
     {#snippet rail()}
       <WorkspaceRail
         projects={projectList}
         selectedProjectId={selectedProjectId}
         {view}
+        collapsed={railCollapsed}
+        onToggleCollapse={() => { railCollapsed = !railCollapsed; }}
         onSelectProject={handleProjectSelect}
         onCreateProject={handleProjectCreate}
         onNavigate={(nextView) => navigateTo(nextView)}
