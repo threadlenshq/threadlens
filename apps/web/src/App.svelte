@@ -286,7 +286,25 @@
     }, {})
   ));
 
-  let railCollapsed = $state(false);
+  const RAIL_COLLAPSED_STORAGE_KEY = 'scout:rail-collapsed';
+
+  function loadRailCollapsedPreference() {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(RAIL_COLLAPSED_STORAGE_KEY) === '1';
+  }
+
+  function setRailCollapsedPreference(nextCollapsed) {
+    railCollapsed = nextCollapsed;
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(RAIL_COLLAPSED_STORAGE_KEY, nextCollapsed ? '1' : '0');
+    }
+  }
+
+  function toggleRailCollapsed() {
+    setRailCollapsedPreference(!railCollapsed);
+  }
+
+  let railCollapsed = $state(loadRailCollapsedPreference());
 
   // --- Derived ---
   let currentProject = $derived(projectList.find(p => p.id === selectedProjectId) || null);
@@ -753,7 +771,7 @@
         selectedProjectId={selectedProjectId}
         {view}
         collapsed={railCollapsed}
-        onToggleCollapse={() => { railCollapsed = !railCollapsed; }}
+        onToggleCollapse={toggleRailCollapsed}
         onSelectProject={handleProjectSelect}
         onCreateProject={handleProjectCreate}
         onNavigate={(nextView) => navigateTo(nextView)}
