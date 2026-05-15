@@ -2,7 +2,7 @@
 
 const DEFAULTS = {
   project: null,
-  view: 'posts', // posts | settings | reports | models
+  view: 'posts', // posts | settings | sources | reports | models
   reportSource: 'social',
   platform: 'all',
   status: 'new',
