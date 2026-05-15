@@ -1400,7 +1400,21 @@
   .full-width-view {
     flex: 1;
     overflow-y: auto;
-    padding: 24px;
+    padding: var(--space-24);
+    background: var(--color-canvas);
+  }
+  
+  .full-width-view :global(.card),
+  .full-width-view :global(section),
+  .full-width-view :global(.panel) {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg, 8px);
+    margin-bottom: var(--space-16);
+  }
+
+  .detail-panel {
+    background: var(--color-canvas);
   }
 
   .report-source-tabs {
