@@ -14,20 +14,29 @@
       {@render children()}
     </main>
   </div>
-  <!-- Insight Pane (Desktop Only) -->
-  <div class="hidden xl:block">
-    {@render insight?.()}
-  </div>
+  {#if insight}
+    <aside class="app-insight hidden xl:flex xl:flex-col" aria-label="Insight pane">
+      {@render insight()}
+    </aside>
+  {/if}
 </div>
 
 <style>
   .app-rail {
-    width: var(--rail-width);
+    width: 100%;
     flex-shrink: 0;
-    border-right: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
     background: var(--color-surface);
     display: flex;
     flex-direction: column;
+  }
+
+  @media (min-width: 768px) {
+    .app-rail {
+      width: var(--rail-width);
+      border-bottom: none;
+      border-right: 1px solid var(--color-border);
+    }
   }
   .app-main {
     flex: 1;
