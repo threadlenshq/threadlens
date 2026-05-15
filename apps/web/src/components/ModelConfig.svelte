@@ -2,6 +2,8 @@
   import { onMount, onDestroy } from 'svelte';
   import { isOverkill, isUnderkill } from '@scout/shared/catalog';
   import { models as modelsApi } from '../lib/api.js';
+  import Surface from './ui/Surface.svelte';
+  import EmptyState from './ui/EmptyState.svelte';
 
   const KNOWN_TIERS = new Set(['low', 'medium', 'high', 'reasoning']);
 
@@ -114,17 +116,24 @@
 </script>
 
 <div class="model-config">
-  <div class="section-header">
-    <h3 class="section-title">Models</h3>
-    <span class="section-sub">Choose a model per task. Settings are global.</span>
+  <div class="dashboard-header">
+    <h2 class="dashboard-title">AI Models &amp; Runtimes</h2>
+    <p class="dashboard-sub">Configure the inference engines used for scoring and report generation.</p>
   </div>
 
   {#if managedProvider !== null}
-    {#if managedProvider.available}
-      <div class="managed-provider available">Managed AI provider routing is available for this server session.</div>
-    {:else}
-      <div class="managed-provider local">Managed AI is not enabled. Self-hosted provider configuration and local fallbacks remain available.</div>
-    {/if}
+    <Surface elevation={managedProvider.available ? 'elevated' : 'base'} padding="dense" class={managedProvider.available ? 'provider-surface provider-surface--available' : 'provider-surface provider-surface--local'}>
+      <div class="provider-row">
+        <span class="provider-label">
+          {managedProvider.available
+            ? 'Managed AI provider routing is available for this server session.'
+            : 'Managed AI is not enabled. Self-hosted provider configuration and local fallbacks remain available.'}
+        </span>
+        <span class="readiness-chip {managedProvider.available ? 'readiness-chip--ready' : 'readiness-chip--missing'}">
+          {managedProvider.available ? 'Ready' : 'Local'}
+        </span>
+      </div>
+    </Surface>
   {/if}
 
   {#if error}
@@ -132,63 +141,80 @@
   {/if}
 
   {#if loading}
-    <div class="loading">Loading models...</div>
+    <div class="task-list">
+      {#each Array(3) as _}
+        <div class="task-skeleton"></div>
+      {/each}
+    </div>
+  {:else if tasks.length === 0}
+    <EmptyState
+      title="No Tasks Configured"
+      description="No AI task definitions were found. Check your model catalog configuration."
+      icon="settings"
+    />
   {:else}
     <div class="task-list">
       {#each tasks as task (task.id)}
         {@const current = config[task.id] || { modelId: task.default, source: 'default' }}
         {@const mismatch = getMismatch(task, current.modelId)}
         {@const selectedModel = getModel(current.modelId)}
-        <div class="task-row">
-          <div class="task-meta">
-            <div class="task-label">{task.label}</div>
-            <div class="task-desc">{task.description}</div>
-            <div class="task-stats">{task.complexity} complexity · {task.volume}</div>
-          </div>
+        <Surface elevation="elevated" padding="none" class="task-surface {mismatch ? 'task-surface--mismatch' : ''}">
+          <div class="task-row">
+            <div class="task-meta">
+              <div class="task-label-row">
+                <span class="task-label">{task.label}</span>
+                <span class="readiness-chip {mismatch ? 'readiness-chip--warn' : 'readiness-chip--ready'}">
+                  {mismatch ? (mismatch === 'overkill' ? 'Overkill' : 'Underkill') : 'Matched'}
+                </span>
+              </div>
+              <div class="task-desc">{task.description}</div>
+              <div class="task-stats">{task.complexity} complexity · {task.volume}</div>
+            </div>
 
-          <div class="task-controls">
-            <select
-              class="model-select"
-              data-task-id={task.id}
-              value={current.modelId}
-              disabled={savingTaskId === task.id}
-              on:change={(e) => setTaskModel(task, e.target.value)}
-            >
-              {#each modelGroups as [provider, models]}
-                <optgroup label={provider}>
-                  {#each models as model (model.id)}
-                    <option value={model.id}>{model.label} — {model.cost}</option>
-                  {/each}
-                </optgroup>
-              {/each}
-            </select>
+            <div class="task-controls">
+              <select
+                class="model-select"
+                data-task-id={task.id}
+                value={current.modelId}
+                disabled={savingTaskId === task.id}
+                on:change={(e) => setTaskModel(task, e.target.value)}
+              >
+                {#each modelGroups as [provider, models]}
+                  <optgroup label={provider}>
+                    {#each models as model (model.id)}
+                      <option value={model.id}>{model.label} — {model.cost}</option>
+                    {/each}
+                  </optgroup>
+                {/each}
+              </select>
 
-            <div class="task-feedback">
-              {#if mismatch === 'overkill'}
-                <span class="hint-badge warn">Overkill — task is {task.complexity}, model is {selectedModel?.tier}</span>
-              {:else if mismatch === 'underkill'}
-                <span class="hint-badge warn">Underkill — model may be too weak for this task</span>
-              {/if}
+              <div class="task-feedback">
+                {#if mismatch === 'overkill'}
+                  <span class="hint-badge warn">Overkill — task is {task.complexity}, model is {selectedModel?.tier}</span>
+                {:else if mismatch === 'underkill'}
+                  <span class="hint-badge warn">Underkill — model may be too weak for this task</span>
+                {/if}
 
-              {#if current.source === 'user'}
-                <button
-                  type="button"
-                  class="reset-link"
-                  disabled={savingTaskId === task.id}
-                  on:click={() => resetTaskModel(task)}
-                >
-                  Reset to default
-                </button>
-              {/if}
+                {#if current.source === 'user'}
+                  <button
+                    type="button"
+                    class="reset-link"
+                    disabled={savingTaskId === task.id}
+                    on:click={() => resetTaskModel(task)}
+                  >
+                    Reset to default
+                  </button>
+                {/if}
 
-              {#if savingTaskId === task.id}
-                <span class="save-state">Saving...</span>
-              {:else if savedTaskId === task.id}
-                <span class="save-state saved">Saved</span>
-              {/if}
+                {#if savingTaskId === task.id}
+                  <span class="save-state">Saving...</span>
+                {:else if savedTaskId === task.id}
+                  <span class="save-state saved">Saved</span>
+                {/if}
+              </div>
             </div>
           </div>
-        </div>
+        </Surface>
       {/each}
     </div>
   {/if}
@@ -199,23 +225,26 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px;
   }
 
-  .section-header {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
+  .dashboard-header {
+    margin-bottom: 8px;
   }
 
-  .section-title {
-    font-size: 15px;
-    font-weight: 600;
+  .dashboard-title {
+    font-size: 20px;
+    font-weight: 700;
     color: #e2e2e8;
+    margin: 0 0 6px;
   }
 
-  .section-sub {
-    font-size: 12px;
-    color: #666;
+  .dashboard-sub {
+    font-size: 13px;
+    color: #888;
+    margin: 0;
   }
 
   .error-msg {
@@ -227,40 +256,95 @@
     font-size: 13px;
   }
 
-  .managed-provider {
-    padding: 10px 12px;
-    border-radius: 6px;
-    border: 1px solid #2d2d36;
+  .provider-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .provider-label {
     font-size: 13px;
+    flex: 1;
   }
 
-  .managed-provider.available {
+  /* Override Surface background colors via cascade for provider surfaces */
+  :global(.provider-surface--available) {
+    color: #86efac !important;
+    background: #0f2417 !important;
+    border-color: #1d4a2e !important;
+  }
+
+  :global(.provider-surface--local) {
+    color: #c4b5fd !important;
+    background: #181528 !important;
+    border-color: #2d2a4a !important;
+  }
+
+  .readiness-chip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 3px 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .readiness-chip--ready {
+    background: #0f2a1a;
     color: #86efac;
-    background: #0f2417;
+    border: 1px solid #1d4a2e;
   }
 
-  .managed-provider.local {
-    color: #c4b5fd;
-    background: #181528;
+  .readiness-chip--missing {
+    background: #2a1f0a;
+    color: #fbbf24;
+    border: 1px solid #4a3a0a;
   }
 
-  .loading {
-    color: #666;
-    font-size: 14px;
-    padding: 10px 0;
+  .readiness-chip--warn {
+    background: #2f2817;
+    color: #eecb6a;
+    border: 1px solid #665726;
   }
 
   .task-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
+  }
+
+  .task-skeleton {
+    height: 80px;
+    border-radius: 8px;
+    background: linear-gradient(90deg, #1a1a24 25%, #1e1e2a 50%, #1a1a24 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+    border: 1px solid #2a2a3a;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .task-skeleton { animation: none; opacity: 0.5; }
+  }
+
+  /* Override Surface styling for task rows */
+  :global(.task-surface) {
+    overflow: hidden;
+  }
+
+  :global(.task-surface--mismatch) {
+    border-left: 3px solid #665726 !important;
   }
 
   .task-row {
-    border: 1px solid #2a2a3a;
-    border-radius: 8px;
-    background: #151520;
-    padding: 12px 14px;
+    padding: 14px 16px;
     display: flex;
     gap: 14px;
     align-items: flex-start;
@@ -270,6 +354,13 @@
   .task-meta {
     flex: 1;
     min-width: 0;
+  }
+
+  .task-label-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 
   .task-label {
