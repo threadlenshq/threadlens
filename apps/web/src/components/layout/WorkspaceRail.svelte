@@ -188,6 +188,10 @@
     margin-top: auto;
   }
 
+  .nav-item-wrap {
+    position: relative;
+  }
+
   .collapsed .nav-item-wrap {
     display: flex;
     justify-content: center;
