@@ -1,8 +1,8 @@
 <script>
-  let { rail, topbar, children, insight } = $props();
+  let { rail, topbar, children, insight, collapsed = false } = $props();
 </script>
 
-<div class="app-shell">
+<div class="app-shell" class:collapsed>
   <aside class="app-rail">
     {@render rail()}
   </aside>
@@ -30,15 +30,24 @@
     background: var(--color-canvas);
     color: var(--color-text-primary);
     flex-direction: row;
+    --current-rail-width: var(--rail-width);
+  }
+
+  .app-shell.collapsed {
+    --current-rail-width: 64px;
   }
 
   .app-rail {
-    width: var(--rail-width);
+    width: var(--current-rail-width);
     flex-shrink: 0;
     border-right: 1px solid var(--color-border);
     background: var(--color-surface);
     display: flex;
     flex-direction: column;
+    transition: width 0.2s ease;
+    overflow: visible;
+    position: relative;
+    z-index: 10;
   }
 
   .app-main {
