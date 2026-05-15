@@ -1394,6 +1394,7 @@
   .detail-panel {
     flex: 1;
     overflow-y: auto;
+    background: var(--color-canvas);
   }
 
   /* Full-width views */
@@ -1403,18 +1404,15 @@
     padding: var(--space-24);
     background: var(--color-canvas);
   }
-  
+
+  /* Target explicit surface classes only — avoids styling arbitrary nested <section>
+     elements inside child components. Add .card or .panel to new surfaces as needed. */
   .full-width-view :global(.card),
-  .full-width-view :global(section),
   .full-width-view :global(.panel) {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg, 8px);
     margin-bottom: var(--space-16);
-  }
-
-  .detail-panel {
-    background: var(--color-canvas);
   }
 
   .report-source-tabs {
