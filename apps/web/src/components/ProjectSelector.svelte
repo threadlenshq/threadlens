@@ -1,5 +1,5 @@
 <script>
-  let { projects = [], selectedId = null, onSelect, onCreate } = $props();
+  let { projects = [], selectedId = null, onSelect, onCreate, collapsed = false } = $props();
 
   let open = $state(false);
   let showForm = $state(false);
@@ -52,19 +52,29 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="project-selector" data-testid="project-selector">
-  <button class="selector-btn" onclick={toggle}>
-    {#if selectedProject}
-      <span class="project-name">{selectedProject.name}</span>
-      <span class={modeBadgeClass(selectedProject.mode)}>{selectedProject.mode}</span>
+<div class="project-selector" data-testid="project-selector" class:collapsed>
+  <button class="selector-btn" onclick={toggle} title={collapsed && selectedProject ? selectedProject.name : "Select Project"}>
+    {#if collapsed}
+      <span class="project-initial">
+        {#if selectedProject}
+          {selectedProject.name.charAt(0).toUpperCase()}
+        {:else}
+          +
+        {/if}
+      </span>
     {:else}
-      <span class="placeholder">Select Project</span>
+      {#if selectedProject}
+        <span class="project-name">{selectedProject.name}</span>
+        <span class={modeBadgeClass(selectedProject.mode)}>{selectedProject.mode}</span>
+      {:else}
+        <span class="placeholder">Select Project</span>
+      {/if}
+      <span class="chevron" class:rotated={open}>&#8964;</span>
     {/if}
-    <span class="chevron" class:rotated={open}>&#8964;</span>
   </button>
 
   {#if open}
-    <div class="dropdown">
+    <div class="dropdown dropdown-content">
       {#each projects as project (project.id)}
         <button
           class="project-item"
@@ -120,6 +130,7 @@
   .selector-btn {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     background: #1a1a24;
     border: 1px solid #2a2a3a;
@@ -131,6 +142,20 @@
     min-width: 180px;
     max-width: 250px;
     transition: border-color 0.15s;
+  }
+
+  .project-selector.collapsed .selector-btn {
+    min-width: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 6px;
+  }
+
+  .project-initial {
+    font-weight: 600;
+    font-size: 14px;
+    color: #e2e2e8;
   }
 
   .selector-btn:hover {
@@ -174,8 +199,14 @@
     border: 1px solid #2a2a3a;
     border-radius: 8px;
     padding: 4px;
-    z-index: 100;
+    z-index: 200;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Collapsed: fly out to the right of the 64px rail */
+  .project-selector.collapsed .dropdown {
+    top: 0;
+    left: calc(100% + 10px);
   }
 
   .project-item {
