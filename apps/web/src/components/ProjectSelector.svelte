@@ -1,4 +1,6 @@
 <script>
+  import { fly } from 'svelte/transition';
+
   let { projects = [], selectedId = null, onSelect, onCreate, collapsed = false } = $props();
 
   let open = $state(false);
@@ -69,12 +71,17 @@
       {:else}
         <span class="placeholder">Select Project</span>
       {/if}
-      <span class="chevron" class:rotated={open}>&#8964;</span>
+      <span class="chevron" class:rotated={open}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </span>
     {/if}
   </button>
 
   {#if open}
-    <div class="dropdown dropdown-content">
+    <div 
+      class="dropdown dropdown-content"
+      transition:fly={{ x: collapsed ? -10 : 0, y: collapsed ? 0 : -10, duration: 200 }}
+    >
       {#each projects as project (project.id)}
         <button
           class="project-item"
@@ -125,6 +132,11 @@
 <style>
   .project-selector {
     position: relative;
+    width: 100%;
+  }
+
+  .project-selector.collapsed {
+    width: auto;
   }
 
   .selector-btn {
@@ -140,7 +152,7 @@
     cursor: pointer;
     font-size: 14px;
     min-width: 180px;
-    max-width: 250px;
+    width: 100%;
     transition: border-color 0.15s;
   }
 
@@ -180,10 +192,11 @@
   }
 
   .chevron {
-    font-size: 12px;
     color: #888;
     transition: transform 0.15s;
-    display: inline-block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .chevron.rotated {
@@ -194,7 +207,7 @@
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
-    min-width: 280px;
+    width: 100%;
     background: #1a1a24;
     border: 1px solid #2a2a3a;
     border-radius: 8px;
@@ -207,6 +220,7 @@
   .project-selector.collapsed .dropdown {
     top: 0;
     left: calc(100% + 10px);
+    width: 240px;
   }
 
   .project-item {
