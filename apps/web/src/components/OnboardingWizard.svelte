@@ -15,7 +15,7 @@
     {
       value: 'anthropic',
       label: 'Anthropic API (Claude)',
-      description: 'Uses your ANTHROPIC_API_KEY. Recommended for first-time setup.',
+      description: 'Uses your ANTHROPIC_API_KEY. Recommended fastest path for Docker self-hosting.',
     },
     {
       value: 'gemini',
@@ -25,12 +25,12 @@
     {
       value: 'copilot',
       label: 'GitHub Copilot',
-      description: 'Uses your local Copilot CLI session. No API key required.',
+      description: 'Advanced local path for people who already have Copilot CLI authenticated inside the runtime.',
     },
     {
       value: 'claude-cli',
       label: 'Claude CLI',
-      description: 'Uses your local Claude CLI session. No API key required.',
+      description: 'Advanced local path for people who already have Claude CLI authenticated inside the runtime.',
     },
   ];
 
@@ -77,6 +77,7 @@
     try {
       await onboardingApi.save({ values: valuesForCurrentStep() });
       providerSecret = '';
+      document.dispatchEvent(new CustomEvent('onboarding-complete'));
       await onStatusReload();
     } catch (e) {
       error = e.message || 'Failed to finish setup.';
@@ -86,6 +87,7 @@
   }
 </script>
 
+{#if !status?.completed}
 <div data-testid="onboarding-wizard" class="onboarding-wizard">
   <div class="wizard-header">
     <h2 class="wizard-title">Welcome to ThreadLens</h2>
@@ -253,6 +255,7 @@
     <div data-testid="onboarding-saving" class="wizard-saving">Saving...</div>
   {/if}
 </div>
+{/if}
 
 <style>
   .onboarding-wizard {
