@@ -24,7 +24,7 @@ func TestCLIRuntimeDetectsAuthenticatedBinary(t *testing.T) {
 		lookPath: func(string) (string, error) { return "/fake/copilot", nil },
 		run: func(ctx context.Context, path string, args []string, env []string) ([]byte, error) {
 			calls++
-			if path != "/fake/copilot" || len(args) != 4 || args[0] != "--model" || args[2] != "-p" {
+			if path != "/fake/copilot" || len(args) != 4 || args[0] != "--model" || args[2] != "-p" || args[3] != "ping" {
 				t.Fatalf("unexpected auth probe command path=%q args=%#v", path, args)
 			}
 			return []byte("ok"), nil

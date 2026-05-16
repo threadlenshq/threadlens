@@ -40,10 +40,16 @@ func (r *CLIRuntime) Detect(ctx context.Context) RuntimeStatus {
 		run = execRun
 	}
 
-	out, err := run(ctx, path, []string{"--model", r.defaultModel, "-p", ""}, nil)
+	// Some CLI versions treat an empty prompt as a usage error, which makes a
+	// healthy authenticated runtime look unavailable. Use a tiny non-empty probe.
+	out, err := run(ctx, path, []string{"--model", r.defaultModel, "-p", "ping"}, nil)
 	if err != nil {
-		msg := string(out)
-		if !strings.Contains(strings.ToLower(msg), "not authenticated") {
+		msg := strings.TrimSpace(string(out))
+		if msg == "" {
+			msg = "runtime probe failed"
+		}
+		lowerMsg := strings.ToLower(msg)
+		if strings.Contains(lowerMsg, "not authenticated") || strings.Contains(lowerMsg, "login required") || strings.Contains(lowerMsg, "sign in") || strings.Contains(lowerMsg, "authenticate") {
 			msg = "not authenticated"
 		}
 		return RuntimeStatus{ID: r.id, Available: false, Message: msg}
