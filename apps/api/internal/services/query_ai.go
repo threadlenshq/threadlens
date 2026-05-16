@@ -25,6 +25,7 @@ type SuggestRequest struct {
 // SuggestResponse is the response for POST /queries/suggest.
 type SuggestResponse struct {
 	Suggestions []SuggestedQuery `json:"suggestions"`
+	Notice      string           `json:"notice,omitempty"`
 }
 
 // SuggestedQuery is one AI-generated suggestion.
@@ -864,7 +865,10 @@ func (s *QueryService) Suggest(ctx context.Context, projectID string, req Sugges
 	raw, _, err := s.ai.GenerateForTask(ctx, "query_suggestion", suggestSystemPrompt, userMsg)
 	if err != nil {
 		if strings.Contains(err.Error(), "all AI providers failed") {
-			return SuggestResponse{}, http.StatusInternalServerError, err.Error()
+			return SuggestResponse{
+				Suggestions: []SuggestedQuery{},
+				Notice:      "AI suggestions are currently unavailable in this runtime because no provider is configured. Add a provider in host settings or set ANTHROPIC_API_KEY / GEMINI_API_KEY to enable suggestions.",
+			}, http.StatusOK, ""
 		}
 		return SuggestResponse{}, http.StatusInternalServerError, "Failed to generate suggestions, try again"
 	}

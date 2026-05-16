@@ -154,6 +154,42 @@ func TestQueryAISuggest_FiltersGoogleURLs(t *testing.T) {
 	}
 }
 
+func TestQueryAISuggest_NoAIProviderConfigured_ReturnsNotice(t *testing.T) {
+	db := testingpkg.OpenTestDB(t)
+	repo := repository.New(db)
+	aiSvc := ai.NewServiceWithProviders([]ai.Provider{
+		&fakeAIProvider{name: "claude", err: context.DeadlineExceeded},
+	})
+	querySvc := services.NewQueryService(repo, aiSvc)
+	r := chi.NewRouter()
+	handlers.MountProjectRoutes(r, services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)))
+	handlers.MountQueryRoutes(r, querySvc)
+
+	doRequest(t, r, http.MethodPost, "/api/projects", map[string]any{"id": "p1", "name": "Test", "mode": "research"})
+
+	rr := doRequest(t, r, http.MethodPost, "/api/projects/p1/queries/suggest", map[string]any{})
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+
+	notice, _ := resp["notice"].(string)
+	if notice == "" {
+		t.Fatal("expected non-empty notice")
+	}
+	suggestions, ok := resp["suggestions"].([]any)
+	if !ok {
+		t.Fatal("missing suggestions")
+	}
+	if len(suggestions) != 0 {
+		t.Fatalf("expected 0 suggestions, got %d", len(suggestions))
+	}
+}
+
 // ────────────────────────────────────────────────────────────────
 // POST /api/projects/{id}/queries/refine
 // ────────────────────────────────────────────────────────────────
