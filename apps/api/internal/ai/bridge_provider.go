@@ -75,8 +75,12 @@ func runtimeListAllows(runtimes []string, provider string) bool {
 
 // bridgeHealthResponse is the expected shape of GET /v1/health.
 type bridgeHealthResponse struct {
-	OK       bool     `json:"ok"`
-	Runtimes []string `json:"runtimes"`
+	OK       bool            `json:"ok"`
+	Runtimes json.RawMessage `json:"runtimes"`
+}
+
+type bridgeHealthRuntime struct {
+	ID string `json:"id"`
 }
 
 // bridgeGenerateRequest is the body sent to POST /v1/generate.
@@ -154,10 +158,39 @@ func (p *BridgeProvider) checkHealth(ctx context.Context, state BridgeState, pro
 	if !health.OK {
 		return fmt.Errorf("bridge health returned ok=false")
 	}
-	if provider != "" && !runtimeListAllows(health.Runtimes, provider) {
+	runtimeIDs, err := parseHealthRuntimeIDs(health.Runtimes)
+	if err != nil {
+		return err
+	}
+	if provider != "" && !runtimeListAllows(runtimeIDs, provider) {
 		return fmt.Errorf("bridge: runtime unavailable for provider %q", provider)
 	}
 	return nil
+}
+
+func parseHealthRuntimeIDs(raw json.RawMessage) ([]string, error) {
+	trimmed := strings.TrimSpace(string(raw))
+	if trimmed == "" || trimmed == "null" {
+		return nil, nil
+	}
+
+	var ids []string
+	if err := json.Unmarshal(raw, &ids); err == nil {
+		return ids, nil
+	}
+
+	var runtimes []bridgeHealthRuntime
+	if err := json.Unmarshal(raw, &runtimes); err == nil {
+		result := make([]string, 0, len(runtimes))
+		for _, rt := range runtimes {
+			if rt.ID != "" {
+				result = append(result, rt.ID)
+			}
+		}
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("bridge health: invalid runtimes format")
 }
 
 // callGenerate calls POST /v1/generate and returns the trimmed text.

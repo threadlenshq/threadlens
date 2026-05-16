@@ -456,6 +456,33 @@ func TestBridgeProvider_RuntimeMismatchSkipsGenerate(t *testing.T) {
 	}
 }
 
+func TestBridgeProvider_HealthObjectRuntimesAllowed(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/health":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"ok": true,
+				"runtimes": []map[string]any{
+					{"id": "copilot", "available": true, "message": "ok"},
+					{"id": "claude-cli", "available": true, "message": "ok"},
+				},
+			})
+		case "/v1/generate":
+			_ = json.NewEncoder(w).Encode(map[string]any{"text": "bridge-object-runtimes-ok"})
+		}
+	}))
+	defer srv.Close()
+
+	p := newBridgeProviderForTest(BridgeState{Enabled: true, Detected: true, URL: srv.URL, Token: "tok"})
+	text, err := p.GenerateWithProvider(context.Background(), "copilot", "gpt-5-mini", "sys", "msg", 5*time.Second)
+	if err != nil {
+		t.Fatalf("expected success for object runtimes health shape, got: %v", err)
+	}
+	if text != "bridge-object-runtimes-ok" {
+		t.Fatalf("result = %q, want bridge-object-runtimes-ok", text)
+	}
+}
+
 func TestBridgeProvider_StateRuntimeMismatchSkipsHealth(t *testing.T) {
 	// BridgeState.Runtimes is advisory only and must NOT prevent the health call.
 	// If the live bridge actually supports the provider (health says ok with matching runtime
