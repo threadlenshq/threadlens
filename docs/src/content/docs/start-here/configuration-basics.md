@@ -35,6 +35,8 @@ For first-run Docker docs, prefer an explicit provider key because CLI availabil
 
 When ThreadLens runs inside Docker on macOS or Linux and the host machine has Copilot CLI or Claude CLI installed and authenticated, `pnpm run docker:dev` best-effort starts a host helper named `scout-ai-bridge`. Self-hosted operators can also run the same helper alongside a `docker:prod` deployment if they want to reuse a host-authenticated CLI runtime. The helper lets the Dockerized API route CLI-backed AI calls to the host without mounting CLI credential directories into the container.
 
+For most users, that automatic Docker bootstrap is the only bridge setup needed. The Docker bootstrap now enables bridge env vars only when the bridge is actually healthy and has at least one available runtime.
+
 The bridge is still a fallback path. API keys remain the recommended explicit first-run choice because they are easier to verify and work the same inside and outside Docker. For self-hosters, the bridge is optional convenience, not a requirement.
 
 **What Docker dev creates:**
@@ -50,6 +52,12 @@ The bridge is still a fallback path. API keys remain the recommended explicit fi
 **Opt out:**
 - Set `SCOUT_AI_BRIDGE_DISABLE=1` before running `pnpm run docker:dev` to skip bridge bootstrap.
 - Bridge bootstrap failures do not block Docker startup. If the helper cannot build, launch, or find an authenticated CLI, ThreadLens falls back to direct in-container providers and configured API keys.
+
+**Advanced manual control:**
+- Run `pnpm run bridge:start` from `open-core/` to start the bridge manually.
+- Run `pnpm run bridge:status` or `pnpm run bridge:health` to verify host CLI availability.
+- Run `pnpm run bridge:stop` to stop the managed bridge process.
+- See [Local AI Bridge](../reference/local-ai-bridge/) for details.
 
 **UI status:**
 - The Models UI shows bridge status as a read-only indicator. It is not a separate model mode or model picker.

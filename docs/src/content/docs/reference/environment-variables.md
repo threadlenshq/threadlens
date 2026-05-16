@@ -38,4 +38,4 @@ Docker reads values from `open-core/.env` unless an embedding repository or comm
 
 Use obviously fake values in docs, examples, and bug reports. Do not commit real provider keys, private URLs, hosted credentials, billing tokens, or customer data.
 
-For guided setup, see [Configuration Basics](../start-here/configuration-basics/). For Docker command behavior, see [Docker Commands and Profiles](docker-commands-and-profiles/). For support resets, `POST /api/onboarding/reset` resets onboarding progress without deleting env values, projects, queries, posts, reports, or the database.
+For guided setup, see [Configuration Basics](../start-here/configuration-basics/). For Docker command behavior, see [Docker Commands and Profiles](docker-commands-and-profiles/). For advanced host bridge usage, see [Local AI Bridge](local-ai-bridge/). For support resets, `POST /api/onboarding/reset` resets onboarding progress without deleting env values, projects, queries, posts, reports, or the database.

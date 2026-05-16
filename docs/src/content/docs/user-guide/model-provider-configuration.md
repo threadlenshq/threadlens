@@ -41,6 +41,8 @@ The returned model ID and usage metering remain the catalog model ID that succee
 
 The host CLI bridge is an optional local transport for `copilot` and `claude-cli` catalog models. It lets local Docker development reuse AI CLI sessions authenticated on the host machine without mounting host credential directories into the container.
 
+For most local Docker users, no manual bridge command is required. `pnpm run docker:dev` best-effort bootstraps the bridge automatically and only enables it when the host bridge is healthy and exposes at least one available runtime.
+
 The bridge is not required for production or VPS self-host deployments. Production should use API keys, or CLIs installed and authenticated directly in the API runtime environment. Docker prod does not start bridge bootstrap, does not require a bridge service, and does not mount bridge token files by default. Self-hosters may still run the bridge later if they want host-authenticated CLI reuse.
 
 **Key points:**
@@ -51,6 +53,12 @@ The bridge is not required for production or VPS self-host deployments. Producti
 - `SCOUT_AI_BRIDGE_MODE=local` enables local config-file discovery for desktop and Docker development.
 - Explicit `SCOUT_AI_BRIDGE_URL` plus `SCOUT_AI_BRIDGE_TOKEN_FILE` is an advanced local-only override.
 - Bridge failures are recoverable transport failures; ThreadLens falls through to direct CLI or API-key providers.
+
+**Advanced manual helper:**
+- Run `pnpm run bridge:start` from `open-core/` to start the bridge explicitly.
+- Run `pnpm run bridge:status` or `pnpm run bridge:health` to inspect it.
+- Run `pnpm run bridge:stop` to stop the managed bridge process.
+- See [Local AI Bridge](../reference/local-ai-bridge/) for the full workflow.
 
 ## Safe operation
 
