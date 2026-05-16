@@ -108,7 +108,7 @@
   {#if currentStep === 'welcome'}
     <section data-testid="welcome-section" class="wizard-section">
       <h3 class="step-title">Welcome</h3>
-      <p class="step-body">ThreadLens is a research and marketing intelligence platform that finds product opportunities from social conversations. This wizard will guide you through choosing an AI provider path and confirming your local setup before entering the workspace.</p>
+      <p class="step-body">ThreadLens is your self-hosted workspace for finding product opportunities in real conversations. This setup takes you through the fastest useful path: choose an AI provider, confirm local app readiness, create one focused research project, add one narrow query, and run your first scout manually.</p>
     </section>
     <div class="wizard-actions">
       <button
