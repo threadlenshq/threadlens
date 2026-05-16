@@ -32,6 +32,25 @@ UNAME_OVERRIDE="${SCOUT_BRIDGE_UNAME:-}"
 # ---------------------------------------------------------------------------
 log() { printf '[bootstrap-ai-bridge] %s\n' "$*" >&2; }
 
+remove_env_var() {
+  local key="$1"
+  local file="$2"
+
+  [[ -f "$file" ]] || return 0
+
+  local tmp
+  tmp="$(mktemp)"
+  awk -v key="$key" 'index($0, key "=") != 1 { print }' "$file" > "$tmp"
+  mv "$tmp" "$file"
+}
+
+clear_bridge_env_vars() {
+  remove_env_var "SCOUT_AI_BRIDGE_MODE" "$ENV_FILE"
+  remove_env_var "SCOUT_AI_BRIDGE_URL" "$ENV_FILE"
+  remove_env_var "SCOUT_AI_BRIDGE_TOKEN_FILE" "$ENV_FILE"
+  remove_env_var "SCOUT_AI_BRIDGE_HOST_TOKEN_FILE" "$ENV_FILE"
+}
+
 is_supported_os() {
   local uname_val
   uname_val="${UNAME_OVERRIDE:-$(uname -s 2>/dev/null || echo 'Unknown')}"
@@ -123,14 +142,29 @@ write_env_vars() {
   log "Updated $ENV_FILE with bridge env vars"
 }
 
-health_ok() {
+health_response() {
   local token
   token="$(cat "$TOKEN_FILE" 2>/dev/null || echo '')"
   if command -v curl >/dev/null 2>&1; then
-    curl -sf -H "Authorization: Bearer ${token}" "${HOST_URL}/v1/health" >/dev/null 2>&1
-  else
-    return 1
+    curl -sf -H "Authorization: Bearer ${token}" "${HOST_URL}/v1/health" 2>/dev/null
+    return $?
   fi
+
+  return 1
+}
+
+health_ok() {
+  health_response >/dev/null
+}
+
+bridge_has_available_runtime() {
+  local response
+  response="$(health_response)" || return 1
+
+  [[ "$response" == *'"available":true'* ]] && return 0
+  [[ "$response" =~ \"runtimes\"[[:space:]]*:[[:space:]]*\[[[:space:]]*\"[^\"]+ ]] && return 0
+
+  return 1
 }
 
 build_binary() {
@@ -199,20 +233,27 @@ main() {
 
   # Allow disabling bridge variable injection entirely
   if [[ "${SCOUT_AI_BRIDGE_DISABLE:-}" == "1" ]]; then
+    clear_bridge_env_vars
     log "SCOUT_AI_BRIDGE_DISABLE=1: skipping bridge env var injection"
     return 0
   fi
 
   ensure_token
   write_config
-  write_env_vars
 
   if [[ "${SCOUT_BRIDGE_NO_LAUNCH:-}" == "1" ]]; then
     log "SCOUT_BRIDGE_NO_LAUNCH=1: skipping daemon start"
+  else
+    start_daemon
+  fi
+
+  if bridge_has_available_runtime; then
+    write_env_vars
     return 0
   fi
 
-  start_daemon
+  clear_bridge_env_vars
+  log "Bridge not usable yet; leaving Docker bridge env vars disabled"
 }
 
 main "$@"
