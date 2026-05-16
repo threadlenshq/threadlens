@@ -869,15 +869,10 @@ func (s *QueryService) Suggest(ctx context.Context, projectID string, req Sugges
 		return SuggestResponse{}, http.StatusInternalServerError, "Failed to generate suggestions, try again"
 	}
 
-	cleaned := strings.TrimSpace(raw)
-	if strings.HasPrefix(cleaned, "```") {
-		cleaned = regexp.MustCompile("(?s)^```(?:json)?\\n?").ReplaceAllString(cleaned, "")
-		cleaned = regexp.MustCompile("\\n?```$").ReplaceAllString(cleaned, "")
-		cleaned = strings.TrimSpace(cleaned)
-	}
+	cleaned := sanitizeAIJSON(raw)
 
-	var suggestions []map[string]any
-	if err := json.Unmarshal([]byte(cleaned), &suggestions); err != nil {
+	suggestions, ok := parseSuggestionArray(cleaned)
+	if !ok {
 		return SuggestResponse{}, http.StatusInternalServerError, "Failed to generate suggestions, try again"
 	}
 
@@ -1022,15 +1017,10 @@ func (s *QueryService) Refine(ctx context.Context, projectID string, req RefineR
 		return RefineResponse{}, http.StatusInternalServerError, "Failed to generate refinement suggestions, try again"
 	}
 
-	cleaned := strings.TrimSpace(raw)
-	if strings.HasPrefix(cleaned, "```") {
-		cleaned = regexp.MustCompile("(?s)^```(?:json)?\\n?").ReplaceAllString(cleaned, "")
-		cleaned = regexp.MustCompile("\\n?```$").ReplaceAllString(cleaned, "")
-		cleaned = strings.TrimSpace(cleaned)
-	}
+	cleaned := sanitizeAIJSON(raw)
 
-	var parsed map[string]any
-	if err := json.Unmarshal([]byte(cleaned), &parsed); err != nil {
+	parsed, ok := parseRefineObject(cleaned)
+	if !ok {
 		return RefineResponse{}, http.StatusInternalServerError, "Failed to generate refinement suggestions, try again"
 	}
 
@@ -1094,6 +1084,64 @@ func nilIfEmpty(s string) any {
 		return nil
 	}
 	return s
+}
+
+func sanitizeAIJSON(value string) string {
+	cleaned := strings.TrimSpace(value)
+	if strings.HasPrefix(cleaned, "```") {
+		cleaned = regexp.MustCompile("(?s)^```(?:json)?\\n?").ReplaceAllString(cleaned, "")
+		cleaned = regexp.MustCompile("\\n?```$").ReplaceAllString(cleaned, "")
+		cleaned = strings.TrimSpace(cleaned)
+	}
+	return cleaned
+}
+
+func extractJSONArray(value string) (string, bool) {
+	start := strings.Index(value, "[")
+	end := strings.LastIndex(value, "]")
+	if start < 0 || end < 0 || end <= start {
+		return "", false
+	}
+	return strings.TrimSpace(value[start : end+1]), true
+}
+
+func extractJSONObject(value string) (string, bool) {
+	start := strings.Index(value, "{")
+	end := strings.LastIndex(value, "}")
+	if start < 0 || end < 0 || end <= start {
+		return "", false
+	}
+	return strings.TrimSpace(value[start : end+1]), true
+}
+
+func parseSuggestionArray(value string) ([]map[string]any, bool) {
+	var suggestions []map[string]any
+	if err := json.Unmarshal([]byte(value), &suggestions); err == nil {
+		return suggestions, true
+	}
+	extracted, ok := extractJSONArray(value)
+	if !ok {
+		return nil, false
+	}
+	if err := json.Unmarshal([]byte(extracted), &suggestions); err != nil {
+		return nil, false
+	}
+	return suggestions, true
+}
+
+func parseRefineObject(value string) (map[string]any, bool) {
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(value), &parsed); err == nil {
+		return parsed, true
+	}
+	extracted, ok := extractJSONObject(value)
+	if !ok {
+		return nil, false
+	}
+	if err := json.Unmarshal([]byte(extracted), &parsed); err != nil {
+		return nil, false
+	}
+	return parsed, true
 }
 
 func sanitizeRefineRecommendation(
