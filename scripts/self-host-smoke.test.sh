@@ -2,7 +2,12 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUTPUT="$(THREADLENS_SMOKE_DRY_RUN=1 bash "${ROOT_DIR}/scripts/self-host-smoke.sh")"
+
+# Provide a temporary .env so the env-file check does not block the dry run.
+TMPENV="$(mktemp)"
+trap 'rm -f "$TMPENV"' EXIT
+
+OUTPUT="$(THREADLENS_SMOKE_DRY_RUN=1 SCOUT_ENV_FILE="$TMPENV" bash "${ROOT_DIR}/scripts/self-host-smoke.sh")"
 
 case "$OUTPUT" in
   *"ThreadLens self-host smoke check"*) ;;
