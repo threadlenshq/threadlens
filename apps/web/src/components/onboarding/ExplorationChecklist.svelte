@@ -43,14 +43,20 @@
     }
   }
 
+  let starterReady = $derived(
+    starterProjectId.trim().length > 0 &&
+    starterProjectName.trim().length > 0 &&
+    starterQuery.trim().length > 0
+  );
+
   async function createStarterProject() {
     busy = true;
     error = '';
     try {
       const result = await onboardingApi.starterProject({
-        projectId: starterProjectId,
-        projectName: starterProjectName,
-        query: starterQuery,
+        projectId: starterProjectId.trim(),
+        projectName: starterProjectName.trim(),
+        query: starterQuery.trim(),
         platform: starterPlatform,
       });
       await onProjectReady(result.project.id);
@@ -129,8 +135,8 @@
 
     <div class="starter-card">
       <div class="card-header">
-        <h3>Quick Start</h3>
-        <p>Generate a sample project and query to get started.</p>
+        <h3>First value</h3>
+        <p>Create normal project data with one narrow query, then run a scout manually when you are ready.</p>
       </div>
       <div class="form-grid">
         <label>
@@ -153,9 +159,10 @@
             <option value="bluesky">Bluesky</option>
           </select>
         </label>
+        <p class="source-hint full-width">Reddit is the lowest-friction first source. Use Google after `PARALLEL_API_KEY` is configured and Bluesky after `BLUESKY_HANDLE` plus `BLUESKY_APP_PASSWORD` are configured.</p>
       </div>
-      <button class="primary-btn" data-testid="create-starter-project" disabled={busy} onclick={createStarterProject}>
-        Create project & query
+      <button class="primary-btn" data-testid="create-starter-project" disabled={busy || !starterReady} onclick={createStarterProject}>
+        Create project and first query
       </button>
     </div>
 
@@ -502,6 +509,13 @@
   .ghost-btn:hover {
     color: #e2e2e8;
     background: #181822;
+  }
+
+  .source-hint {
+    color: #a1a1b5;
+    font-size: 12px;
+    line-height: 1.5;
+    margin: -4px 0 0;
   }
 </style>
 
