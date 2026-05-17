@@ -21,7 +21,7 @@
   }
 
   function filteredEmptyMessage(totalCount, visibility) {
-    if (totalCount === 0) return 'No queries yet. Add one below.';
+    if (totalCount === 0) return 'Start with one narrow query, such as "meeting notes too time consuming", then inspect results before expanding.';
     if (visibility === 'enabled') return 'No enabled queries match this filter.';
     if (visibility === 'disabled') return 'No disabled queries match this filter.';
     return 'No queries match this filter.';
