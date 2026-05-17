@@ -99,7 +99,7 @@
   </header>
 
   <div class="drawer-body">
-    <p class="intro-text">Follow these steps to learn the core workflow.</p>
+    <p class="intro-text">Follow the shortest path to first value: create one project, add one narrow query, run one scout manually, then inspect the strongest findings before expanding.</p>
 
     <ul class="task-list">
       {#each status.items as item}

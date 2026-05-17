@@ -27,9 +27,10 @@ Follow this sequence for your first useful self-hosted run:
 1. [Understand what ThreadLens does](start-here/overview/) and what the open-core release includes.
 2. [Run ThreadLens with Docker](start-here/quick-start/) and verify the local web app and API are reachable.
 3. [Configure provider keys](start-here/configuration-basics/) so AI workflows and your chosen scouting source can produce useful results.
-4. [Create your first project](start-here/first-project/) with a stable slug, readable display name, research mode, and one narrow query.
-5. [Review scouting sources](user-guide/scouting-sources/) when you are ready to add Google or Bluesky credentials and compare source behavior.
-6. [Generate reports](user-guide/reports/) after you have enough high-signal findings to summarize.
+4. [Reach first value in 15 minutes](start-here/first-value-in-15-minutes/) by completing setup, creating one research project, adding one narrow query, running one scout, and inspecting findings.
+5. [Create your first project](start-here/first-project/) when you want the slower walkthrough with more context.
+6. [Review scouting sources](user-guide/scouting-sources/) when you are ready to add Google or Bluesky credentials and compare source behavior.
+7. [Generate reports](user-guide/reports/) after you have enough high-signal findings to summarize.
 
 ## Public documentation sections
 

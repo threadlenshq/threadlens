@@ -44,6 +44,6 @@ export function activationProgressLabel(status) {
   if (item === 'first_scout') return 'Run first scout';
   if (item === 'review_results') return 'Review findings';
   if (item === 'reports_intro') return 'Open reports';
-  if (item === 'settings_intro') return 'Visit settings';
+  if (item === 'settings_intro') return 'Visit models';
   return 'Keep exploring';
 }
