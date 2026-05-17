@@ -33,3 +33,17 @@ export function normalizeOnboardingStatus(status) {
     context: status?.context || {},
   };
 }
+
+export function activationProgressLabel(status) {
+  if (!status || status.enabled === false) return 'Onboarding disabled';
+  if (status.phase === 'complete' || status.explorationComplete === true) return 'Activated';
+  if (status.phase === 'required_setup' || status.requiredSetupComplete === false) return 'Finish setup';
+  const item = status.currentExplorationItem;
+  if (item === 'starter_project') return 'Create project';
+  if (item === 'starter_query') return 'Add one query';
+  if (item === 'first_scout') return 'Run first scout';
+  if (item === 'review_results') return 'Review findings';
+  if (item === 'reports_intro') return 'Open reports';
+  if (item === 'settings_intro') return 'Visit settings';
+  return 'Keep exploring';
+}
