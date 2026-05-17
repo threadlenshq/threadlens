@@ -514,7 +514,7 @@
 
   {#if showCountWarning}
     <div class="info-banner">
-      For best results, we recommend at least {MIN_RECOMMENDED_QUERIES} search queries. You have {enabledCount} enabled. Use <strong>Suggest Queries</strong> to quickly add more.
+      One narrow query is enough for first value. After you review a completed scout, expand toward 8 enabled queries across at least 3 angles for stronger recurring signal.
     </div>
   {:else if showAngleTip}
     <div class="tip-banner">
