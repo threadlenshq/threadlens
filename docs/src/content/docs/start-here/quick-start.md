@@ -47,6 +47,10 @@ Docker startup and provider readiness are separate steps. The in-app setup wizar
 
 Add `PARALLEL_API_KEY` only if you plan to scout Google Search, and add `BLUESKY_HANDLE` plus `BLUESKY_APP_PASSWORD` only if you plan to scout Bluesky.
 
+## Fastest first-value path
+
+After setup is complete, follow [First Value in 15 Minutes](first-value-in-15-minutes/) to create one project, add one narrow Reddit query, run one manual scout, and inspect first findings before expanding your query set.
+
 ## Start the production self-host profile
 
 After the development profile is verified, you can use the production self-host profile:
