@@ -62,7 +62,7 @@ pnpm run docker:down
 
 `docker:down` stops the supported `dev` and `prod` profiles without deleting the SQLite data volume.
 
-Docker usage details live in [`infra/docker/README.md`](infra/docker/README.md).
+Docker usage details live in [`infra/docker/README.md`](infra/docker/README.md). For the shortest activation path after Docker starts, follow [`docs/start-here/first-value-in-15-minutes.md`](docs/src/content/docs/start-here/first-value-in-15-minutes.md).
 
 ### Local pnpm checks
 
