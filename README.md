@@ -32,6 +32,7 @@ Run these commands from the `open-core/` directory.
 ```bash
 pnpm install
 pnpm run docker:dev
+pnpm run self-host:smoke
 ```
 
 `pnpm run docker:dev` auto-creates `open-core/.env` from `open-core/.env.example` when it is missing. Add provider keys to `open-core/.env` when you want AI analysis, Google Search, or Bluesky features to work. If another repository embeds open-core, it can pass a different env file through `SCOUT_ENV_FILE`.
