@@ -44,6 +44,8 @@ The development profile starts:
 | `api` | http://localhost:4749 | Go API with SQLite stored in the `scout_open_core_sqlite_data` Docker volume. |
 | `web` | http://localhost:4748 | Vite dev server that proxies `/api` requests to `http://api:4749`. |
 
+After the web app loads, complete the ThreadLens setup wizard, create or accept one starter research project, add one narrow Reddit query, run one scout manually, and inspect the strongest findings before expanding query coverage.
+
 For the production/self-host profile:
 
 ```bash
