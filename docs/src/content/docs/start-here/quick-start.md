@@ -69,4 +69,4 @@ Use the development profile first when you are following the Start Here path bec
 pnpm run docker:down
 ```
 
-This stops supported `dev` and `prod` profiles without deleting the SQLite data volume. For volume reset behavior and the full command reference, see [Docker Commands and Profiles](../reference/docker-commands-and-profiles/).
+This stops supported `dev` and `prod` profiles without deleting the SQLite data volume. For volume reset behavior and the full command reference, see [Docker Commands and Profiles](../reference/docker-commands-and-profiles/). If the first-run path fails, use [Self-Host Troubleshooting](../reference/self-host-troubleshooting/).
