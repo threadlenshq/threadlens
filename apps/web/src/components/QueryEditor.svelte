@@ -8,6 +8,8 @@
   const MIN_RECOMMENDED_QUERIES = 8;
   const MIN_RECOMMENDED_ANGLES = 3;
   const PLATFORM_LABELS = { reddit: 'Reddit', bluesky: 'Bluesky', google: 'Google' };
+  const QUALITY_LABEL_FALLBACK = 'No signal yet';
+  const QUALITY_SUMMARY_FALLBACK = 'No completed social or Google reports yet.';
   const QUERY_VISIBILITY_OPTIONS = [
     { value: 'enabled', label: 'Enabled only' },
     { value: 'disabled', label: 'Disabled only' },
@@ -572,9 +574,9 @@
                         class:weak={qualityTone(q) === 'weak'}
                         class:unknown={qualityTone(q) === 'unknown'}
                       >
-                        {q.quality?.label || 'No signal yet'}
+                        {q.quality?.label || QUALITY_LABEL_FALLBACK}
                       </span>
-                      <span class="quality-summary">{q.quality?.summary || 'No completed social or Google reports yet.'}</span>
+                      <span class="quality-summary">{q.quality?.summary || QUALITY_SUMMARY_FALLBACK}</span>
                     </div>
                   </div>
                 {/each}
