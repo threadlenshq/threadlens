@@ -5,9 +5,17 @@ description: Self-host ThreadLens, configure providers, create a first project, 
 
 ThreadLens is self-hosted research intelligence for finding product opportunities in real conversations across Reddit, Bluesky, and Google Search. These docs help you run ThreadLens locally, configure providers safely, create your first project, understand scouting results, and contribute to the public repository.
 
-## Start with Docker
+## Get Started
 
-Run these commands from the `open-core/` directory:
+Recommended for most self-hosted users:
+
+```bash
+npx create-threadlens-app@latest
+```
+
+The installer creates a local ThreadLens app directory, starts Docker, checks readiness, and opens the setup wizard.
+
+If you want the manual repository path instead, clone `github.com/threadlenshq/threadlens` and run these commands from the repository root:
 
 ```bash
 pnpm install
@@ -39,7 +47,7 @@ The sidebar is organized for two audiences:
 1. **Users** who want setup, configuration, scouting workflows, schedules, reports, and reference material.
 2. **Contributors and public maintainers** who need architecture context, testing commands, docs rules, package boundaries, release hygiene, Docker image notes, and support triage.
 
-`open-core/docs/` is publishable by default. Private hosted SaaS runbooks, credentials, billing provider details, private customer data, and proprietary roadmap notes do not belong in this docs tree.
+`docs/` is publishable by default in the public repository. Private hosted SaaS runbooks, credentials, billing provider details, private customer data, and proprietary roadmap notes do not belong in this docs tree.
 
 ## Related sites
 

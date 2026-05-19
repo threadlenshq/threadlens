@@ -4,7 +4,7 @@ description: Understand the active backend structure and responsibilities.
 ---
 
 
-The active backend lives in `open-core/apps/api`.
+The active backend lives in `apps/api`.
 
 ## Responsibility split
 

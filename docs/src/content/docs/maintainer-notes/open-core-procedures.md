@@ -9,8 +9,8 @@ This section is public and maintainer-oriented. It is not a place for private ho
 ## Docs hygiene
 
 - Keep README files concise and link to canonical docs pages for details.
-- Run `pnpm run docs:check` and `pnpm run docs:build` from `open-core/` before publishing docs changes.
-- Keep `open-core/LICENSE`, `reference/licensing`, and README license summaries consistent when the license or contribution policy changes.
+- Run `pnpm run docs:check` and `pnpm run docs:build` from the repository root before publishing docs changes.
+- Keep the repository root `LICENSE`, `reference/licensing`, and README license summaries consistent when the license or contribution policy changes.
 - Search for unsafe placeholders, real secrets, and private hosted details before release.
 
 ## Self-Hosted Support Triage

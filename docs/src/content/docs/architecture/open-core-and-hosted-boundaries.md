@@ -6,7 +6,7 @@ description: Keep public self-hosted docs separate from private hosted SaaS mate
 
 The repository workspace contains the ThreadLens app users can run today. Hosted ThreadLens is planned as a later managed option.
 
-The public license applies to the `open-core/` subtree only. Private workspace code outside `open-core/` is not part of the licensed work unless a file or directory states otherwise.
+The public license applies to the public ThreadLens repository. Private workspace code outside the published repository is not part of the licensed work unless a file or directory states otherwise.
 
 ## Belongs in Public Docs
 

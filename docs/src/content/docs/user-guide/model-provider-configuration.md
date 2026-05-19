@@ -7,7 +7,7 @@ ThreadLens uses AI providers for scoring, analysis, query assistance, clustering
 
 ## Provider keys
 
-Configure provider keys in `open-core/.env`. Keep the existing runtime variable names such as `ANTHROPIC_API_KEY` and `GEMINI_API_KEY`.
+Configure provider keys in the repository root `.env`. Keep the existing runtime variable names such as `ANTHROPIC_API_KEY` and `GEMINI_API_KEY`.
 
 For a first Docker-based run, start with one explicit provider key. `ANTHROPIC_API_KEY` is the recommended first documented path, and `GEMINI_API_KEY` is another supported key-backed path. Copilot CLI and Claude CLI are also supported advanced fallback paths when the CLI is installed and authenticated in the same runtime environment as ThreadLens. A host CLI bridge is an additional optional fallback path available when ThreadLens runs in Docker or a self-hosted runtime and the host has an authenticated CLI; see the bridge guidance below.
 
@@ -55,7 +55,7 @@ The bridge is not required for production or VPS self-host deployments. Producti
 - Bridge failures are recoverable transport failures; ThreadLens falls through to direct CLI or API-key providers.
 
 **Advanced manual helper:**
-- Run `pnpm run bridge:start` from `open-core/` to start the bridge explicitly.
+- Run `pnpm run bridge:start` from the repository root to start the bridge explicitly.
 - Run `pnpm run bridge:status` or `pnpm run bridge:health` to inspect it.
 - Run `pnpm run bridge:stop` to stop the managed bridge process.
 - See [Local AI Bridge](../reference/local-ai-bridge/) for the full workflow.

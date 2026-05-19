@@ -3,7 +3,7 @@ title: First Value in 15 Minutes
 description: Complete setup, create one project, add one narrow query, run one scout, and inspect first findings.
 ---
 
-This guide starts after `pnpm run docker:dev` is running from the `open-core/` directory.
+This guide starts after `pnpm run docker:dev` is running from the public repository root.
 
 ## 1. Verify the local stack
 

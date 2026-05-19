@@ -27,7 +27,7 @@ Use the manual helper when you want to:
 - pre-build the bridge before running Docker
 - run the bridge for advanced self-hosted setups
 
-Run these commands from `open-core/`:
+Run these commands from the public repository root:
 
 ```bash
 pnpm run bridge:bootstrap
@@ -50,7 +50,7 @@ pnpm run bridge:stop
 ## Requirements
 
 - macOS or Linux
-- `go` installed if `open-core/bin/scout-ai-bridge` has not been built yet
+- `go` installed if `bin/scout-ai-bridge` has not been built yet
 - `copilot` and/or `claude` installed on the host if you want CLI-backed models through the bridge
 - at least one of those CLIs authenticated on the host
 

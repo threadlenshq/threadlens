@@ -4,7 +4,7 @@ description: Keep ThreadLens docs readable in GitHub and safe to publish.
 ---
 
 
-Docs source lives in `open-core/docs/src/content/docs/` and is publishable by default.
+Docs source lives in `docs/src/content/docs/` and is publishable by default.
 
 Public documentation changes should be submitted from a fork through a pull request. Direct write access is not part of the public contribution path.
 

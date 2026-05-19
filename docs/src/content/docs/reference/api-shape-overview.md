@@ -4,7 +4,7 @@ description: Understand the high-level Go API surface without generated API refe
 ---
 
 
-The active backend is the Go API in `open-core/apps/api`. Detailed generated API reference is deferred for the first docs release.
+The active backend is the Go API in `apps/api`. Detailed generated API reference is deferred for the first docs release.
 
 ## Main resource areas
 

@@ -3,19 +3,19 @@ title: Configuration Basics
 description: Configure the provider credentials needed for useful ThreadLens scouting and reports.
 ---
 
-ThreadLens reads runtime settings from `open-core/.env`. The Docker commands create that file from `open-core/.env.example` when it is missing, and you can also create it manually before starting or restarting Docker.
+ThreadLens reads runtime settings from the repository root `.env`. The Docker commands create that file from `.env.example` when it is missing, and you can also create it manually before starting or restarting Docker.
 
 Docker can start without an AI provider path, but useful AI scoring, analysis, reports, Google scouting, and Bluesky scouting need either a configured provider key or a supported CLI-backed provider path available in the same runtime environment as ThreadLens. For the simplest first run, start with one explicit provider key.
 
 ## 1. Create or open the environment file
 
-Run from `open-core/` if you want to create the file before Docker does:
+Run from the repository root if you want to create the file before Docker does:
 
 ```bash
 cp .env.example .env
 ```
 
-Then open `open-core/.env` in your editor and add the AI provider key and source credentials you need for the first source you plan to scout.
+Then open `.env` in your editor and add the AI provider key and source credentials you need for the first source you plan to scout.
 
 ## 2. Configure one AI provider first
 
@@ -42,7 +42,7 @@ The bridge is still a fallback path. API keys remain the recommended explicit fi
 **What Docker dev creates:**
 - `$XDG_CONFIG_HOME/scout/ai-bridge.token`, or `~/.config/scout/ai-bridge.token`, containing a local bearer token.
 - `$XDG_CONFIG_HOME/scout/ai-bridge.json`, or `~/.config/scout/ai-bridge.json`, pointing host-side clients at `http://127.0.0.1:4761`.
-- `open-core/.env` bridge values that point the API container at `http://host.docker.internal:4761` and mount the token file read-only at `/run/secrets/scout-ai-bridge-token`.
+- `.env` bridge values that point the API container at `http://host.docker.internal:4761` and mount the token file read-only at `/run/secrets/scout-ai-bridge-token`.
 
 **Network safety:**
 - The helper binds to `127.0.0.1:4761` by default and rejects wildcard or public bind addresses.
@@ -54,7 +54,7 @@ The bridge is still a fallback path. API keys remain the recommended explicit fi
 - Bridge bootstrap failures do not block Docker startup. If the helper cannot build, launch, or find an authenticated CLI, ThreadLens falls back to direct in-container providers and configured API keys.
 
 **Advanced manual control:**
-- Run `pnpm run bridge:start` from `open-core/` to start the bridge manually.
+- Run `pnpm run bridge:start` from the repository root to start the bridge manually.
 - Run `pnpm run bridge:status` or `pnpm run bridge:health` to verify host CLI availability.
 - Run `pnpm run bridge:stop` to stop the managed bridge process.
 - See [Local AI Bridge](../reference/local-ai-bridge/) for details.

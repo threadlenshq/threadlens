@@ -4,7 +4,7 @@ description: Understand the main directories in the ThreadLens repository worksp
 ---
 
 
-The public ThreadLens workspace is rooted at `open-core/`.
+The public ThreadLens workspace is rooted at the repository root.
 
 ```text
 apps/
@@ -18,4 +18,4 @@ db/                Shared database configuration and migration support
 docs/              Astro and Starlight documentation site
 ```
 
-Keep source files close to the code they explain. Durable public documentation belongs in `open-core/docs/`; short entry-point notes can stay in package READMEs and link to canonical docs pages.
+Keep source files close to the code they explain. Durable public documentation belongs in `docs/`; short entry-point notes can stay in package READMEs and link to canonical docs pages.

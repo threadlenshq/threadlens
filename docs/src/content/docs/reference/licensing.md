@@ -3,7 +3,7 @@ title: Licensing
 description: Understand the ThreadLens license, allowed self-host use, and public contribution policy.
 ---
 
-ThreadLens is source-available under the Business Source License 1.1 in `open-core/LICENSE`.
+ThreadLens is source-available under the Business Source License 1.1 in the repository root `LICENSE` file.
 
 ## What this means
 
@@ -30,11 +30,11 @@ Public contributions are accepted through GitHub forks and pull requests only.
 
 By submitting a pull request, you represent that you have the right to contribute the code and that the contribution may be used, relicensed, and distributed by the licensor as part of ThreadLens and its future Change License.
 
-The repository-level contribution terms live in `open-core/CONTRIBUTING.md`.
+The repository-level contribution terms live in the repository root `CONTRIBUTING.md`.
 
 ## Scope
 
-The licensed work is limited to the `open-core/` directory of this repository. Code and materials outside `open-core/` are not publicly licensed unless a different license is stated in the relevant file or directory.
+The licensed work is limited to the public ThreadLens repository. If a file or directory states a different license or exception, follow the more specific notice there.
 
 ## Future open-source conversion
 

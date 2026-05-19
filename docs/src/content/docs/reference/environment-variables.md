@@ -5,7 +5,7 @@ description: Reference the ThreadLens environment variables without renaming run
 
 ThreadLens preserves existing runtime environment variable names even when public docs use the ThreadLens brand. Do not rename these variables as part of documentation updates.
 
-Docker reads values from `open-core/.env` unless an embedding repository or command overrides the env file. Docker containers can start before credentials are configured, but scouting capabilities depend on the variables available to the runtime.
+Docker reads values from the repository root `.env` unless an embedding repository or command overrides the env file. Docker containers can start before credentials are configured, but scouting capabilities depend on the variables available to the runtime.
 
 | Variable | Default | Capability unlocked | Purpose |
 | --- | --- | --- | --- |

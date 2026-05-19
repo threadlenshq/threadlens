@@ -3,7 +3,7 @@ title: Quick Start
 description: Start ThreadLens locally with the installer, or use the repository Docker path for contributor workflows.
 ---
 
-Use the installer when you want the public end-user setup path. Use the repository Docker path in `open-core/` when you are contributing to the repo or need manual control.
+Use the installer when you want the public end-user setup path. Use the repository Docker path from the public repository root when you are contributing to the repo or need manual control.
 
 ## Recommended: one-command local install
 
@@ -22,7 +22,7 @@ You can start the app without an AI provider path to smoke-test local startup. C
 
 ## Contributor Path: Repository Docker Profile
 
-Commands in this section run from the `open-core/` directory.
+Commands in this section run from the public `threadlens` repository root.
 
 ## Start the development profile
 
@@ -74,7 +74,7 @@ The production profile serves the built web app from the Go API container at `ht
 
 Use the development profile first when you are following the Start Here path because it exposes the web app at `http://localhost:4748` and keeps local debugging straightforward.
 
-If you are using a generated installer directory instead of `open-core/`, use the commands in that directory's `README.md` and `compose.yml` instead of the repo-level Docker commands here.
+If you are using a generated installer directory instead of a repository checkout, use the commands in that directory's `README.md` and `compose.yml` instead of the repo-level Docker commands here.
 
 ## Stop Docker services
 

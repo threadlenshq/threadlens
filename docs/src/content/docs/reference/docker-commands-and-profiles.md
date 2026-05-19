@@ -3,13 +3,13 @@ title: Docker Commands and Profiles
 description: Reference supported repository Docker commands, profiles, and persistent data behavior.
 ---
 
-Run Docker commands from `open-core/`. If this is your first visit, start with the guided [Quick Start](../start-here/quick-start/) before using this page as a command reference.
+Run Docker commands from the public `threadlens` repository root. If this is your first visit, start with the guided [Quick Start](../start-here/quick-start/) before using this page as a command reference.
 
 If you installed ThreadLens with `npx create-threadlens-app@latest`, use the commands in the generated app directory instead of the repo-level commands on this page. The installer generates instance-specific Compose files, ports, and volume names.
 
-Docker startup and provider readiness are separate. Containers can run before credentials are configured, but scouting capabilities depend on the provider and source credentials available in `open-core/.env`.
+Docker startup and provider readiness are separate. Containers can run before credentials are configured, but scouting capabilities depend on the provider and source credentials available in the repository root `.env`.
 
-On macOS and Linux, `pnpm run docker:dev` also best-effort bootstraps the optional local host CLI bridge before Compose starts. The bootstrap creates file-based bridge config and token state, starts `scout-ai-bridge` when possible, writes Docker-facing bridge variables into `open-core/.env` only when the bridge is healthy and has at least one available runtime, and continues to Compose even if the bridge is unavailable. Self-hosted users can also run the bridge alongside a `docker:prod` deployment if they want host-authenticated CLI reuse.
+On macOS and Linux, `pnpm run docker:dev` also best-effort bootstraps the optional local host CLI bridge before Compose starts. The bootstrap creates file-based bridge config and token state, starts `scout-ai-bridge` when possible, writes Docker-facing bridge variables into the repository root `.env` only when the bridge is healthy and has at least one available runtime, and continues to Compose even if the bridge is unavailable. Self-hosted users can also run the bridge alongside a `docker:prod` deployment if they want host-authenticated CLI reuse.
 
 `pnpm run docker:prod` does not run bridge bootstrap, does not require a bridge service, and does not mount bridge token files by default. Use API keys or runtime-local CLI authentication for production AI providers. The bridge is optional for self-hosting, but it is not part of the prod container baseline.
 

@@ -8,7 +8,7 @@ Use these public notes to keep self-hosted releases and docs aligned.
 
 ## Docs release checks
 
-Run from `open-core/`:
+Run from the repository root:
 
 ```bash
 pnpm run docs:check
@@ -17,7 +17,7 @@ pnpm run docs:build
 
 ## Docker release checks
 
-Run from `open-core/`:
+Run from the repository root:
 
 ```bash
 pnpm run docker:dev

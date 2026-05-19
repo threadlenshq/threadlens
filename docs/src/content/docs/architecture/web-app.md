@@ -4,7 +4,7 @@ description: Understand the Svelte and Vite frontend role.
 ---
 
 
-The frontend lives in `open-core/apps/web` and uses Svelte 5 with Vite.
+The frontend lives in `apps/web` and uses Svelte 5 with Vite.
 
 ## Responsibilities
 
