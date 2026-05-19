@@ -1,6 +1,6 @@
 # ThreadLens
 
-ThreadLens is open-core research intelligence for finding product opportunities in real conversations across Reddit, Bluesky, and Google Search.
+ThreadLens is self-hosted research intelligence for finding product opportunities in real conversations across Reddit, Bluesky, and Google Search.
 
 ThreadLens helps builders turn scattered posts, complaints, workarounds, search results, and repeated requests into scored findings and product-angle reports they can inspect locally.
 
@@ -21,7 +21,7 @@ ThreadLens gives you a local-first way to collect those signals, score them for 
 - Builds Google search summaries, opportunities, risks, and next actions.
 - Stores projects, runs, posts, reports, schedules, and settings in local SQLite.
 - Supports scheduled scout runs for recurring research workflows.
-- Runs with Docker or local pnpm commands from this open-core workspace.
+- Runs with Docker or local pnpm commands from this repository workspace.
 
 ## Quick start
 
@@ -83,7 +83,7 @@ pnpm run build:go
 
 ## Configuration
 
-ThreadLens reads shared open-core settings from `open-core/.env`. Start from the checked-in example:
+ThreadLens reads shared runtime settings from `open-core/.env`. Start from the checked-in example:
 
 ```bash
 cp .env.example .env
@@ -122,26 +122,26 @@ packages/
   shared/          Shared types, constants, and utilities
 infra/
   docker/          Docker Compose configuration and Docker usage notes
-docs/              Open-core documentation and implementation notes
+  docs/              Public documentation and implementation notes
 ```
 
-The open-core app stores data in SQLite and keeps provider keys under your control. The Docker development profile runs the web and API services separately; the production profile serves the built web app through the Go API image.
+The self-hosted app stores data in SQLite and keeps provider keys under your control. The Docker development profile runs the web and API services separately; the production profile serves the built web app through the Go API image.
 
-## Open-core and hosted ThreadLens
+## Self-Hosted and Hosted ThreadLens
 
-This repository is the open-core ThreadLens product you can run today. It is designed for builders who want a self-hostable, inspectable research workflow with local data storage.
+This repository contains the self-hosted ThreadLens app you can run today. It is designed for builders who want a self-hostable, inspectable research workflow with local data storage.
 
 Hosted ThreadLens is planned as a later managed option for teams that do not want to self-host or manage provider keys. To get notified about the hosted version, use the waitlist at [threadlens.dev](https://threadlens.dev).
 
 ## Contributing and status
 
-ThreadLens is early open-core software. The highest-value contributions are setup feedback, reproducible bugs, source-specific pipeline fixes, documentation improvements, and small product-quality improvements that keep the self-hosted workflow simple.
+ThreadLens is early software. The highest-value contributions are setup feedback, reproducible bugs, source-specific pipeline fixes, documentation improvements, and small product-quality improvements that keep the self-hosted workflow simple.
 
-Public product code belongs in this open-core workspace. Hosted-only SaaS services, billing, multi-tenancy, and cloud infrastructure belong outside the open-core subtree.
+Public product code belongs in this repository workspace. Hosted-only SaaS services, billing, multi-tenancy, and cloud infrastructure belong outside the `open-core/` subtree.
 
 ## License status
 
-ThreadLens open-core is source-available under the Business Source License 1.1 in [`open-core/LICENSE`](LICENSE).
+ThreadLens is source-available under the Business Source License 1.1 in [`open-core/LICENSE`](LICENSE).
 
 The license allows public source access, local modification, redistribution, and self-hosted production use for your own internal business or personal use.
 

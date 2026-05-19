@@ -15,7 +15,7 @@ Public documentation changes should be submitted from a fork through a pull requ
 - Prefer task-oriented titles such as "Run ThreadLens with Docker".
 - Include prerequisites, commands, expected URLs, and verification steps on setup pages.
 - Use relative links when they improve GitHub readability.
-- Keep commands accurate to the current open-core workspace.
+- Keep commands accurate to the current repository workspace.
 - Use fake sample tokens only.
 
 ## Do not include
@@ -29,4 +29,4 @@ Public documentation changes should be submitted from a fork through a pull requ
 
 ## Contribution license note
 
-If you submit a docs pull request, you represent that you have the right to contribute it and that the contribution may be used, relicensed, and distributed by the licensor as part of ThreadLens open-core.
+If you submit a docs pull request, you represent that you have the right to contribute it and that the contribution may be used, relicensed, and distributed by the licensor as part of ThreadLens.

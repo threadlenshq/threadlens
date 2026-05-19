@@ -1,10 +1,10 @@
 ---
 title: Workspace Layout
-description: Understand the main directories in the ThreadLens open-core workspace.
+description: Understand the main directories in the ThreadLens repository workspace.
 ---
 
 
-The open-core workspace is rooted at `open-core/`.
+The public ThreadLens workspace is rooted at `open-core/`.
 
 ```text
 apps/

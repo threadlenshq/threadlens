@@ -1,10 +1,10 @@
 ---
 title: Go API
-description: Understand the active open-core backend structure and responsibilities.
+description: Understand the active backend structure and responsibilities.
 ---
 
 
-The active open-core backend lives in `open-core/apps/api`.
+The active backend lives in `open-core/apps/api`.
 
 ## Responsibility split
 

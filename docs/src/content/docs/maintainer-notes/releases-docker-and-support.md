@@ -4,7 +4,7 @@ description: Public maintainer notes for docs releases, Docker image hygiene, an
 ---
 
 
-Use these public notes to keep open-core releases and docs aligned.
+Use these public notes to keep self-hosted releases and docs aligned.
 
 ## Docs release checks
 
@@ -28,4 +28,4 @@ pnpm run docker:down
 
 ## Support routing
 
-Public open-core issues belong in public issue tracking. Hosted SaaS billing, credentials, and private infrastructure support do not belong in public docs or public issue comments.
+Public self-hosted issues belong in public issue tracking. Hosted SaaS billing, credentials, and private infrastructure support do not belong in public docs or public issue comments.

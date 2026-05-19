@@ -1,10 +1,10 @@
 ---
 title: Package Boundaries
-description: Keep ThreadLens open-core code organized by clear package responsibilities.
+description: Keep ThreadLens code organized by clear package responsibilities.
 ---
 
 
-Respect the existing open-core package boundaries.
+Respect the existing repository package boundaries.
 
 ## `apps/api`
 

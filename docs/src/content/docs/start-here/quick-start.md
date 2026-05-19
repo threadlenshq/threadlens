@@ -1,9 +1,9 @@
 ---
 title: Quick Start
-description: Start ThreadLens locally with the installer, or use the open-core Docker path for contributor workflows.
+description: Start ThreadLens locally with the installer, or use the repository Docker path for contributor workflows.
 ---
 
-Use the installer when you want the public end-user setup path. Use the `open-core/` Docker path when you are contributing to the repo or need manual control.
+Use the installer when you want the public end-user setup path. Use the repository Docker path in `open-core/` when you are contributing to the repo or need manual control.
 
 ## Recommended: one-command local install
 
@@ -20,7 +20,7 @@ This creates a local ThreadLens app directory, starts Docker, verifies readiness
 
 You can start the app without an AI provider path to smoke-test local startup. Configure a provider key, or use a supported CLI-backed path that is installed and authenticated in the runtime environment, before treating the run as a real scouting workflow.
 
-## Contributor path: open-core Docker profile
+## Contributor Path: Repository Docker Profile
 
 Commands in this section run from the `open-core/` directory.
 

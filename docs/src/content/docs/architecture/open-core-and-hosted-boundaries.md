@@ -1,23 +1,23 @@
 ---
-title: Open-Core and Hosted Boundaries
-description: Keep public open-core docs separate from private hosted SaaS material.
+title: Self-Hosted and Hosted Boundaries
+description: Keep public self-hosted docs separate from private hosted SaaS material.
 ---
 
 
-The open-core workspace contains the ThreadLens product users can run today. Hosted ThreadLens is planned as a later managed option.
+The repository workspace contains the ThreadLens app users can run today. Hosted ThreadLens is planned as a later managed option.
 
 The public license applies to the `open-core/` subtree only. Private workspace code outside `open-core/` is not part of the licensed work unless a file or directory states otherwise.
 
-## Belongs in open-core docs
+## Belongs in Public Docs
 
 - Self-hosting setup.
-- Open-core configuration.
+- Self-hosted configuration.
 - Docker usage.
 - Public architecture notes.
 - Public contribution workflow.
 - Public maintainer procedures for releases, Docker images, docs hygiene, and support triage.
 
-## Does not belong in open-core docs
+## Does Not Belong in Public Docs
 
 - Hosted SaaS credentials.
 - Billing provider operations.

@@ -1,6 +1,6 @@
 ---
 title: Overview
-description: Understand what ThreadLens does, who it is for, and what the open-core release includes today.
+description: Understand what ThreadLens does, who it is for, and what the current self-hosted release includes today.
 ---
 
 ThreadLens helps builders find product opportunities by collecting public conversations and search results, scoring them for pain and relevance, filtering duplicates, and turning high-signal findings into product-angle reports.
@@ -37,10 +37,10 @@ If you start without provider keys, use that first launch only to confirm that t
 - Google reports with summaries, opportunities, risks, and next actions.
 - Scheduled scout runs for recurring research workflows.
 
-## Open-core status
+## Self-Hosted Status
 
-The open-core app can run today with Docker or local workspace commands. Hosted ThreadLens is planned as a later managed option for teams that do not want to self-host or manage provider keys.
+The self-hosted app can run today with Docker or local workspace commands. Hosted ThreadLens is planned as a later managed option for teams that do not want to self-host or manage provider keys.
 
-ThreadLens open-core is source-available under BUSL 1.1. That means you can inspect, modify, fork, and self-host it for your own internal business or personal use, while competing resale and hosted clone use stay restricted. See the [Licensing](../reference/licensing/) page for the current terms.
+ThreadLens is source-available under BUSL 1.1. That means you can inspect, modify, fork, and self-host it for your own internal business or personal use, while competing resale and hosted clone use stay restricted. See the [Licensing](../reference/licensing/) page for the current terms.
 
 For architecture details after your first run, see [Workspace Layout](../architecture/workspace-layout/), [Go API](../architecture/go-api/), and [Pipelines](../architecture/pipelines/).

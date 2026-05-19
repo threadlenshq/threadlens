@@ -4,7 +4,7 @@ description: Understand where ThreadLens stores local data and how to think abou
 ---
 
 
-ThreadLens stores open-core application data in SQLite.
+ThreadLens stores application data in SQLite.
 
 ## Docker storage
 

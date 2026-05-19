@@ -1,10 +1,10 @@
 ---
 title: Web App
-description: Understand the open-core Svelte and Vite frontend role.
+description: Understand the Svelte and Vite frontend role.
 ---
 
 
-The open-core frontend lives in `open-core/apps/web` and uses Svelte 5 with Vite.
+The frontend lives in `open-core/apps/web` and uses Svelte 5 with Vite.
 
 ## Responsibilities
 

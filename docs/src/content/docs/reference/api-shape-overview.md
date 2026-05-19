@@ -4,7 +4,7 @@ description: Understand the high-level Go API surface without generated API refe
 ---
 
 
-The active open-core backend is the Go API in `open-core/apps/api`. Detailed generated API reference is deferred for the first docs release.
+The active backend is the Go API in `open-core/apps/api`. Detailed generated API reference is deferred for the first docs release.
 
 ## Main resource areas
 
@@ -19,4 +19,4 @@ The active open-core backend is the Go API in `open-core/apps/api`. Detailed gen
 
 ## Compatibility goal
 
-The Go API preserves Express response shapes where the open-core frontend already depends on them. Handlers stay thin, services own orchestration, and repositories own SQLite access.
+The Go API preserves Express response shapes where the frontend already depends on them. Handlers stay thin, services own orchestration, and repositories own SQLite access.

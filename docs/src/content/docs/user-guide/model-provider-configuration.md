@@ -22,7 +22,7 @@ AI provider keys unlock scoring, analysis, query assistance, clustering, and rep
 | Google scouting through the configured search provider | `PARALLEL_API_KEY` |
 | Bluesky scouting | `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` |
 
-Reddit is the lowest-friction first source in the current open-core docs because it has no extra source credential listed here, but it still needs AI provider readiness for useful scoring and reports.
+Reddit is the lowest-friction first source in the current docs because it has no extra source credential listed here, but it still needs AI provider readiness for useful scoring and reports.
 
 ## Models view and fallback behavior
 

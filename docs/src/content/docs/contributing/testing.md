@@ -1,6 +1,6 @@
 ---
 title: Testing
-description: Run the main ThreadLens open-core validation commands.
+description: Run the main ThreadLens validation commands.
 ---
 
 

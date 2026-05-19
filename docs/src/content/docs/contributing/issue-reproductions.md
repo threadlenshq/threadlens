@@ -1,10 +1,10 @@
 ---
 title: Issue Reproductions
-description: Report useful ThreadLens open-core issues without sharing secrets.
+description: Report useful ThreadLens issues without sharing secrets.
 ---
 
 
-Good bug reports make open-core maintenance faster and safer.
+Good bug reports make ThreadLens maintenance faster and safer.
 
 ## Include
 

@@ -9,7 +9,7 @@ ThreadLens can scout social posts and Google Search results from project-specifi
 
 | Source | Best for | Source credentials | First-run guidance |
 | --- | --- | --- | --- |
-| Reddit | Long-form complaints, niche community language, and detailed workarounds | No extra source credential is documented for the current open-core first-run path | Start here when you want the least source-specific setup. Configure an AI provider first for useful scoring and reports. |
+| Reddit | Long-form complaints, niche community language, and detailed workarounds | No extra source credential is documented for the current first-run path | Start here when you want the least source-specific setup. Configure an AI provider first for useful scoring and reports. |
 | Google Search | Pages, comparisons, search intent, commercial intent, and recurring problem language outside social posts | `PARALLEL_API_KEY` | Use after the configured search provider key is present in `open-core/.env`. |
 | Bluesky | Shorter public posts, emerging conversation, and social commentary | `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` | Use after both Bluesky credentials are present in `open-core/.env`. |
 

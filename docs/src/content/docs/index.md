@@ -3,7 +3,7 @@ title: ThreadLens Documentation
 description: Self-host ThreadLens, configure providers, create a first project, scout conversations, and review results.
 ---
 
-ThreadLens is open-core research intelligence for finding product opportunities in real conversations across Reddit, Bluesky, and Google Search. These docs help you run ThreadLens locally, configure providers safely, create your first project, understand scouting results, and contribute to the open-core project.
+ThreadLens is self-hosted research intelligence for finding product opportunities in real conversations across Reddit, Bluesky, and Google Search. These docs help you run ThreadLens locally, configure providers safely, create your first project, understand scouting results, and contribute to the public repository.
 
 ## Start with Docker
 
@@ -24,7 +24,7 @@ Docker can start ThreadLens without provider keys, which is useful for smoke-tes
 
 Follow this sequence for your first useful self-hosted run:
 
-1. [Understand what ThreadLens does](start-here/overview/) and what the open-core release includes.
+1. [Understand what ThreadLens does](start-here/overview/) and what the current self-hosted release includes.
 2. [Run ThreadLens with Docker](start-here/quick-start/) and verify the local web app and API are reachable.
 3. [Configure provider keys](start-here/configuration-basics/) so AI workflows and your chosen scouting source can produce useful results.
 4. [Reach first value in 15 minutes](start-here/first-value-in-15-minutes/) by completing setup, creating one research project, adding one narrow query, running one scout, and inspecting findings.

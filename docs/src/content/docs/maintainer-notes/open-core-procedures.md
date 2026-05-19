@@ -1,6 +1,6 @@
 ---
-title: Open-Core Procedures
-description: Public maintainer notes for keeping open-core documentation and support healthy.
+title: Self-Hosted Procedures
+description: Public maintainer notes for keeping self-hosted documentation and support healthy.
 ---
 
 
@@ -13,8 +13,8 @@ This section is public and maintainer-oriented. It is not a place for private ho
 - Keep `open-core/LICENSE`, `reference/licensing`, and README license summaries consistent when the license or contribution policy changes.
 - Search for unsafe placeholders, real secrets, and private hosted details before release.
 
-## Open-core support triage
+## Self-Hosted Support Triage
 
 - Ask for reproduction commands and redacted logs.
 - Confirm whether Docker or local commands were used.
-- Keep support answers focused on the self-hosted open-core app unless hosted behavior is public and released.
+- Keep support answers focused on the self-hosted app unless hosted behavior is public and released.

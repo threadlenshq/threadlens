@@ -8,7 +8,7 @@ A project is the main workspace for a market, audience, niche, or product idea. 
 
 ## Research mode
 
-Research mode focuses on finding pain points, repeated complaints, workarounds, and product opportunities. It is the primary open-core adoption path.
+Research mode focuses on finding pain points, repeated complaints, workarounds, and product opportunities. It is the primary self-hosted adoption path.
 
 ## Marketing mode
 

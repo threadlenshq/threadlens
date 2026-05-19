@@ -3,7 +3,7 @@ title: Configuration Basics
 description: Configure the provider credentials needed for useful ThreadLens scouting and reports.
 ---
 
-ThreadLens reads open-core runtime settings from `open-core/.env`. The Docker commands create that file from `open-core/.env.example` when it is missing, and you can also create it manually before starting or restarting Docker.
+ThreadLens reads runtime settings from `open-core/.env`. The Docker commands create that file from `open-core/.env.example` when it is missing, and you can also create it manually before starting or restarting Docker.
 
 Docker can start without an AI provider path, but useful AI scoring, analysis, reports, Google scouting, and Bluesky scouting need either a configured provider key or a supported CLI-backed provider path available in the same runtime environment as ThreadLens. For the simplest first run, start with one explicit provider key.
 
@@ -68,7 +68,7 @@ AI provider configuration is separate from source access. Add source credentials
 
 | Source | Credentials | First-run guidance |
 | --- | --- | --- |
-| Reddit | No extra source credential is documented for the current open-core first-run path | Lowest-friction first source, but still needs an AI provider for useful scoring and reports. |
+| Reddit | No extra source credential is documented for the current first-run path | Lowest-friction first source, but still needs an AI provider for useful scoring and reports. |
 | Google Search | `PARALLEL_API_KEY` | Add this when you want Google scouting through the configured search provider. |
 | Bluesky | `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` | Add both before relying on Bluesky scouting. |
 
@@ -94,7 +94,7 @@ These variables are useful for advanced local development, embedding repositorie
 | `SCOUT_DB_PATH` | Overrides the SQLite database path used by the Go API. |
 | `SCOUT_FRONTEND_DIST` | Points the Go API at a built web app directory for static serving. |
 | `SCOUT_INIT_DEMO` | Seeds demo data when set to `1`. |
-| `THREADLENS_RUNTIME_MODE` | Selects self-hosted or hosted runtime mode; self-hosted is the default for open-core use. |
+| `THREADLENS_RUNTIME_MODE` | Selects self-hosted or hosted runtime mode; self-hosted is the default for this setup. |
 
 ## Onboarding flow and first-run persistence
 

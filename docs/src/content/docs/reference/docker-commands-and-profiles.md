@@ -1,6 +1,6 @@
 ---
 title: Docker Commands and Profiles
-description: Reference supported open-core Docker commands, profiles, and persistent data behavior.
+description: Reference supported repository Docker commands, profiles, and persistent data behavior.
 ---
 
 Run Docker commands from `open-core/`. If this is your first visit, start with the guided [Quick Start](../start-here/quick-start/) before using this page as a command reference.
