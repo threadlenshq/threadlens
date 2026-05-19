@@ -5,6 +5,20 @@ description: Fix common first-run Docker, env file, provider, and first scout is
 
 Use this page when ThreadLens starts but the first-run path does not reach useful findings.
 
+If you used `npx create-threadlens-app@latest`, also check the generated app directory's `README.md` for instance-specific `doctor`, `logs`, `upgrade`, and `reset` commands.
+
+## The installer says Docker is missing or unavailable
+
+1. Install Docker Desktop or Docker Engine with Compose support.
+2. Start Docker and rerun the installer command.
+3. If the installer already created a local app directory, use the generated app's `doctor` command after Docker starts.
+
+## The installer reports a port conflict
+
+1. Pick a different port during install, or let the installer choose the next available port.
+2. If you already created a generated app, update the instance's manifest or rerun the installer with a new port.
+3. For repo-level development commands, check whether something else is already using `4748` or `4749`.
+
 ## Docker starts but the web app is unreachable
 
 1. Check that all containers are running: `docker compose ps`

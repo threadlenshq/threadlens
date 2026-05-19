@@ -1,17 +1,28 @@
 ---
 title: Quick Start
-description: Start the open-core development profile with Docker from the open-core workspace.
+description: Start ThreadLens locally with the installer, or use the open-core Docker path for contributor workflows.
 ---
 
-Use this path when you want the fastest local ThreadLens setup. Commands in this page run from the `open-core/` directory.
+Use the installer when you want the public end-user setup path. Use the `open-core/` Docker path when you are contributing to the repo or need manual control.
+
+## Recommended: one-command local install
+
+```bash
+npx create-threadlens-app@latest
+```
+
+This creates a local ThreadLens app directory, starts Docker, verifies readiness, and opens the setup wizard. Follow the generated app's `README.md` for `start`, `stop`, `status`, `logs`, `doctor`, `upgrade`, and `reset` commands.
 
 ## Prerequisites
 
-- Node and pnpm compatible with `packageManager: pnpm@10.14.0`.
 - Docker Desktop or another Docker Engine with Compose support.
 - At least one AI provider path before you expect useful AI scoring, analysis, reports, Google scouting, or Bluesky scouting. A provider key is the recommended first-run path.
 
 You can start the app without an AI provider path to smoke-test local startup. Configure a provider key, or use a supported CLI-backed path that is installed and authenticated in the runtime environment, before treating the run as a real scouting workflow.
+
+## Contributor path: open-core Docker profile
+
+Commands in this section run from the `open-core/` directory.
 
 ## Start the development profile
 
@@ -62,6 +73,8 @@ pnpm run docker:prod
 The production profile serves the built web app from the Go API container at `http://localhost:4749`.
 
 Use the development profile first when you are following the Start Here path because it exposes the web app at `http://localhost:4748` and keeps local debugging straightforward.
+
+If you are using a generated installer directory instead of `open-core/`, use the commands in that directory's `README.md` and `compose.yml` instead of the repo-level Docker commands here.
 
 ## Stop Docker services
 

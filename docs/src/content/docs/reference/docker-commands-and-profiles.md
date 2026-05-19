@@ -5,6 +5,8 @@ description: Reference supported open-core Docker commands, profiles, and persis
 
 Run Docker commands from `open-core/`. If this is your first visit, start with the guided [Quick Start](../start-here/quick-start/) before using this page as a command reference.
 
+If you installed ThreadLens with `npx create-threadlens-app@latest`, use the commands in the generated app directory instead of the repo-level commands on this page. The installer generates instance-specific Compose files, ports, and volume names.
+
 Docker startup and provider readiness are separate. Containers can run before credentials are configured, but scouting capabilities depend on the provider and source credentials available in `open-core/.env`.
 
 On macOS and Linux, `pnpm run docker:dev` also best-effort bootstraps the optional local host CLI bridge before Compose starts. The bootstrap creates file-based bridge config and token state, starts `scout-ai-bridge` when possible, writes Docker-facing bridge variables into `open-core/.env` only when the bridge is healthy and has at least one available runtime, and continues to Compose even if the bridge is unavailable. Self-hosted users can also run the bridge alongside a `docker:prod` deployment if they want host-authenticated CLI reuse.
@@ -20,6 +22,8 @@ On macOS and Linux, `pnpm run docker:dev` also best-effort bootstraps the option
 ## Persistent data
 
 SQLite data is stored in the named Docker volume `scout_open_core_sqlite_data` and mounted at `/data/scout.db` inside API containers.
+
+Generated installer apps use their own instance-specific volume names so they do not conflict with the contributor workspace volume above.
 
 To intentionally delete local Docker data, run:
 

@@ -25,9 +25,17 @@ ThreadLens gives you a local-first way to collect those signals, score them for 
 
 ## Quick start
 
-Run these commands from the `open-core/` directory.
+For most end users, start with the local-first installer:
+
+```bash
+npx create-threadlens-app@latest
+```
+
+That command creates an isolated local app directory, starts ThreadLens with Docker, checks readiness, and hands you into the setup wizard. Use the raw `open-core/` Docker path below if you are contributing to the repo or want manual control.
 
 ### Docker-first path
+
+Run these commands from the `open-core/` directory.
 
 ```bash
 pnpm install
@@ -46,7 +54,7 @@ The development profile starts:
 
 After the web app loads, complete the ThreadLens setup wizard, create or accept one starter research project, add one narrow Reddit query, run one scout manually, and inspect the strongest findings before expanding query coverage.
 
-For the production/self-host profile:
+For the production/self-host profile inside `open-core/`:
 
 ```bash
 pnpm run docker:prod
