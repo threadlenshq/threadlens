@@ -31,11 +31,11 @@ For most end users, start with the local-first installer:
 npx create-threadlens-app@latest
 ```
 
-That command creates an isolated local app directory, starts ThreadLens with Docker, checks readiness, and hands you into the setup wizard. Use the raw `open-core/` Docker path below if you are contributing to the repo or want manual control.
+That command creates an isolated local app directory, starts ThreadLens with Docker, checks readiness, and hands you into the setup wizard. Use the raw Docker path below if you are contributing to the repo or want manual control.
 
 ### Docker-first path
 
-Run these commands from the `open-core/` directory.
+Run these commands from the repository root.
 
 ```bash
 pnpm install
@@ -43,7 +43,7 @@ pnpm run docker:dev
 pnpm run self-host:smoke
 ```
 
-`pnpm run docker:dev` auto-creates `open-core/.env` from `open-core/.env.example` when it is missing. Add provider keys to `open-core/.env` when you want AI analysis, Google Search, or Bluesky features to work. If another repository embeds open-core, it can pass a different env file through `SCOUT_ENV_FILE`.
+`pnpm run docker:dev` auto-creates `.env` from `.env.example` when it is missing. Add provider keys to `.env` when you want AI analysis, Google Search, or Bluesky features to work. If another repository embeds open-core, it can pass a different env file through `SCOUT_ENV_FILE`.
 
 The development profile starts:
 
@@ -54,7 +54,7 @@ The development profile starts:
 
 After the web app loads, complete the ThreadLens setup wizard, create or accept one starter research project, add one narrow Reddit query, run one scout manually, and inspect the strongest findings before expanding query coverage.
 
-For the production/self-host profile inside `open-core/`:
+For the production/self-host profile:
 
 ```bash
 pnpm run docker:prod
@@ -83,7 +83,7 @@ pnpm run build:go
 
 ## Configuration
 
-ThreadLens reads shared runtime settings from `open-core/.env`. Start from the checked-in example:
+ThreadLens reads shared runtime settings from `.env`. Start from the checked-in example:
 
 ```bash
 cp .env.example .env
@@ -138,6 +138,20 @@ Hosted ThreadLens is planned as a later managed option for teams that do not wan
 ThreadLens is early software. The highest-value contributions are setup feedback, reproducible bugs, source-specific pipeline fixes, documentation improvements, and small product-quality improvements that keep the self-hosted workflow simple.
 
 Public product code belongs in this repository workspace. Hosted-only SaaS services, billing, multi-tenancy, and cloud infrastructure belong outside the `open-core/` subtree.
+
+## Releases
+
+Public releases are published to [github.com/threadlenshq/threadlens/releases](https://github.com/threadlenshq/threadlens/releases) from the subtree split of this repository. Each release is tagged at the split SHA corresponding to the monorepo commit being released.
+
+Release notes and version history are maintained in [`CHANGELOG.md`](CHANGELOG.md). Source archives and tarballs are attached to each GitHub release for reproducible builds.
+
+To cut a new release, run from the monorepo root:
+
+```bash
+pnpm run release -- --track open-core
+```
+
+The maintainer release runbook lives in the private monorepo.
 
 ## License status
 
