@@ -52,4 +52,4 @@ pnpm run docker:down
 
 ## Support routing
 
-Public self-hosted issues belong in public issue tracking. Hosted SaaS billing, credentials, and private infrastructure support do not belong in public docs or public issue comments.
+Public self-hosted issues belong in public issue tracking. Hosted billing, credentials, and private infrastructure support do not belong in public docs or public issue comments.

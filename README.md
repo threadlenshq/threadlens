@@ -37,6 +37,8 @@ That command creates an isolated local app directory, starts ThreadLens with Doc
 
 Run these commands from the repository root.
 
+If you prefer the raw Docker path instead of the pnpm wrappers, use `docker compose` directly with `infra/docker/compose.yml`.
+
 ```bash
 pnpm install
 pnpm run docker:dev
