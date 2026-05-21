@@ -5,6 +5,12 @@ description: Configure the provider credentials needed for useful ThreadLens sco
 
 ThreadLens reads runtime settings from the repository root `.env`. The Docker commands create that file from `.env.example` when it is missing, and you can also create it manually before starting or restarting Docker.
 
+## Fastest useful self-host path
+
+For the first self-hosted run, configure one AI provider key before expecting useful scoring, analysis, or reports. Anthropic through `ANTHROPIC_API_KEY` or Gemini through `GEMINI_API_KEY` is the fastest reliable Docker path. Add `PARALLEL_API_KEY` only for Google Search scouting, and add `BLUESKY_HANDLE` plus `BLUESKY_APP_PASSWORD` only for Bluesky scouting.
+
+Local CLI or bridge paths are advanced local options. They are useful when you already have the CLI authenticated in the runtime, but they are not required for the first open-core activation path.
+
 Docker can start without an AI provider path, but useful AI scoring, analysis, reports, Google scouting, and Bluesky scouting need either a configured provider key or a supported CLI-backed provider path available in the same runtime environment as ThreadLens. For the simplest first run, start with one explicit provider key.
 
 ## 1. Create or open the environment file

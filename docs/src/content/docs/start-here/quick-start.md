@@ -31,6 +31,7 @@ For a first local run, use the development Docker profile:
 ```bash
 pnpm install
 pnpm run docker:dev
+pnpm run self-host:smoke
 ```
 
 Expected local services:
@@ -43,6 +44,12 @@ Expected local services:
 ## Verify the app is reachable
 
 Open `http://localhost:4748` in a browser. On a new database, ThreadLens should show the required setup wizard before the main workspace. Complete the wizard in the app to choose an AI provider path and confirm local app/database readiness.
+
+You can run the self-host smoke check first:
+
+```bash
+pnpm run self-host:smoke
+```
 
 You can also check the API directly:
 

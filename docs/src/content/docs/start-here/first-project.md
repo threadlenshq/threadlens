@@ -40,6 +40,15 @@ Start with one source and one narrow query so you can inspect the results manual
 
 Good first queries describe a problem, audience, or workflow. For an AI note-taking project, start with a phrase such as `meeting notes too time consuming`, `forget action items after calls`, or `transcribing interviews workflow` instead of a broad phrase such as `AI tools`.
 
+Good first-query patterns:
+
+| Pattern | Example |
+| --- | --- |
+| Pain phrase | `meeting notes too time consuming` |
+| Failed workaround | `spreadsheet CRM keeps breaking` |
+| Repeated job | `manual invoice follow up takes hours` |
+| Audience plus pain | `freelance designers client feedback scattered` |
+
 ## 4. Run a scout
 
 Run the scout for the source you configured and wait for completion before changing the query. Onboarding never starts external scouting automatically; this remains an explicit user action from the Scout button so you control network-heavy work.

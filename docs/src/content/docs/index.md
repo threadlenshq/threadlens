@@ -20,6 +20,7 @@ If you want the manual repository path instead, clone `github.com/threadlenshq/t
 ```bash
 pnpm install
 pnpm run docker:dev
+pnpm run self-host:smoke
 ```
 
 The development profile starts the Go API at `http://localhost:4749` and the web app at `http://localhost:4748`.

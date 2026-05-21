@@ -6,8 +6,6 @@ ENV_FILE="${SCOUT_ENV_FILE:-${ROOT_DIR}/.env}"
 API_URL="${THREADLENS_API_URL:-http://localhost:4749}"
 WEB_URL="${THREADLENS_WEB_URL:-http://localhost:4748}"
 DRY_RUN="${THREADLENS_SMOKE_DRY_RUN:-0}"
-# How many times to retry an endpoint check before giving up (each attempt is ~2 s apart)
-RETRY_MAX="${THREADLENS_SMOKE_RETRIES:-3}"
 
 print_step() {
   printf '\n==> %s\n' "$1"
@@ -22,7 +20,6 @@ require_command() {
 }
 
 # check_url LABEL URL
-# Retries up to RETRY_MAX times with a 2-second pause between attempts.
 # In dry-run mode the network call is skipped and the check always succeeds.
 check_url() {
   local label="$1"
@@ -31,19 +28,11 @@ check_url() {
     printf 'DRY RUN: would check %s at %s\n' "$label" "$url"
     return 0
   fi
-  local attempt=0
-  while [ "$attempt" -lt "$RETRY_MAX" ]; do
-    if curl -fsS --max-time 5 "$url" >/dev/null 2>&1; then
-      printf '%s reachable: %s\n' "$label" "$url"
-      return 0
-    fi
-    attempt=$(( attempt + 1 ))
-    if [ "$attempt" -lt "$RETRY_MAX" ]; then
-      printf '%s not reachable yet (%d/%d), retrying in 2 s...\n' "$label" "$attempt" "$RETRY_MAX" >&2
-      sleep 2
-    fi
-  done
-  printf '%s not reachable yet after %d attempt(s): %s\n' "$label" "$RETRY_MAX" "$url" >&2
+  if curl -fsS --max-time 5 "$url" >/dev/null 2>&1; then
+    printf '%s reachable: %s\n' "$label" "$url"
+    return 0
+  fi
+  printf '%s not reachable yet: %s\n' "$label" "$url" >&2
   return 1
 }
 
@@ -54,14 +43,15 @@ printf 'API URL: %s\n' "$API_URL"
 printf 'Web URL: %s\n' "$WEB_URL"
 
 print_step "Prerequisites"
+require_command pnpm
+require_command docker
 require_command curl
 
 print_step "Environment file"
 if [ -f "$ENV_FILE" ]; then
   printf 'Env file exists.\n'
 else
-  printf 'ERROR: Env file missing at %s — create it with: cp .env.example .env\n' "$ENV_FILE" >&2
-  exit 1
+  printf 'Env file missing. Create it with: cp .env.example .env\n'
 fi
 
 print_step "Running services"
