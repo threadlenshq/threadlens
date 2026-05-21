@@ -90,8 +90,8 @@
 >
   <header>
     <div>
-      <p class="eyebrow">First workspace tour</p>
-      <h2>Explore ThreadLens at your pace</h2>
+      <p class="eyebrow">First value path</p>
+      <h2>Reach first value with one focused scout</h2>
     </div>
     <button class="close-btn" aria-label="Close checklist" onclick={onClose}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -518,4 +518,3 @@
     margin: -4px 0 0;
   }
 </style>
-

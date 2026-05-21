@@ -129,11 +129,11 @@ infra/
 
 The self-hosted app stores data in SQLite and keeps provider keys under your control. The Docker development profile runs the web and API services separately; the production profile serves the built web app through the Go API image.
 
-## Self-Hosted and Hosted ThreadLens
+## Self-Hosted ThreadLens
 
 This repository contains the self-hosted ThreadLens app you can run today. It is designed for builders who want a self-hostable, inspectable research workflow with local data storage.
 
-Hosted ThreadLens is planned as a later managed option for teams that do not want to self-host or manage provider keys. To get notified about the hosted version, use the waitlist at [threadlens.dev](https://threadlens.dev).
+Hosted ThreadLens is a later possibility, but the current public product and docs are optimized for self-hosted activation first.
 
 ## Contributing and status
 
