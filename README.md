@@ -143,14 +143,22 @@ Public product code belongs in this repository workspace. Hosted-only SaaS servi
 
 ## Releases
 
+ThreadLens releases are unified: both `create-threadlens-app` (npm) and `open-core` (public GitHub) share the same version number and are published together under a single `threadlens-vVERSION` tag.
+
 Public releases are published to [github.com/threadlenshq/threadlens/releases](https://github.com/threadlenshq/threadlens/releases) from the subtree split of this repository. Each release is tagged at the split SHA corresponding to the monorepo commit being released.
 
 Release notes and version history are maintained in [`CHANGELOG.md`](CHANGELOG.md). Source archives and tarballs are attached to each GitHub release for reproducible builds.
 
-To cut a new release, run from the monorepo root:
+To preview what a release would do without writing anything:
 
 ```bash
-pnpm run release -- --track open-core
+node scripts/release/index.js --dry-run
+```
+
+To prepare a new release, run from the monorepo root:
+
+```bash
+node scripts/release/index.js --prepare
 ```
 
 The maintainer release runbook lives in the private monorepo.

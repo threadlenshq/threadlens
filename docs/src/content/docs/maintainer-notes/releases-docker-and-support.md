@@ -17,9 +17,11 @@ Before publishing a public open-core GitHub release, confirm that the following 
 - `packages/create-threadlens-app/CHANGELOG.md` — monorepo authoring workspace check for the npm package changelog
 
 **Artifact expectations:**
-- The GitHub release on `threadlenshq/threadlens` must be tagged at the correct split SHA
-- A source archive (`.tar.gz`) must be attached to the release as a downloadable artifact
+- Both `create-threadlens-app` (npm) and `open-core` (GitHub) share the same version number and are released together
+- The unified release tag `threadlens-vVERSION` is created in `threadlenshq/threadlens` at the correct split SHA
+- A source archive (`.tar.gz`) must be attached to the GitHub release as a downloadable artifact
 - Release notes must include the changelog entry for the version being released
+- The `create-threadlens-app@VERSION` package must be published to npm at the same version
 
 **Verification commands:**
 
