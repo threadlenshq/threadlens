@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1 - 2026-05-21
+
+Tag: `threadlens-v0.2.1`
+
+### Fixes
+
+- fix(threadlens): refocus self-host activation copy (`10a92a4`)
+- fix(open-core): align self-host smoke check with activation docs (`62d17bd`)
+
 ## 0.2.0 - 2026-05-20
 
 Tag: `threadlens-v0.2.0`
