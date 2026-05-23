@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.3 - 2026-05-23
+
+Tag: `threadlens-v0.2.3`
+
+### Documentation
+
+- docs: update release skill and docs for unified threadlens-vVERSION release flow (`f0f15b3`)
+
 ## 0.2.1 - 2026-05-21
 
 Tag: `threadlens-v0.2.1`
