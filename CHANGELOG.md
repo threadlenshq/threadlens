@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.4 - 2026-05-24
+
+Tag: `threadlens-v0.2.4`
+
+### Maintenance
+
+- chore(release): version bump alongside create-threadlens-app 0.2.4 (image tag fix).
+
 ## 0.2.3 - 2026-05-23
 
 Tag: `threadlens-v0.2.3`
