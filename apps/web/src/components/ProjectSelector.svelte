@@ -1,49 +1,29 @@
 <script>
   import { fly } from 'svelte/transition';
 
-  let { projects = [], selectedId = null, onSelect, onCreate, collapsed = false } = $props();
+  let { projects = [], selectedId = null, onSelect, onRequestCreate, collapsed = false } = $props();
 
   let open = $state(false);
-  let showForm = $state(false);
-  let newSlug = $state('');
-  let newName = $state('');
-  let newMode = $state('research');
 
   let selectedProject = $derived(projects.find(p => p.id === selectedId) || null);
 
   function toggle() {
     open = !open;
-    if (!open) showForm = false;
   }
 
   function selectProject(id) {
     onSelect?.(id);
     open = false;
-    showForm = false;
   }
 
-  function openForm() {
-    showForm = true;
-  }
-
-  function cancelForm() {
-    showForm = false;
-    newSlug = '';
-    newName = '';
-    newMode = 'research';
-  }
-
-  function submitForm() {
-    if (!newSlug.trim() || !newName.trim()) return;
-    onCreate?.({ id: newSlug.trim(), name: newName.trim(), mode: newMode });
-    cancelForm();
+  function requestCreate() {
     open = false;
+    onRequestCreate?.();
   }
 
   function handleKeydown(e) {
     if (e.key === 'Escape') {
       open = false;
-      showForm = false;
     }
   }
 
@@ -99,32 +79,7 @@
 
       <div class="divider"></div>
 
-      {#if !showForm}
-        <button class="new-project-btn" onclick={openForm}>+ New Project</button>
-      {:else}
-        <div class="new-project-form">
-          <input
-            class="form-input"
-            type="text"
-            placeholder="slug (e.g. my-project)"
-            bind:value={newSlug}
-          />
-          <input
-            class="form-input"
-            type="text"
-            placeholder="Display name"
-            bind:value={newName}
-          />
-          <select class="form-select" bind:value={newMode}>
-            <option value="research">Research</option>
-            <option value="marketing">Marketing</option>
-          </select>
-          <div class="form-actions">
-            <button class="btn-create" onclick={submitForm}>Create</button>
-            <button class="btn-cancel" onclick={cancelForm}>Cancel</button>
-          </div>
-        </div>
-      {/if}
+      <button class="new-project-btn" onclick={requestCreate}>+ New Project</button>
     </div>
   {/if}
 </div>
@@ -297,71 +252,5 @@
 
   .new-project-btn:hover {
     background: #23233a;
-  }
-
-  .new-project-form {
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .form-input,
-  .form-select {
-    width: 100%;
-    padding: 6px 8px;
-    background: #0f0f13;
-    border: 1px solid #2a2a3a;
-    border-radius: 4px;
-    color: #e2e2e8;
-    font-size: 13px;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-
-  .form-input:focus,
-  .form-select:focus {
-    border-color: #7c6af5;
-  }
-
-  .form-select option {
-    background: #1a1a24;
-  }
-
-  .form-actions {
-    display: flex;
-    gap: 6px;
-  }
-
-  .btn-create {
-    flex: 1;
-    padding: 6px;
-    background: #7c6af5;
-    border: none;
-    border-radius: 4px;
-    color: #fff;
-    font-size: 13px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .btn-create:hover {
-    background: #6a58e3;
-  }
-
-  .btn-cancel {
-    flex: 1;
-    padding: 6px;
-    background: #2a2a3a;
-    border: none;
-    border-radius: 4px;
-    color: #e2e2e8;
-    font-size: 13px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .btn-cancel:hover {
-    background: #33334a;
   }
 </style>

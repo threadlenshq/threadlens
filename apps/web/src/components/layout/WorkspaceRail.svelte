@@ -1,6 +1,6 @@
 <script>
   import ProjectSelector from '../ProjectSelector.svelte';
-  let { projects = [], selectedProjectId = null, view = 'posts', collapsed = false, onToggleCollapse, onSelectProject, onCreateProject, onNavigate } = $props();
+  let { projects = [], selectedProjectId = null, view = 'posts', collapsed = false, onToggleCollapse, onSelectProject, onRequestCreateProject, onNavigate } = $props();
 
   const navItems = [
     {
@@ -59,7 +59,7 @@
       {projects}
       selectedId={selectedProjectId}
       onSelect={onSelectProject}
-      onCreate={onCreateProject}
+      onRequestCreate={onRequestCreateProject}
       {collapsed}
     />
   </div>

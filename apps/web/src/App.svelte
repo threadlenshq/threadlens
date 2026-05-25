@@ -19,6 +19,7 @@
   import GoogleReportsTab from './components/GoogleReportsTab.svelte';
   import GoogleReportView from './components/GoogleReportView.svelte';
   import ModelConfig from './components/ModelConfig.svelte';
+  import NewProjectModal from './components/NewProjectModal.svelte';
   import { POST_STATUSES } from '@scout/shared';
 
   // --- Onboarding gate ---
@@ -29,6 +30,9 @@
   let checklistOpen = $state(false);
   let onboardingRequiresSetup = $derived(shouldShowRequiredWizard(onboardingStatus));
   let onboardingShowsExploration = $derived(shouldShowExploration(onboardingStatus));
+
+  // --- New project modal ---
+  let showNewProjectModal = $state(false);
 
   async function checkOnboarding() {
     onboardingError = '';
@@ -408,14 +412,14 @@
   }
 
   async function handleProjectCreate(detail) {
-    const { id, name, mode } = detail;
-    try {
-      const created = await projectsApi.create({ id, name, mode });
-      await loadProjects();
-      await selectProject(created.id);
-    } catch (e) {
-      console.error('Failed to create project:', e);
-    }
+    const { id, name, description, mode } = detail;
+    const created = await projectsApi.create({ id, name, mode, ...(description ? { description } : {}) });
+    await loadProjects();
+    await selectProject(created.id);
+  }
+
+  function openNewProjectModal() {
+    showNewProjectModal = true;
   }
 
   // --- Project settings handlers ---
@@ -773,7 +777,7 @@
         collapsed={railCollapsed}
         onToggleCollapse={toggleRailCollapsed}
         onSelectProject={handleProjectSelect}
-        onCreateProject={handleProjectCreate}
+        onRequestCreateProject={openNewProjectModal}
         onNavigate={(nextView) => navigateTo(nextView)}
       />
     {/snippet}
@@ -806,7 +810,8 @@
     {#if !selectedProjectId && view !== 'models'}
       <div class="empty-screen">
         <p class="empty-title">No project selected</p>
-        <p class="empty-sub">Use the workspace rail to select or create a project.</p>
+        <p class="empty-sub">Create a new project or select an existing one to get started.</p>
+        <button class="empty-create-btn" onclick={openNewProjectModal}>+ New Project</button>
       </div>
     {:else if view === 'models'}
       <div class="full-width-view">
@@ -1054,6 +1059,12 @@
   {/if}
 </div>
 
+<NewProjectModal
+  open={showNewProjectModal}
+  onClose={() => showNewProjectModal = false}
+  onCreate={handleProjectCreate}
+/>
+
 <style>
   :global(*) {
     box-sizing: border-box;
@@ -1152,6 +1163,23 @@
   .empty-sub {
     font-size: 14px;
     color: #666;
+  }
+
+  .empty-create-btn {
+    margin-top: 8px;
+    padding: 10px 24px;
+    background: #7c6af5;
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .empty-create-btn:hover {
+    opacity: 0.88;
   }
 
   /* Filter bar */
