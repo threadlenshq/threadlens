@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.5 - 2026-05-25
+
+Tag: `threadlens-v0.2.5`
+
+### Maintenance
+
+- Version alignment only for the unified ThreadLens release.
+
 ## 0.2.4 - 2026-05-24
 
 Tag: `threadlens-v0.2.4`
