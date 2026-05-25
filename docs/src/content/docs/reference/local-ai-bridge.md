@@ -54,6 +54,8 @@ pnpm run bridge:stop
 - `copilot` and/or `claude` installed on the host if you want CLI-backed models through the bridge
 - at least one of those CLIs authenticated on the host
 
+For installation and authentication steps, see [Credential Setup — GitHub Copilot CLI](credential-setup/#copilot-cli) and [Credential Setup — Claude CLI](credential-setup/#claude-cli).
+
 ## Health expectations
 
 When healthy, `pnpm run bridge:health` returns JSON like:

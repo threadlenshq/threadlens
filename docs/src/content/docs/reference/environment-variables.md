@@ -12,11 +12,11 @@ Docker reads values from the repository root `.env` unless an embedding reposito
 | `PORT` | `4749` | Optional runtime override | Go API HTTP port. |
 | `SCOUT_DB_PATH` | `../../scout.db` from the API working directory | Optional runtime override | SQLite database path. Docker sets this to `/data/scout.db`. |
 | `SCOUT_FRONTEND_DIST` | `../web/dist` from the API working directory | Optional runtime override | Static web build directory served by the Go API. |
-| `ANTHROPIC_API_KEY` | Empty | AI scoring, analysis, and reports through Anthropic-backed calls | Anthropic-backed AI workflows. |
-| `GEMINI_API_KEY` | Empty | AI scoring, analysis, and reports through Gemini-compatible calls | Gemini provider path. |
-| `PARALLEL_API_KEY` | Empty | Google scouting through the configured search provider | Parallel.ai Search provider for Google scouting. |
-| `BLUESKY_HANDLE` | Empty | Bluesky scouting | Bluesky API account handle. |
-| `BLUESKY_APP_PASSWORD` | Empty | Bluesky scouting | Bluesky app password. |
+| `ANTHROPIC_API_KEY` | Empty | AI scoring, analysis, and reports through Anthropic-backed calls | Anthropic-backed AI workflows. [How&nbsp;to&nbsp;get&nbsp;→](credential-setup/#anthropic) |
+| `GEMINI_API_KEY` | Empty | AI scoring, analysis, and reports through Gemini-compatible calls | Gemini provider path. [How&nbsp;to&nbsp;get&nbsp;→](credential-setup/#gemini) |
+| `PARALLEL_API_KEY` | Empty | Google scouting through the configured search provider | Parallel.ai Search provider for Google scouting. [How&nbsp;to&nbsp;get&nbsp;→](credential-setup/#parallel) |
+| `BLUESKY_HANDLE` | Empty | Bluesky scouting | Bluesky API account handle (e.g. `yourname.bsky.social`). [How&nbsp;to&nbsp;get&nbsp;→](credential-setup/#bluesky) |
+| `BLUESKY_APP_PASSWORD` | Empty | Bluesky scouting | Bluesky App Password (not your login password). [How&nbsp;to&nbsp;get&nbsp;→](credential-setup/#bluesky) |
 | `SCOUT_ENV_FILE` | Empty | Optional Docker env-file override | Docker env-file override for embedding repositories. |
 | `SCOUT_INIT_DEMO` | Empty | Optional local demo seed | Seeds demo data when set to `1`. |
 | `SCOUT_AI_BRIDGE_MODE` | Empty | Optional local host CLI bridge | Set to `local` to enable local bridge config-file discovery for desktop, Docker development, or self-hosted host-bridge reuse. Leave empty for production if you do not want bridge discovery. |
@@ -38,4 +38,4 @@ Docker reads values from the repository root `.env` unless an embedding reposito
 
 Use obviously fake values in docs, examples, and bug reports. Do not commit real provider keys, private URLs, hosted credentials, billing tokens, or customer data.
 
-For guided setup, see [Configuration Basics](../start-here/configuration-basics/). For Docker command behavior, see [Docker Commands and Profiles](docker-commands-and-profiles/). For advanced host bridge usage, see [Local AI Bridge](local-ai-bridge/). For support resets, `POST /api/onboarding/reset` resets onboarding progress without deleting env values, projects, queries, posts, reports, or the database.
+For step-by-step instructions on obtaining each credential, see [Credential Setup](credential-setup/). For guided setup, see [Configuration Basics](../start-here/configuration-basics/). For Docker command behavior, see [Docker Commands and Profiles](docker-commands-and-profiles/). For advanced host bridge usage, see [Local AI Bridge](local-ai-bridge/). For support resets, `POST /api/onboarding/reset` resets onboarding progress without deleting env values, projects, queries, posts, reports, or the database.

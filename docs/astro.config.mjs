@@ -43,6 +43,7 @@ export default defineConfig({
           items: [
             { slug: 'reference/licensing' },
             { slug: 'reference/environment-variables' },
+            { slug: 'reference/credential-setup' },
             { slug: 'reference/ports-and-local-urls' },
             { slug: 'reference/docker-commands-and-profiles' },
             { slug: 'reference/api-shape-overview' },

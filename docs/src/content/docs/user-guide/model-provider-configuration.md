@@ -11,16 +11,18 @@ Configure provider keys in the repository root `.env`. Keep the existing runtime
 
 For a first Docker-based run, start with one explicit provider key. `ANTHROPIC_API_KEY` is the recommended first documented path, and `GEMINI_API_KEY` is another supported key-backed path. Copilot CLI and Claude CLI are also supported advanced fallback paths when the CLI is installed and authenticated in the same runtime environment as ThreadLens. A host CLI bridge is an additional optional fallback path available when ThreadLens runs in Docker or a self-hosted runtime and the host has an authenticated CLI; see the bridge guidance below.
 
+For step-by-step instructions on obtaining each credential, see [Credential Setup](/reference/credential-setup/).
+
 ## AI providers are separate from source credentials
 
 AI provider keys unlock scoring, analysis, query assistance, clustering, and reports. Source credentials unlock specific sources:
 
-| Capability | Credential |
-| --- | --- |
-| AI scoring and reports through Anthropic-backed calls | `ANTHROPIC_API_KEY` |
-| AI scoring and reports through Gemini-compatible calls | `GEMINI_API_KEY` |
-| Google scouting through the configured search provider | `PARALLEL_API_KEY` |
-| Bluesky scouting | `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` |
+| Capability | Credential | Setup |
+| --- | --- | --- |
+| AI scoring and reports through Anthropic-backed calls | `ANTHROPIC_API_KEY` | [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#anthropic) |
+| AI scoring and reports through Gemini-compatible calls | `GEMINI_API_KEY` | [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#gemini) |
+| Google scouting through the configured search provider | `PARALLEL_API_KEY` | [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#parallel) |
+| Bluesky scouting | `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` | [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#bluesky) |
 
 Reddit is the lowest-friction first source in the current docs because it has no extra source credential listed here, but it still needs AI provider readiness for useful scoring and reports.
 
@@ -67,4 +69,4 @@ The bridge is not required for production or VPS self-host deployments. Producti
 - Do not commit `.env` files containing real provider keys.
 - Do not publish private prompts, hosted credentials, billing tokens, or account-specific quota details.
 
-For the complete first-run setup bridge, see [Configuration Basics](../start-here/configuration-basics/). For the complete variable list, see [Environment Variables](../reference/environment-variables/).
+For the complete first-run setup bridge, see [Configuration Basics](../start-here/configuration-basics/). For the complete variable list, see [Environment Variables](../reference/environment-variables/). For step-by-step credential setup, see [Credential Setup](/reference/credential-setup/).
