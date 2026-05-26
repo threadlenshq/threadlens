@@ -26,6 +26,7 @@ services:
       SCOUT_AI_BRIDGE_MODE: ${SCOUT_AI_BRIDGE_MODE:-}
       SCOUT_AI_BRIDGE_URL: ${SCOUT_AI_BRIDGE_URL:-}
       SCOUT_AI_BRIDGE_TOKEN_FILE: ${SCOUT_AI_BRIDGE_TOKEN_FILE:-}
+      SCOUT_TIMEZONE: ${SCOUT_TIMEZONE:-}
       SCOUT_ONBOARDING_MODE: docker
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -79,6 +80,7 @@ services:
       PARALLEL_API_KEY: ${PARALLEL_API_KEY:-}
       BLUESKY_HANDLE: ${BLUESKY_HANDLE:-}
       BLUESKY_APP_PASSWORD: ${BLUESKY_APP_PASSWORD:-}
+      SCOUT_TIMEZONE: ${SCOUT_TIMEZONE:-}
       SCOUT_ONBOARDING_MODE: docker
     ports:
       - "4749:4749"

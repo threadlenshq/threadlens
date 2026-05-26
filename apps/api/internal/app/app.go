@@ -55,7 +55,7 @@ func New(cfg Config, db *sql.DB) *App {
 	usageMeter := usage.NoopMeter{}
 	aiSvc := ai.NewServiceWithUsage(repo, usageMeter)
 	runner := pipeline.NewRunner(repo, aiSvc)
-	sched := scheduler.New(repo, runner)
+	sched := scheduler.New(repo, runner, cfg.Location)
 
 	moduleRegistry := modules.NewRegistry(modules.CoreResearchModule{})
 	entitlementResolver := entitlements.NewLocalResolver(cfg.RuntimeMode, moduleRegistry.Statuses())

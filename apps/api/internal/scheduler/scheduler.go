@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/robfig/cron/v3"
 
@@ -22,11 +23,15 @@ type Scheduler struct {
 }
 
 // New creates a new Scheduler backed by the given repository and runner.
-func New(repo *repository.Repository, runner *pipeline.Runner) *Scheduler {
+// loc sets the timezone for cron expression evaluation; pass nil to use UTC.
+func New(repo *repository.Repository, runner *pipeline.Runner, loc *time.Location) *Scheduler {
+	if loc == nil {
+		loc = time.UTC
+	}
 	return &Scheduler{
 		repo:   repo,
 		runner: runner,
-		cron:   cron.New(),
+		cron:   cron.New(cron.WithLocation(loc)),
 		jobs:   make(map[int64]cron.EntryID),
 	}
 }
