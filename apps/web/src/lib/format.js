@@ -16,3 +16,16 @@ export function formatDate(dateStr) {
     minute: '2-digit',
   });
 }
+
+// Parse a timestamp from the API. SQLite returns "YYYY-MM-DD HH:MM:SS" in UTC
+// with no timezone suffix; force ISO 8601 so Date parsing is consistent across
+// browsers (Safari rejects the space-separated form, and appending "Z" naively
+// to an already-ISO string produces "...ZZ" → NaN). Returns NaN on bad input.
+export function parseApiTimestamp(value) {
+  if (!value) return NaN;
+  let iso = String(value);
+  if (!iso.includes('T')) iso = iso.replace(' ', 'T');
+  if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(iso)) iso += 'Z';
+  return new Date(iso).getTime();
+}
+
