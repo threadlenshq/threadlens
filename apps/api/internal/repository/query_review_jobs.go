@@ -9,7 +9,7 @@ import (
 	"github.com/kyle/scout/open-core/apps/api/internal/domain"
 )
 
-func (r *Repository) CreateQueryReviewJob(ctx context.Context, projectID, kind, refinement, step string) (domain.QueryReviewJob, error) {
+func (r *Repository) CreateQueryReviewJob(ctx context.Context, projectID string, kind domain.QueryReviewKind, step, refinement string) (domain.QueryReviewJob, error) {
 	res, err := r.DB.ExecContext(ctx, `
 		INSERT INTO query_review_jobs (project_id, kind, status, step, refinement)
 		VALUES (?, ?, 'running', ?, ?)
