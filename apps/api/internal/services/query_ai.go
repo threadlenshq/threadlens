@@ -750,11 +750,19 @@ var googleURLRe = regexp.MustCompile(`(?i)^https?://`)
 const suggestSystemPrompt = `You are a social listening query expert. Given a project's context, generate 10 search queries to find relevant social media posts.
 
 Rules for Reddit queries:
-- Use full JSON search URLs: https://www.reddit.com/r/{subreddit}/search.json?q={keywords}&sort=new&t=week&limit=100
-- For broad topics, use site-wide search: https://www.reddit.com/search.json?q={keywords}&sort=new&t=week&limit=100
-- Pick specific subreddits where the target audience naturally posts
-- Use relevant search keywords that capture pain points, not just the topic name
-- Always include sort=new, t=week, limit=100 params
+- DEFAULT to site-wide search: https://www.reddit.com/search.json?q={keywords}&sort=new&t=month&limit=100
+- Only use subreddit-restricted search (https://www.reddit.com/r/{sub}/search.json?q=...&restrict_sr=on&sort=new&t=month&limit=100) when ALL of the following hold:
+  1. The subreddit has >500k members AND is highly on-topic (e.g. r/entrepreneur, r/SaaS, r/smallbusiness)
+  2. The keyword is 1-3 short tokens that naturally appear inside that community
+  3. You can name the subreddit with confidence — never guess
+- Keyword construction:
+  - Keep total query string to ≤5 tokens. Reddit search is token-AND inside each OR clause.
+  - Prefer ONE 2-3 token phrase (e.g. "brandwatch alternative") over multi-phrase OR chains
+  - At most 2 short clauses joined by OR; NEVER chain 3+ multi-word phrases with OR
+  - Use vocabulary users actually type ("brandwatch alternative", "cheaper than sprout"), NOT marketer framings ("cant afford brandwatch")
+  - Quote multi-word phrases that must appear together: "sprout social" alternative
+- Use t=month for niche/low-volume topics; t=week only for high-velocity general topics
+- Before finalising a Reddit query, ask: "Would this keyword appear in at least 5 posts on reddit.com/search in the last month?" If no, rewrite shorter or switch to site-wide search
 
 Rules for Bluesky queries:
 - Use plain keyword search strings (NOT URLs), e.g. "running knee pain"
@@ -778,7 +786,7 @@ const refineSystemPrompt = `You are a senior research strategist improving an ex
 
 You will receive:
 - project context
-- current queries (including whether they are enabled)
+- current queries (including whether they are enabled, and run performance stats)
 - the latest social research report when available
 - the latest Google report when available
 - an optional human refinement note
@@ -788,15 +796,20 @@ Your job is to propose a safe, reviewable refinement plan for the query list.
 Rules for recommendations:
 - Return ONLY valid JSON, no markdown or commentary
 - Recommend only two action types: "disable" and "add"
-- Use "disable" when an enabled query is clearly too broad, weak-fit, redundant, outdated, or contradicted by report findings
+- AUTOMATICALLY recommend "disable" for any query where recent_runs_with_zero >= 3 — this is the strongest signal, stronger than any report finding
+- Use "disable" when an enabled query is clearly too broad, weak-fit, redundant, outdated, contradicted by report findings, or persistently returns zero results
 - Use "add" when a more targeted query should be introduced based on repeated themes, stronger language, better platform fit, or clear report opportunities
+- When disabling a zero-hit Reddit query, always pair it with an "add" replacement using shorter keywords or site-wide search
 - Never mutate or remove existing queries directly; only recommend actions
 - Prefer specific, higher-signal replacements over generic broad terms
-- Keep disable recommendations conservative; do not disable everything just because it is imperfect
+- Keep disable recommendations conservative for queries with results; be aggressive for queries with zero results across 3+ runs
 - Use concise reasons tied to the supplied evidence
 
 Query format rules:
-- Reddit query_url must be a full JSON search URL using sort=new&t=week&limit=100
+- Reddit query_url must be a full JSON search URL
+- DEFAULT to site-wide: https://www.reddit.com/search.json?q={keywords}&sort=new&t=month&limit=100
+- Only use subreddit-restricted search when the subreddit has >500k members, the keyword is ≤3 tokens, and the fit is clear
+- Keep Reddit query keywords to ≤5 tokens total; prefer 1-3 token phrases over multi-phrase OR chains
 - Bluesky query_url must be a plain keyword search string, 2-5 words
 - Google query_url must be a plain root keyword, not a URL, usually 2-6 words
 - Each add recommendation must include a concise angle
@@ -948,13 +961,37 @@ func (s *QueryService) Refine(ctx context.Context, projectID string, req RefineR
 	compactSocial := compactSocialReport(socialRep)
 	compactGoogle := compactGoogleReport(googleRep)
 
+	// Fetch run performance stats (last 10 completed runs per platform).
+	platformStats, _ := s.repo.RecentPlatformStats(ctx, projectID, 10)
+	type platformStatInput struct {
+		Platform     string `json:"platform"`
+		TotalRuns    int    `json:"total_runs"`
+		RunsWithZero int    `json:"runs_with_zero"`
+		MaxFound     int64  `json:"max_posts_found"`
+	}
+	var runStatsInput []platformStatInput
+	for _, ps := range platformStats {
+		runStatsInput = append(runStatsInput, platformStatInput{
+			Platform:     ps.Platform,
+			TotalRuns:    ps.TotalRuns,
+			RunsWithZero: ps.RunsWithZero,
+			MaxFound:     ps.LastPostsFound,
+		})
+	}
+
 	// Build user message
 	type queryInput struct {
-		ID       int64  `json:"id"`
-		Platform string `json:"platform"`
-		QueryURL string `json:"query_url"`
-		Angle    string `json:"angle"`
-		Enabled  bool   `json:"enabled"`
+		ID               int64  `json:"id"`
+		Platform         string `json:"platform"`
+		QueryURL         string `json:"query_url"`
+		Angle            string `json:"angle"`
+		Enabled          bool   `json:"enabled"`
+		RecentRunsWithZero int  `json:"recent_runs_with_zero"`
+	}
+	// Build platform zero-run lookup for annotation.
+	platformZeroRuns := map[string]int{}
+	for _, ps := range platformStats {
+		platformZeroRuns[ps.Platform] = ps.RunsWithZero
 	}
 	var enabledQs []queryInput
 	for _, q := range existingQueries {
@@ -962,6 +999,7 @@ func (s *QueryService) Refine(ctx context.Context, projectID string, req RefineR
 			enabledQs = append(enabledQs, queryInput{
 				ID: q.ID, Platform: q.Platform,
 				QueryURL: q.QueryURL, Angle: q.Angle, Enabled: true,
+				RecentRunsWithZero: platformZeroRuns[q.Platform],
 			})
 		}
 	}
@@ -978,12 +1016,16 @@ func (s *QueryService) Refine(ctx context.Context, projectID string, req RefineR
 	payload := map[string]any{
 		"project":            projInput{ID: project.ID, Name: project.Name, ScoringPrompt: scoringPrompt},
 		"current_queries":    enabledQs,
+		"platform_run_stats": runStatsInput,
 		"social_report":      compactSocial,
 		"google_report":      compactGoogle,
 		"refinement_request": nilIfEmpty(refinement),
 	}
 	if enabledQs == nil {
 		payload["current_queries"] = []queryInput{}
+	}
+	if runStatsInput == nil {
+		payload["platform_run_stats"] = []platformStatInput{}
 	}
 
 	userMsg, _ := json.MarshalIndent(payload, "", "  ")

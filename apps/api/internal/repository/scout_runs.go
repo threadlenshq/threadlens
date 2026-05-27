@@ -103,6 +103,47 @@ func (r *Repository) FailScoutRun(ctx context.Context, runID int64, message stri
 	return err
 }
 
+// PlatformRunStats holds aggregated run performance for a single platform.
+type PlatformRunStats struct {
+	Platform       string
+	TotalRuns      int
+	RunsWithZero   int
+	LastPostsFound int64
+}
+
+// RecentPlatformStats returns run performance stats per platform for the last N completed runs.
+// Only completed runs (status='completed') are considered.
+func (r *Repository) RecentPlatformStats(ctx context.Context, projectID string, lookback int) ([]PlatformRunStats, error) {
+	rows, err := r.DB.QueryContext(ctx, `
+		SELECT platform,
+		       COUNT(*) AS total_runs,
+		       SUM(CASE WHEN posts_found = 0 THEN 1 ELSE 0 END) AS runs_with_zero,
+		       MAX(posts_found) AS last_posts_found
+		FROM (
+			SELECT platform, posts_found
+			FROM scout_runs
+			WHERE project_id = ? AND status = 'completed'
+			ORDER BY started_at DESC
+			LIMIT ?
+		)
+		GROUP BY platform
+	`, projectID, lookback)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var stats []PlatformRunStats
+	for rows.Next() {
+		var s PlatformRunStats
+		if err := rows.Scan(&s.Platform, &s.TotalRuns, &s.RunsWithZero, &s.LastPostsFound); err != nil {
+			return nil, err
+		}
+		stats = append(stats, s)
+	}
+	return stats, rows.Err()
+}
+
 // MarkOrphanedRunsFailed marks any running runs older than 5 minutes as failed.
 // Returns the number of rows updated.
 func (r *Repository) MarkOrphanedRunsFailed(ctx context.Context) (int64, error) {
