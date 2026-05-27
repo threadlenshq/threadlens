@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.0 - 2026-05-27
+
+Tag: `threadlens-v0.3.0`
+
+### Features
+
+- feat(web): add API timestamp parser helper (`af0504b`)
+- feat: auto-detect scheduler timezone with optional SCOUT_TIMEZONE override (`337ff7c`)
+- feat(web): migrate new project flow to modal with empty-state CTA (#4) (`e4ad227`)
+
+### Fixes
+
+- fix(web): use API timestamp parser in run UI (`59a53bd`)
+
+### Documentation
+
+- docs: add credential setup guide with official provider links (`8a08529`)
+
 ## 0.2.6 - 2026-05-25
 
 Tag: `threadlens-v0.2.6`
