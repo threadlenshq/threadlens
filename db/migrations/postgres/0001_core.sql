@@ -226,6 +226,25 @@ CREATE TABLE IF NOT EXISTS google_domain_stats (
   UNIQUE (run_id, domain)
 );
 
+CREATE TABLE IF NOT EXISTS query_review_jobs (
+  id BIGSERIAL PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('suggest', 'refine')),
+  status TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'completed', 'failed')),
+  step TEXT,
+  refinement TEXT,
+  result_json TEXT,
+  error TEXT,
+  resolution TEXT CHECK (resolution IN ('applied', 'denied')),
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  reviewed_at TIMESTAMPTZ,
+  CONSTRAINT chk_query_review_jobs_review_consistency CHECK (
+    (reviewed_at IS NULL AND resolution IS NULL) OR
+    (reviewed_at IS NOT NULL AND resolution IS NOT NULL AND status IN ('completed', 'failed'))
+  )
+);
+
 CREATE INDEX IF NOT EXISTS idx_report_councils_project ON report_councils(project_id);
 CREATE INDEX IF NOT EXISTS idx_report_councils_status ON report_councils(status);
 CREATE INDEX IF NOT EXISTS idx_posts_project ON posts(project_id, status);
@@ -244,3 +263,5 @@ CREATE INDEX IF NOT EXISTS idx_google_results_domain ON google_results(run_id, d
 CREATE INDEX IF NOT EXISTS idx_google_keyword_summaries_run ON google_keyword_summaries(run_id);
 CREATE INDEX IF NOT EXISTS idx_google_reports_project ON google_reports(project_id);
 CREATE INDEX IF NOT EXISTS idx_google_domain_stats_run ON google_domain_stats(run_id);
+CREATE INDEX IF NOT EXISTS idx_query_review_jobs_project ON query_review_jobs(project_id, status, reviewed_at);
+CREATE INDEX IF NOT EXISTS idx_query_review_jobs_started ON query_review_jobs(started_at);
