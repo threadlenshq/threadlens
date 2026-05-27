@@ -12,8 +12,9 @@ import (
 
 // RunStartupTasks runs the server boot-time reconciliation steps:
 //  1. Mark orphaned scout_runs (running for >5 min) as failed with "Server restarted".
-//  2. Kick off council reconciliation for completed reports missing a council row.
-//  3. Optionally seed demo data when SCOUT_INIT_DEMO=1.
+//  2. Mark stale query_review_jobs as failed so topbar notifications do not spin forever.
+//  3. Kick off council reconciliation for completed reports missing a council row.
+//  4. Optionally seed demo data when SCOUT_INIT_DEMO=1.
 //
 // aiSvc may be nil; it is only used for background council generation (reconciliation
 // will insert the row but the background AI call will fail gracefully if nil).
@@ -27,10 +28,19 @@ func RunStartupTasks(ctx context.Context, repo *repository.Repository, aiSvc *ai
 		log.Printf("[startup] marked %d orphaned scout run(s) as failed", n)
 	}
 
-	// Step 2: Council reconciliation (non-blocking; errors logged internally).
+	// Step 2: Mark stale query review jobs failed.
+	queryJobCount, err := repo.MarkStaleQueryReviewJobsFailed(ctx)
+	if err != nil {
+		return err
+	}
+	if queryJobCount > 0 {
+		log.Printf("[startup] marked %d stale query review job(s) as failed", queryJobCount)
+	}
+
+	// Step 3: Council reconciliation (non-blocking; errors logged internally).
 	pipeline.ReconcileCouncils(ctx, repo.DB, aiSvc, repo)
 
-	// Step 3: Demo seed when opted-in.
+	// Step 4: Demo seed when opted-in.
 	if os.Getenv("SCOUT_INIT_DEMO") == "1" {
 		result, err := SeedDemoData(ctx, repo)
 		if err != nil {
