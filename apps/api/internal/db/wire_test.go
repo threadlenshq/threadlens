@@ -44,6 +44,7 @@ func TestSharedDBOpenWiring_Tables(t *testing.T) {
 		"report_councils",
 		"google_domain_stats",
 		"dm_targets",
+		"query_review_jobs",
 	}
 	for _, table := range tables {
 		var found string
