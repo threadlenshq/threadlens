@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { slide } from 'svelte/transition';
+  import { parseApiTimestamp } from '../lib/format.js';
 
   let {
     runs = [],
@@ -25,7 +26,9 @@
   }
 
   function formatElapsed(startedAt) {
-    const seconds = Math.floor((now - new Date(startedAt + 'Z').getTime()) / 1000);
+    const startMs = parseApiTimestamp(startedAt);
+    if (Number.isNaN(startMs)) return '';
+    const seconds = Math.floor((now - startMs) / 1000);
     if (seconds < 0) return '0s';
     if (seconds < 60) return `${seconds}s`;
     const minutes = Math.floor(seconds / 60);

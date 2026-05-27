@@ -11,6 +11,7 @@
   import ExplorationChecklist from './components/onboarding/ExplorationChecklist.svelte';
   import TourCallout from './components/onboarding/TourCallout.svelte';
   import { normalizeOnboardingStatus, shouldShowRequiredWizard, shouldShowExploration } from './lib/onboardingState.js';
+  import { parseApiTimestamp } from './lib/format.js';
   import AppShell from './components/layout/AppShell.svelte';
   import WorkspaceRail from './components/layout/WorkspaceRail.svelte';
   import TopContextBar from './components/layout/TopContextBar.svelte';
@@ -93,7 +94,9 @@
 
   function relativeTime(dateStr) {
     if (!dateStr) return '';
-    const seconds = Math.floor((Date.now() - new Date(dateStr + 'Z').getTime()) / 1000);
+    const startMs = parseApiTimestamp(dateStr);
+    if (Number.isNaN(startMs)) return '';
+    const seconds = Math.floor((Date.now() - startMs) / 1000);
     if (seconds < 60) return 'just now';
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m ago`;
