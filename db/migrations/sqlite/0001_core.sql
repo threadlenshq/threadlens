@@ -98,6 +98,21 @@ CREATE TABLE IF NOT EXISTS scout_runs (
   warnings TEXT
 );
 
+CREATE TABLE IF NOT EXISTS query_review_jobs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('suggest', 'refine')),
+  status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed')),
+  step TEXT,
+  refinement TEXT,
+  result_json TEXT,
+  error TEXT,
+  resolution TEXT CHECK (resolution IN ('applied', 'denied')),
+  started_at DATETIME NOT NULL DEFAULT (datetime('now')),
+  completed_at DATETIME,
+  reviewed_at DATETIME
+);
+
 CREATE TABLE IF NOT EXISTS schedules (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -235,6 +250,8 @@ CREATE INDEX IF NOT EXISTS idx_queries_project ON project_queries(project_id);
 CREATE INDEX IF NOT EXISTS idx_prompts_project ON project_prompts(project_id);
 CREATE INDEX IF NOT EXISTS idx_dm_targets_post ON dm_targets(post_id);
 CREATE INDEX IF NOT EXISTS idx_runs_project ON scout_runs(project_id);
+CREATE INDEX IF NOT EXISTS idx_query_review_jobs_project ON query_review_jobs(project_id, status, reviewed_at);
+CREATE INDEX IF NOT EXISTS idx_query_review_jobs_started ON query_review_jobs(started_at);
 CREATE INDEX IF NOT EXISTS idx_schedules_project ON schedules(project_id);
 CREATE INDEX IF NOT EXISTS idx_reports_project ON research_reports(project_id);
 CREATE INDEX IF NOT EXISTS idx_report_posts_report ON report_posts(report_id);
