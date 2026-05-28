@@ -9,6 +9,8 @@
     onNavigate = () => {},
     onProjectReady = async () => {},
     onClose = () => {},
+    googleLocked = false,
+    onGoogleLocked = () => {},
   } = $props();
 
   let starterProjectId = $state('ai-note-taking');
@@ -50,6 +52,10 @@
   );
 
   async function createStarterProject() {
+    if (starterPlatform === 'google' && googleLocked) {
+      onGoogleLocked();
+      return;
+    }
     busy = true;
     error = '';
     try {
@@ -155,11 +161,11 @@
           <span>Platform</span>
           <select bind:value={starterPlatform}>
             <option value="reddit">Reddit</option>
-            <option value="google">Google</option>
+            <option value="google">{googleLocked ? 'Google 🔒' : 'Google'}</option>
             <option value="bluesky">Bluesky</option>
           </select>
         </label>
-        <p class="source-hint full-width">Reddit is the lowest-friction first source. Use Google after `PARALLEL_API_KEY` is configured and Bluesky after `BLUESKY_HANDLE` plus `BLUESKY_APP_PASSWORD` are configured.</p>
+        <p class="source-hint full-width">Reddit is the lowest-friction first source. Google stays visible but requires <code>PARALLEL_API_KEY</code> in the Scout API env. Bluesky needs <code>BLUESKY_HANDLE</code> + <code>BLUESKY_APP_PASSWORD</code>.</p>
       </div>
       <button class="primary-btn" data-testid="create-starter-project" disabled={busy || !starterReady} onclick={createStarterProject}>
         Create project and first query
@@ -516,5 +522,15 @@
     font-size: 12px;
     line-height: 1.5;
     margin: -4px 0 0;
+  }
+
+  .source-hint code {
+    font-family: monospace;
+    font-size: 11px;
+    background: #0b0b0e;
+    border: 1px solid #2d2d3f;
+    border-radius: 3px;
+    padding: 1px 4px;
+    color: #a0a0c8;
   }
 </style>

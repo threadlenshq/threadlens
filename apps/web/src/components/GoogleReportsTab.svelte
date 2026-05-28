@@ -3,7 +3,7 @@
   import { google as googleApi } from '../lib/api.js';
   import { formatDate } from '../lib/format.js';
 
-  let { projectId, onViewReport } = $props();
+  let { projectId, onViewReport, googleLocked = false } = $props();
 
   let reportsList = $state([]);
   let loading = $state(false);
@@ -73,7 +73,11 @@
   {:else if reportsList.length === 0}
     <div class="empty-state">
       <p class="empty-title">No Google reports yet</p>
-      <p class="empty-desc">Run ThreadLens with Google to generate your first report.</p>
+      {#if googleLocked}
+        <p class="empty-desc">Any saved reports would appear here. New Google scouting requires <code>PARALLEL_API_KEY</code> in the Scout API env.</p>
+      {:else}
+        <p class="empty-desc">Add and enable Google queries, then run ThreadLens with Google to generate your first report.</p>
+      {/if}
     </div>
   {:else}
     <div class="reports-list">
@@ -137,6 +141,16 @@
   .empty-desc {
     font-size: 14px;
     color: #666;
+  }
+
+  .empty-desc code {
+    font-family: monospace;
+    font-size: 13px;
+    background: #1e1e2e;
+    border: 1px solid #2a2a3a;
+    border-radius: 3px;
+    padding: 1px 5px;
+    color: #a0a0c8;
   }
 
   .error-msg {
