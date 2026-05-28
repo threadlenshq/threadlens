@@ -29,9 +29,9 @@ For a first useful scout, configure at least one AI provider path before expecti
 
 | Provider path | First-run role | Notes |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | Recommended explicit first provider key | Enables Anthropic-backed AI workflows when the runtime uses that provider path. [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#anthropic) |
-| `GEMINI_API_KEY` | Alternative AI provider key | Enables the Gemini-compatible provider path when configured. [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#gemini) |
-| Copilot CLI | Supported advanced fallback path | Works only when the Copilot CLI is installed and authenticated in the same runtime environment as ThreadLens. [Setup&nbsp;guide&nbsp;→](/reference/credential-setup/#copilot-cli) |
+| `ANTHROPIC_API_KEY` | Recommended explicit first provider key | Enables Anthropic-backed AI workflows when the runtime uses that provider path. [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#anthropic-api-key) |
+| `GEMINI_API_KEY` | Alternative AI provider key | Enables the Gemini-compatible provider path when configured. [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#gemini-api-key) |
+| Copilot CLI | Supported advanced fallback path | Works only when the Copilot CLI is installed and authenticated in the same runtime environment as ThreadLens. [Setup&nbsp;guide&nbsp;→](/reference/credential-setup/#github-copilot-cli) |
 | Claude CLI | Supported advanced fallback path | Works only when the Claude CLI is installed and authenticated in the same runtime environment as ThreadLens. [Setup&nbsp;guide&nbsp;→](/reference/credential-setup/#claude-cli) |
 | Host CLI bridge | Optional advanced fallback path | Routes AI calls from Docker or a self-hosted runtime to a host-authenticated CLI runtime over a loopback HTTP service. See the bridge guidance below. |
 
@@ -75,8 +75,8 @@ AI provider configuration is separate from source access. Add source credentials
 | Source | Credentials | First-run guidance |
 | --- | --- | --- |
 | Reddit | No extra source credential is documented for the current first-run path | Lowest-friction first source, but still needs an AI provider for useful scoring and reports. |
-| Google Search | `PARALLEL_API_KEY` | Add this when you want Google scouting through the configured search provider. [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#parallel) |
-| Bluesky | `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` | Add both before relying on Bluesky scouting. [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#bluesky) |
+| Google Search | `PARALLEL_API_KEY` | Add this when you want Google scouting through the configured search provider. [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#parallel-api-key) |
+| Bluesky | `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` | Add both before relying on Bluesky scouting. [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#bluesky-credentials) |
 
 ## Restart Docker after editing `.env`
 

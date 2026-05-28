@@ -19,10 +19,10 @@ AI provider keys unlock scoring, analysis, query assistance, clustering, and rep
 
 | Capability | Credential | Setup |
 | --- | --- | --- |
-| AI scoring and reports through Anthropic-backed calls | `ANTHROPIC_API_KEY` | [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#anthropic) |
-| AI scoring and reports through Gemini-compatible calls | `GEMINI_API_KEY` | [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#gemini) |
-| Google scouting through the configured search provider | `PARALLEL_API_KEY` | [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#parallel) |
-| Bluesky scouting | `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` | [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#bluesky) |
+| AI scoring and reports through Anthropic-backed calls | `ANTHROPIC_API_KEY` | [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#anthropic-api-key) |
+| AI scoring and reports through Gemini-compatible calls | `GEMINI_API_KEY` | [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#gemini-api-key) |
+| Google scouting through the configured search provider | `PARALLEL_API_KEY` | [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#parallel-api-key) |
+| Bluesky scouting | `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` | [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#bluesky-credentials) |
 
 Reddit is the lowest-friction first source in the current docs because it has no extra source credential listed here, but it still needs AI provider readiness for useful scoring and reports.
 
