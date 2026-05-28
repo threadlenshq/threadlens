@@ -4,116 +4,104 @@
   let {
     open = false,
     showViewExistingReports = false,
-    onClose,
-    onViewExistingReports,
+    onClose = () => {},
+    onViewExistingReports = () => {},
   } = $props();
+
+  function viewExistingReports() {
+    onViewExistingReports?.();
+    onClose?.();
+  }
 </script>
 
-<Modal {open} title="Google Search is not available" {onClose}>
+<Modal {open} title="Google scouting is locked" {onClose}>
   {#snippet children()}
+  <div class="google-locked-copy">
     <p>
-      Google Search scouting requires a <strong>Parallel.ai</strong> account and a valid
-      <code>PARALLEL_API_KEY</code> configured on your Scout server.
+      Scout uses Parallel.ai Search for Google scouting. This local open-core runtime does not have
+      <code>PARALLEL_API_KEY</code> configured, so new Google scout runs are unavailable.
     </p>
-    <p>
-      Sign up at <a href="https://platform.parallel.ai/" target="_blank" rel="noopener noreferrer">platform.parallel.ai</a>
-      to obtain an API key, then add it to your server environment.
-    </p>
-    {#if showViewExistingReports}
-      <p>
-        Previously saved Google reports are still accessible — click
-        <strong>View existing Google reports</strong> below to browse them.
-      </p>
-    {/if}
+
+    <ol>
+      <li>Create or copy an API key from <a href="https://platform.parallel.ai/" target="_blank" rel="noreferrer">https://platform.parallel.ai/</a>.</li>
+      <li>Add <code>PARALLEL_API_KEY=&lt;your key&gt;</code> to the environment used by the Scout API, such as your .env file or shell environment.</li>
+      <li>Restart the Scout API and refresh this page.</li>
+    </ol>
+
+    <p class="reassurance">Existing Google reports remain viewable because they use saved results.</p>
+  </div>
   {/snippet}
 
   {#snippet footer()}
-    <a
-      href="https://platform.parallel.ai/"
-      target="_blank"
-      rel="noopener noreferrer"
-      class="btn btn-primary"
-    >
-      Get API key
-    </a>
+    <a class="external-link" href="https://platform.parallel.ai/" target="_blank" rel="noreferrer">Open Parallel.ai</a>
     {#if showViewExistingReports}
-      <button class="btn btn-secondary" onclick={() => onViewExistingReports?.()}>
-        View existing Google reports
-      </button>
+      <button class="secondary-btn" type="button" onclick={viewExistingReports}>View existing Google reports</button>
     {/if}
-    <button class="btn btn-ghost" onclick={() => onClose?.()}>
-      Close
-    </button>
+    <button class="primary-btn" type="button" onclick={onClose}>Close</button>
   {/snippet}
 </Modal>
 
 <style>
-  p {
-    margin: 0 0 12px;
-    color: #b0b0c0;
+  .google-locked-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    color: #c0c0d0;
     font-size: 14px;
     line-height: 1.55;
   }
 
-  p:last-child {
-    margin-bottom: 0;
+  p {
+    margin: 0;
+  }
+
+  ol {
+    margin: 0;
+    padding-left: 22px;
+  }
+
+  li + li {
+    margin-top: 8px;
   }
 
   code {
-    background: #2a2a3a;
-    border-radius: 3px;
     padding: 1px 5px;
-    font-size: 13px;
+    border-radius: 4px;
+    background: #101018;
     color: #e2e2e8;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
   }
 
   a {
-    color: #7b8fff;
-    text-decoration: none;
+    color: #9f8cff;
   }
 
-  a:hover {
-    text-decoration: underline;
+  .reassurance {
+    color: #98c379;
   }
 
-  .btn {
-    padding: 7px 14px;
+  .external-link,
+  .secondary-btn,
+  .primary-btn {
     border-radius: 6px;
+    padding: 8px 12px;
     font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    transition: background 0.15s, color 0.15s;
+    font-weight: 600;
     text-decoration: none;
-    display: inline-flex;
-    align-items: center;
+    cursor: pointer;
   }
 
-  .btn-primary {
-    background: #4f5bd5;
+  .external-link,
+  .secondary-btn {
+    border: 1px solid #3a3a4a;
+    background: #23233a;
+    color: #e2e2e8;
+  }
+
+  .primary-btn {
+    border: none;
+    background: #7c6af5;
     color: #fff;
-  }
-
-  .btn-primary:hover {
-    background: #3f4bc5;
-  }
-
-  .btn-secondary {
-    background: #2a2a3a;
-    color: #e2e2e8;
-  }
-
-  .btn-secondary:hover {
-    background: #3a3a4a;
-  }
-
-  .btn-ghost {
-    background: transparent;
-    color: #888;
-  }
-
-  .btn-ghost:hover {
-    color: #e2e2e8;
-    background: #2a2a3a;
   }
 </style>

@@ -74,7 +74,7 @@
     <div class="empty-state">
       <p class="empty-title">No Google reports yet</p>
       {#if googleLocked}
-        <p class="empty-desc">Any saved reports would appear here. New Google scouting requires <code>PARALLEL_API_KEY</code> in the Scout API env.</p>
+        <p class="empty-desc">Existing Google reports would appear here. New Google scouting requires <code>PARALLEL_API_KEY</code> in the Scout API environment.</p>
       {:else}
         <p class="empty-desc">Add and enable Google queries, then run ThreadLens with Google to generate your first report.</p>
       {/if}
