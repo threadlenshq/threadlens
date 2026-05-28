@@ -130,12 +130,15 @@ func (r *LocalResolver) Snapshot(_ context.Context, subject Subject) (Snapshot, 
 	if mode == "" {
 		mode = r.runtimeMode
 	}
+	googleEnabled := googleScoutConfigured()
 	capabilities := map[Capability]bool{}
 	for _, cap := range CoreCapabilities {
+		if cap == CapabilityScoutRunGoogle {
+			continue
+		}
 		capabilities[cap] = true
 	}
-	googleScoutConfigured := strings.TrimSpace(os.Getenv("PARALLEL_API_KEY")) != ""
-	capabilities[CapabilityScoutRunGoogle] = googleScoutConfigured
+	capabilities[CapabilityScoutRunGoogle] = googleEnabled
 	capabilities[CapabilityManagedAIUse] = false
 	capabilities[CapabilityPromptTemplatesApply] = true
 	capabilities[CapabilitySupportActive] = false
@@ -163,7 +166,7 @@ func (r *LocalResolver) Snapshot(_ context.Context, subject Subject) (Snapshot, 
 	}
 
 	messages := []RuntimeMessage{message}
-	if !googleScoutConfigured {
+	if !googleEnabled {
 		messages = append(messages, RuntimeMessage{
 			Code:    "google_parallel_api_key_missing",
 			Message: "Google Scout is disabled: PARALLEL_API_KEY is not set. Configure the key to enable Google search scouting.",
@@ -249,6 +252,10 @@ func CapabilityForScoutPlatform(platform string) Capability {
 	default:
 		return Capability("core.scout.run." + platform)
 	}
+}
+
+func googleScoutConfigured() bool {
+	return strings.TrimSpace(os.Getenv("PARALLEL_API_KEY")) != ""
 }
 
 func defaultString(value, fallback string) string {
