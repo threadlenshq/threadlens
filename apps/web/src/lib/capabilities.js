@@ -11,3 +11,13 @@ export function runtimeLabel(snapshot) {
   if (snapshot.runtimeMode === 'hosted') return 'Hosted ThreadLens';
   return 'Self-hosted ThreadLens';
 }
+
+export function isGoogleScoutAvailable(snapshot) {
+  if (!snapshot) return true;
+  return Boolean(snapshot?.capabilities?.['core.scout.run.google']);
+}
+
+export function isGoogleScoutLocked(snapshot) {
+  if (!snapshot) return false;
+  return snapshot?.capabilities?.['core.scout.run.google'] === false;
+}
