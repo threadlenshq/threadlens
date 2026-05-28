@@ -13,19 +13,21 @@
 
   // --- Derived job metadata ---
 
-  let jobType = $derived(job?.job_type ?? '');
+  let jobKind = $derived(job?.kind ?? '');
   let jobStatus = $derived(job?.status ?? '');
   let isFailed = $derived(jobStatus === 'failed');
+
+  // suggest result shape: { suggestions: SuggestedQuery[] }
   let suggestions = $derived(job?.result?.suggestions ?? []);
-  let addItems = $derived(job?.result?.add ?? []);
-  let disableItems = $derived(job?.result?.disable ?? []);
+
+  // refine result shape: { recommendations: RefineRecommendation[] }
+  // Each recommendation has: { id, type ("add"|"disable"), reason, query, replaces_query_id? }
+  let recommendations = $derived(job?.result?.recommendations ?? []);
+  let addRecs = $derived(recommendations.filter(r => r.type === 'add'));
+  let disableRecs = $derived(recommendations.filter(r => r.type === 'disable'));
 
   // --- Selection state ---
 
-  /**
-   * For 'suggest' jobs: a Set of suggestion indices that are selected.
-   * For 'refine' jobs: Sets of indices for add/disable items selected.
-   */
   let selectedSuggestions = $state(new Set());
   let selectedAdds = $state(new Set());
   let selectedDisables = $state(new Set());
@@ -34,19 +36,19 @@
   $effect(() => {
     if (!job) return;
 
-    if (jobType === 'suggest') {
+    if (jobKind === 'suggest') {
       // Preselect all suggestions
       selectedSuggestions = new Set(suggestions.map((_, i) => i));
-    } else if (jobType === 'refine') {
-      // Preselect all add items
-      selectedAdds = new Set(addItems.map((_, i) => i));
+    } else if (jobKind === 'refine') {
+      // Preselect all add recommendations
+      selectedAdds = new Set(addRecs.map((_, i) => i));
 
-      // Preselect disable items that still reference an *enabled* query
+      // Preselect disable recommendations that still reference an *enabled* query
       const enabledIds = new Set(queries.filter(q => q.enabled).map(q => q.id));
       selectedDisables = new Set(
-        disableItems
-          .map((item, i) => ({ item, i }))
-          .filter(({ item }) => enabledIds.has(item.query_id))
+        disableRecs
+          .map((rec, i) => ({ rec, i }))
+          .filter(({ rec }) => rec.replaces_query_id != null && enabledIds.has(rec.replaces_query_id))
           .map(({ i }) => i),
       );
     }
@@ -57,9 +59,9 @@
   let modalTitle = $derived(
     isFailed
       ? 'Query Review — Failed'
-      : jobType === 'suggest'
+      : jobKind === 'suggest'
         ? 'Suggested Queries'
-        : jobType === 'refine'
+        : jobKind === 'refine'
           ? 'Refine Queries'
           : 'Query Review',
   );
@@ -108,38 +110,40 @@
     error = '';
 
     try {
-      if (jobType === 'suggest') {
+      if (jobKind === 'suggest') {
         const toCreate = suggestions.filter((_, i) => selectedSuggestions.has(i));
         await Promise.all(
           toCreate.map(s =>
             queriesApi.create(projectId, {
               query_url: s.query_url,
               platform: s.platform,
-              angle: s.angle ?? undefined,
+              angle: s.angle || undefined,
               enabled: true,
             }),
           ),
         );
-      } else if (jobType === 'refine') {
-        const toAdd = addItems.filter((_, i) => selectedAdds.has(i));
-        const toDisable = disableItems.filter((_, i) => selectedDisables.has(i));
+      } else if (jobKind === 'refine') {
+        const toAdd = addRecs.filter((_, i) => selectedAdds.has(i));
+        const toDisable = disableRecs.filter((_, i) => selectedDisables.has(i));
 
         await Promise.all([
-          ...toAdd.map(a =>
+          ...toAdd.map(rec =>
             queriesApi.create(projectId, {
-              query_url: a.query_url,
-              platform: a.platform,
-              angle: a.angle ?? undefined,
+              query_url: rec.query?.query_url,
+              platform: rec.query?.platform,
+              angle: rec.query?.angle || undefined,
               enabled: true,
             }),
           ),
-          ...toDisable.map(d =>
-            queriesApi.update(projectId, d.query_id, { enabled: false }),
-          ),
+          ...toDisable
+            .filter(rec => rec.replaces_query_id != null)
+            .map(rec =>
+              queriesApi.update(projectId, rec.replaces_query_id, { enabled: false }),
+            ),
         ]);
       }
 
-      await queryReviewJobs.reviewed(projectId, job.id, { action: 'applied' });
+      await queryReviewJobs.reviewed(projectId, job.id, { resolution: 'applied' });
 
       onQueriesChanged?.();
       onHandled?.();
@@ -159,7 +163,7 @@
     error = '';
 
     try {
-      await queryReviewJobs.reviewed(projectId, job.id, { action: 'denied' });
+      await queryReviewJobs.reviewed(projectId, job.id, { resolution: 'denied' });
       onHandled?.();
       onClose?.();
     } catch (e) {
@@ -169,10 +173,10 @@
     }
   }
 
-  // --- Derived counts for footer summary ---
+  // --- Derived apply count for footer label ---
 
   let applyCount = $derived(
-    jobType === 'suggest'
+    jobKind === 'suggest'
       ? selectedSuggestions.size
       : selectedAdds.size + selectedDisables.size,
   );
@@ -190,7 +194,7 @@
       <p class="failed-hint">You can clear this job to dismiss it.</p>
     </div>
 
-  {:else if jobType === 'suggest'}
+  {:else if jobKind === 'suggest'}
     {#if suggestions.length === 0}
       <p class="empty-notice">No suggestions were generated for this job.</p>
     {:else}
@@ -208,7 +212,7 @@
 
       <ul class="item-list">
         {#each suggestions as s, i (i)}
-          <li class="item-row">
+          <li class="item-row" class:item-row-selected={selectedSuggestions.has(i)}>
             <label class="item-label">
               <input
                 type="checkbox"
@@ -229,20 +233,20 @@
       </ul>
     {/if}
 
-  {:else if jobType === 'refine'}
-    {#if addItems.length === 0 && disableItems.length === 0}
+  {:else if jobKind === 'refine'}
+    {#if addRecs.length === 0 && disableRecs.length === 0}
       <p class="empty-notice">No refinements were generated for this job.</p>
     {:else}
-      {#if addItems.length > 0}
+      {#if addRecs.length > 0}
         <div class="section-header">
           <span class="section-label">
             Add queries
-            <span class="count-badge">{addItems.length}</span>
+            <span class="count-badge">{addRecs.length}</span>
           </span>
         </div>
         <ul class="item-list">
-          {#each addItems as a, i (i)}
-            <li class="item-row">
+          {#each addRecs as rec, i (rec.id ?? i)}
+            <li class="item-row" class:item-row-selected={selectedAdds.has(i)}>
               <label class="item-label">
                 <input
                   type="checkbox"
@@ -251,10 +255,11 @@
                   disabled={submitting}
                 />
                 <div class="item-text">
-                  <span class="item-query">{a.query_url}</span>
+                  <span class="item-query">{rec.query?.query_url ?? '—'}</span>
                   <span class="item-meta">
-                    {a.platform}
-                    {#if a.angle}<span class="item-angle">· {a.angle}</span>{/if}
+                    {rec.query?.platform ?? ''}
+                    {#if rec.query?.angle}<span class="item-angle">· {rec.query.angle}</span>{/if}
+                    {#if rec.reason}<span class="item-reason">— {rec.reason}</span>{/if}
                   </span>
                 </div>
               </label>
@@ -263,17 +268,21 @@
         </ul>
       {/if}
 
-      {#if disableItems.length > 0}
-        <div class="section-header" class:section-header-spaced={addItems.length > 0}>
+      {#if disableRecs.length > 0}
+        <div class="section-header" class:section-header-spaced={addRecs.length > 0}>
           <span class="section-label">
             Disable queries
-            <span class="count-badge">{disableItems.length}</span>
+            <span class="count-badge">{disableRecs.length}</span>
           </span>
         </div>
         <ul class="item-list">
-          {#each disableItems as d, i (i)}
-            {@const matchedQuery = queries.find(q => q.id === d.query_id)}
-            <li class="item-row" class:item-row-stale={!matchedQuery?.enabled}>
+          {#each disableRecs as rec, i (rec.id ?? i)}
+            {@const matchedQuery = queries.find(q => q.id === rec.replaces_query_id)}
+            <li
+              class="item-row"
+              class:item-row-selected={selectedDisables.has(i)}
+              class:item-row-stale={matchedQuery && !matchedQuery.enabled}
+            >
               <label class="item-label">
                 <input
                   type="checkbox"
@@ -283,14 +292,14 @@
                 />
                 <div class="item-text">
                   <span class="item-query">
-                    {matchedQuery?.query_url ?? d.query_id}
-                    {#if !matchedQuery?.enabled}
+                    {matchedQuery?.query_url ?? rec.query?.query_url ?? String(rec.replaces_query_id ?? '—')}
+                    {#if matchedQuery && !matchedQuery.enabled}
                       <span class="already-disabled">(already disabled)</span>
                     {/if}
                   </span>
                   <span class="item-meta">
-                    {matchedQuery?.platform ?? ''}
-                    {#if d.reason}<span class="item-angle">· {d.reason}</span>{/if}
+                    {matchedQuery?.platform ?? rec.query?.platform ?? ''}
+                    {#if rec.reason}<span class="item-reason">— {rec.reason}</span>{/if}
                   </span>
                 </div>
               </label>
@@ -445,7 +454,7 @@
     transition: border-color 0.15s;
   }
 
-  .item-row:has(input:checked) {
+  .item-row-selected {
     border-color: #4a4070;
   }
 
@@ -488,6 +497,11 @@
 
   .item-angle {
     color: #888;
+  }
+
+  .item-reason {
+    color: #777;
+    font-style: italic;
   }
 
   .already-disabled {
