@@ -514,11 +514,16 @@
       googleReportCount = 0;
       return;
     }
+    const pid = selectedProjectId;
     try {
-      const reports = await googleApi.reports(selectedProjectId);
-      googleReportCount = Array.isArray(reports) ? reports.length : 0;
+      const reports = await googleApi.reports(pid);
+      if (selectedProjectId === pid) {
+        googleReportCount = Array.isArray(reports) ? reports.length : 0;
+      }
     } catch {
-      googleReportCount = 0;
+      if (selectedProjectId === pid) {
+        googleReportCount = 0;
+      }
     }
   }
 
@@ -547,11 +552,9 @@
     await loadEnabledQueryCount();
   }
 
-  function selectReportSource(source, options = {}) {
+  function selectReportSource(source) {
     if (source === 'google' && googleLocked) {
-      if (!options.skipLockCheck) {
-        showGoogleLockedNotice = true;
-      }
+      showGoogleLockedNotice = true;
       return;
     }
     reportSource = source;
