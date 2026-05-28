@@ -1,9 +1,16 @@
 <script>
-  import { onDestroy } from 'svelte';
-  import { queries as queriesApi } from '../lib/api.js';
+  import { queries as queriesApi, queryReviewJobs as queryReviewJobsApi } from '../lib/api.js';
   import Surface from './ui/Surface.svelte';
+  import QueryJobReviewModal from './QueryJobReviewModal.svelte';
 
-  let { projectId, onQueriesChanged } = $props();
+  let {
+    projectId,
+    reviewJob = null,
+    onQueriesChanged,
+    onQueryReviewJobStarted,
+    onQueryReviewJobHandled,
+    onQueryReviewModalClosed,
+  } = $props();
 
   const MIN_RECOMMENDED_QUERIES = 8;
   const MIN_RECOMMENDED_ANGLES = 3;
@@ -91,38 +98,12 @@
   let newAngle = $state('');
   let adding = $state(false);
 
-  // Suggest feature state
-  let suggesting = $state(false);
-  let suggestions = $state([]);
-  let selected = $state(new Set());
+  // Suggest / Refine confirm modal state
   let showSuggestConfirmModal = $state(false);
-  let showSuggestModal = $state(false);
-  let refining = $state(false);
-  let refineRecommendations = $state([]);
-  let refineSelected = $state(new Set());
-  let refineSummary = $state('');
-  let refineContext = $state(null);
   let showRefineConfirmModal = $state(false);
-  let showRefineModal = $state(false);
-  let refineError = $state('');
-  let applyingRefine = $state(false);
   let suggestRefinement = $state('');
   let suggestError = $state('');
-  let addingSelected = $state(false);
-  const REFINE_LOADING_QUOTES = [
-    'Reviewing active queries against your latest research signals.',
-    'Looking for broad terms to trim and tighter buyer-language angles to add.',
-    'Cross-checking social and Google reports for stronger query replacements.',
-    'Building a reviewable refinement plan before anything changes in your project.'
-  ];
-  const REFINE_LOADING_ROW_COUNT = 4;
-
-  let refineBriefingIndex = $state(0);
-  let refineBriefingText = $state('');
-  let refineTypingTimer = null;
-  let refineQuoteTimer = null;
-  let refineUnloadHandler = null;
-  let wasRefining = false;
+  let startingJob = $state(false);
 
   async function loadQueries() {
     loading = true;
@@ -197,150 +178,39 @@
   }
 
   async function suggestQueries() {
-    suggesting = true;
+    startingJob = true;
     suggestError = '';
     showSuggestConfirmModal = false;
     try {
-      const data = await queriesApi.suggest(projectId, { refinement: suggestRefinement });
-      suggestions = data.suggestions || [];
-      selected = new Set(suggestions.map((_, i) => i));
+      const job = await queryReviewJobsApi.create(projectId, {
+        kind: 'suggest',
+        refinement: suggestRefinement || undefined,
+      });
       suggestRefinement = '';
-      showSuggestModal = true;
+      onQueryReviewJobStarted?.(job);
     } catch (e) {
       suggestError = e.message;
     } finally {
-      suggesting = false;
+      startingJob = false;
     }
   }
 
   async function refineQueries() {
-    refining = true;
-    refineError = '';
-    showRefineConfirmModal = false;
-    showRefineModal = true;
-    refineRecommendations = [];
-    refineSelected = new Set();
-    refineSummary = '';
-    refineContext = null;
-    try {
-      const data = await queriesApi.refine(projectId, { refinement: suggestRefinement });
-      refineRecommendations = data.recommendations || [];
-      refineSelected = new Set(
-        refineRecommendations
-          .map((item, index) => item.type === 'add' ? index : null)
-          .filter((value) => value !== null)
-      );
-      refineSummary = data.summary || '';
-      refineContext = data.context || null;
-      suggestRefinement = '';
-      showRefineModal = true;
-    } catch (e) {
-      refineError = e.message;
-      showRefineModal = false;
-    } finally {
-      refining = false;
-    }
-  }
-
-  function toggleSuggestion(index) {
-    if (selected.has(index)) {
-      selected.delete(index);
-    } else {
-      selected.add(index);
-    }
-    selected = new Set(selected); // trigger reactivity
-  }
-
-  function toggleRefineRecommendation(index) {
-    if (refineSelected.has(index)) {
-      refineSelected.delete(index);
-    } else {
-      refineSelected.add(index);
-    }
-    refineSelected = new Set(refineSelected);
-  }
-
-  async function addSelectedSuggestions() {
-    addingSelected = true;
-    const results = await Promise.allSettled(
-      [...selected].map(index => {
-        const s = suggestions[index];
-        return queriesApi.create(projectId, {
-          platform: s.platform,
-          query_url: s.query_url,
-          angle: s.angle || null,
-        });
-      })
-    );
-    const created = results.filter(r => r.status === 'fulfilled').map(r => r.value);
-    const failures = results.filter(r => r.status === 'rejected').length;
-    queryList = [...queryList, ...created];
-    if (created.length > 0) {
-      onQueriesChanged?.({ projectId });
-    }
-    addingSelected = false;
-    showSuggestModal = false;
-    suggestions = [];
-    selected = new Set();
-    if (failures > 0) {
-      error = `Added ${created.length} queries, ${failures} failed`;
-    }
-  }
-
-  async function applySelectedRefinements() {
-    applyingRefine = true;
-    const chosen = [...refineSelected].map((index) => refineRecommendations[index]).filter(Boolean);
-    const results = await Promise.allSettled(
-      chosen.map((item) => {
-        if (item.type === 'disable') {
-          return queriesApi.update(projectId, item.query.id, { enabled: false });
-        }
-        return queriesApi.create(projectId, {
-          platform: item.query.platform,
-          query_url: item.query.query_url,
-          angle: item.query.angle || null,
-        });
-      })
-    );
-
-    const failures = results.filter((result) => result.status === 'rejected').length;
-    const changed = chosen.filter((_, index) => results[index].status === 'fulfilled');
-    if (changed.length > 0) {
-      await loadQueries();
-      onQueriesChanged?.({ projectId });
-    }
-    applyingRefine = false;
-    closeRefineModal();
-    if (failures > 0) {
-      error = `Applied ${changed.length} refinements, ${failures} failed`;
-    }
-  }
-
-  function closeSuggestModal() {
-    showSuggestModal = false;
-    suggestions = [];
-    selected = new Set();
+    startingJob = true;
     suggestError = '';
-  }
-
-  function closeRefineModal() {
-    if (refining) return;
-    showRefineModal = false;
-    refineRecommendations = [];
-    refineSelected = new Set();
-    refineSummary = '';
-    refineContext = null;
-    refineError = '';
-  }
-
-  function recommendationLabel(item) {
-    return item.type === 'disable' ? 'Turn off' : 'Add';
-  }
-
-  function recommendationMeta(item) {
-    if (item.type === 'disable') return 'Current query';
-    if (item.replaces_query_id) return `Suggested replacement for #${item.replaces_query_id}`;
-    return 'Suggested addition';
+    showRefineConfirmModal = false;
+    try {
+      const job = await queryReviewJobsApi.create(projectId, {
+        kind: 'refine',
+        refinement: suggestRefinement || undefined,
+      });
+      suggestRefinement = '';
+      onQueryReviewJobStarted?.(job);
+    } catch (e) {
+      suggestError = e.message;
+    } finally {
+      startingJob = false;
+    }
   }
 
   function closeOnEscape(event, close) {
@@ -348,76 +218,6 @@
       close();
     }
   }
-
-  function startRefineBriefing() {
-    stopRefineBriefing();
-    refineBriefingIndex = 0;
-    typeRefineBriefing(REFINE_LOADING_QUOTES[0]);
-    refineQuoteTimer = setInterval(() => {
-      refineBriefingIndex = (refineBriefingIndex + 1) % REFINE_LOADING_QUOTES.length;
-      typeRefineBriefing(REFINE_LOADING_QUOTES[refineBriefingIndex]);
-    }, 4200);
-  }
-
-  function typeRefineBriefing(text) {
-    if (refineTypingTimer) clearInterval(refineTypingTimer);
-    refineBriefingText = '';
-    let index = 0;
-    refineTypingTimer = setInterval(() => {
-      index += 1;
-      refineBriefingText = text.slice(0, index);
-      if (index >= text.length) {
-        clearInterval(refineTypingTimer);
-        refineTypingTimer = null;
-      }
-    }, 24);
-  }
-
-  function stopRefineBriefing() {
-    if (refineTypingTimer) {
-      clearInterval(refineTypingTimer);
-      refineTypingTimer = null;
-    }
-    if (refineQuoteTimer) {
-      clearInterval(refineQuoteTimer);
-      refineQuoteTimer = null;
-    }
-  }
-
-  function setRefineUnloadProtection(active) {
-    if (typeof window === 'undefined') return;
-    if (active && !refineUnloadHandler) {
-      refineUnloadHandler = (event) => {
-        event.preventDefault();
-        event.returnValue = '';
-      };
-      window.addEventListener('beforeunload', refineUnloadHandler);
-      document.body.style.overflow = 'hidden';
-      return;
-    }
-    if (!active && refineUnloadHandler) {
-      window.removeEventListener('beforeunload', refineUnloadHandler);
-      refineUnloadHandler = null;
-      document.body.style.overflow = '';
-    }
-  }
-
-  $effect(() => {
-    if (refining && !wasRefining) {
-      wasRefining = true;
-      startRefineBriefing();
-      setRefineUnloadProtection(true);
-    } else if (!refining && wasRefining) {
-      wasRefining = false;
-      stopRefineBriefing();
-      setRefineUnloadProtection(false);
-    }
-  });
-
-  onDestroy(() => {
-    stopRefineBriefing();
-    setRefineUnloadProtection(false);
-  });
 
   function truncate(str, len = 60) {
     if (!str) return '';
@@ -448,11 +248,9 @@
     if (projectId && projectId !== lastProjectId) {
       lastProjectId = projectId;
       showSuggestConfirmModal = false;
-      showSuggestModal = false;
       showRefineConfirmModal = false;
-      showRefineModal = false;
-      refining = false;
       suggestRefinement = '';
+      onQueryReviewModalClosed?.();
       loadQueries();
     }
   });
@@ -460,14 +258,6 @@
 
 <svelte:window onkeydown={(e) => {
   if (e.key !== 'Escape') return;
-  if (showSuggestModal) {
-    closeSuggestModal();
-    return;
-  }
-  if (showRefineModal) {
-    closeRefineModal();
-    return;
-  }
   if (showRefineConfirmModal) {
     closeRefineConfirm();
     return;
@@ -492,11 +282,11 @@
           </button>
         {/each}
       </div>
-      <button class="suggest-btn" onclick={openRefineConfirm} disabled={refining || suggesting}>
-        {refining ? 'Refining...' : 'Refine Queries'}
+      <button class="suggest-btn" onclick={openRefineConfirm} disabled={startingJob}>
+        {startingJob ? 'Starting...' : 'Refine Queries'}
       </button>
-      <button class="suggest-btn" onclick={openSuggestConfirm} disabled={suggesting}>
-        {suggesting ? 'Suggesting...' : 'Suggest Queries'}
+      <button class="suggest-btn" onclick={openSuggestConfirm} disabled={startingJob}>
+        {startingJob ? 'Starting...' : 'Suggest Queries'}
       </button>
       <span class="count">{visibleCount} {visibleCount === 1 ? 'query' : 'queries'}</span>
     </div>
@@ -508,10 +298,6 @@
 
   {#if suggestError}
     <div class="error-msg">{suggestError}</div>
-  {/if}
-
-  {#if refineError}
-    <div class="error-msg">{refineError}</div>
   {/if}
 
   {#if showCountWarning}
@@ -633,8 +419,8 @@
           ></textarea>
         </div>
         <div class="modal-actions">
-          <button class="add-btn" onclick={suggestQueries} disabled={suggesting}>
-            {suggesting ? 'Suggesting...' : 'Generate Suggestions'}
+          <button class="add-btn" onclick={suggestQueries} disabled={startingJob}>
+            {startingJob ? 'Starting...' : 'Generate Suggestions'}
           </button>
           <button class="cancel-btn" onclick={closeSuggestConfirm}>Cancel</button>
         </div>
@@ -661,8 +447,8 @@
           ></textarea>
         </div>
         <div class="modal-actions">
-          <button class="add-btn" onclick={refineQueries} disabled={refining}>
-            {refining ? 'Refining...' : 'Generate Refinements'}
+          <button class="add-btn" onclick={refineQueries} disabled={startingJob}>
+            {startingJob ? 'Starting...' : 'Generate Refinements'}
           </button>
           <button class="cancel-btn" onclick={closeRefineConfirm}>Cancel</button>
         </div>
@@ -670,141 +456,14 @@
     </div>
   {/if}
 
-  {#if showSuggestModal}
-    <div class="modal-overlay" role="presentation" tabindex="-1" onclick={(e) => { if (e.target === e.currentTarget) closeSuggestModal(); }} onkeydown={(e) => closeOnEscape(e, closeSuggestModal)}>
-      <div class="modal">
-        <div class="modal-header">
-          <h3 class="modal-title">Suggested Queries</h3>
-          <button class="modal-close" onclick={closeSuggestModal}>&#x2715;</button>
-        </div>
-        {#if suggestions.length === 0}
-          <div class="empty-msg">No suggestions generated. Try adding more project context.</div>
-        {:else}
-          <div class="suggestion-list">
-            {#each suggestions as s, i}
-              <label class="suggestion-row" class:selected={selected.has(i)}>
-                <input type="checkbox" checked={selected.has(i)} onchange={() => toggleSuggestion(i)} />
-                <span class="platform-badge" class:reddit={s.platform === 'reddit'} class:bluesky={s.platform === 'bluesky'} class:google={s.platform === 'google'}>
-                  {PLATFORM_LABELS[s.platform] || s.platform}
-                </span>
-                <span class="suggestion-url" title={s.query_url}>{truncate(s.query_url, 50)}</span>
-                <a class="external-link" href={webUrl(s)} target="_blank" rel="noopener noreferrer" title="Open in browser" onclick={(e) => e.stopPropagation()}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                    <polyline points="15 3 21 3 21 9"/>
-                    <line x1="10" y1="14" x2="21" y2="3"/>
-                  </svg>
-                </a>
-                {#if s.angle}
-                  <span class="angle-tag">{s.angle}</span>
-                {/if}
-              </label>
-            {/each}
-          </div>
-          <div class="modal-actions">
-            <button class="add-btn" onclick={addSelectedSuggestions} disabled={addingSelected || selected.size === 0}>
-              {addingSelected ? 'Adding...' : `Add ${selected.size} Selected`}
-            </button>
-            <button class="cancel-btn" onclick={closeSuggestModal}>Cancel</button>
-          </div>
-        {/if}
-      </div>
-    </div>
-  {/if}
-
-  {#if showRefineModal}
-    <div class="modal-overlay" class:modal-overlay--blocking={refining} role="presentation" tabindex="-1" onclick={(e) => { if (e.target === e.currentTarget) closeRefineModal(); }} onkeydown={(e) => closeOnEscape(e, closeRefineModal)}>
-      <div class="modal">
-        <div class="modal-header">
-          <h3 class="modal-title">Refine Query Recommendations</h3>
-          {#if !refining}
-            <button class="modal-close" onclick={closeRefineModal} aria-label="Close refine recommendations">&#x2715;</button>
-          {/if}
-        </div>
-        {#if refining}
-          <div class="refine-loading-shell">
-            <div class="refine-loading-intro">
-              <div class="refine-loading-spinner" aria-hidden="true"></div>
-              <div>
-                <div class="refine-loading-title">Refining your query set…</div>
-                <p class="refine-loading-text">Keep this tab open while ThreadLens reviews the current queries against your project context and latest reports.</p>
-              </div>
-            </div>
-            <div class="refine-briefing" aria-live="polite">
-              <span class="refine-briefing-label">AI briefing</span>
-              <p class="refine-briefing-text">{refineBriefingText}<span class="typing-caret"></span></p>
-            </div>
-            <div class="refine-loading-note">This step can take a few minutes on larger report contexts. Navigation is temporarily locked so the request is not interrupted.</div>
-          </div>
-          <div class="suggestion-list suggestion-list--loading" aria-hidden="true">
-            {#each Array.from({ length: REFINE_LOADING_ROW_COUNT }) as _, i}
-              <div class="suggestion-row refine-row refine-skeleton" data-skeleton-index={i}>
-                <div class="skeleton skeleton-checkbox"></div>
-                <div class="skeleton skeleton-badge"></div>
-                <div class="skeleton skeleton-platform"></div>
-                <div class="refine-copy">
-                  <div class="skeleton skeleton-line skeleton-line--wide"></div>
-                  <div class="skeleton skeleton-line skeleton-line--mid"></div>
-                  <div class="skeleton skeleton-line skeleton-line--short"></div>
-                </div>
-                <div class="skeleton skeleton-angle"></div>
-              </div>
-            {/each}
-          </div>
-        {:else if refineSummary || refineContext}
-          <div class="confirm-modal-body refine-summary-block">
-            {#if refineSummary}
-              <p class="confirm-modal-text">{refineSummary}</p>
-            {/if}
-            {#if refineContext}
-              <div class="refine-context-row">
-                <span>{refineContext.enabled_query_count} enabled of {refineContext.query_count} total</span>
-                {#if refineContext.social_report}
-                  <span>Social report #{refineContext.social_report.id}</span>
-                {/if}
-                {#if refineContext.google_report}
-                  <span>Google report #{refineContext.google_report.id}</span>
-                {/if}
-              </div>
-            {/if}
-          </div>
-        {/if}
-        {#if refineRecommendations.length === 0}
-          <div class="empty-msg">No query refinements recommended right now.</div>
-        {:else}
-          <div class="suggestion-list">
-            {#each refineRecommendations as item, i}
-              <label class="suggestion-row refine-row" class:selected={refineSelected.has(i)}>
-                <input type="checkbox" checked={refineSelected.has(i)} onchange={() => toggleRefineRecommendation(i)} />
-                <span class="refine-action-badge" class:disable={item.type === 'disable'} class:add={item.type === 'add'}>
-                  {recommendationLabel(item)}
-                </span>
-                <span class="platform-badge" class:reddit={item.query.platform === 'reddit'} class:bluesky={item.query.platform === 'bluesky'} class:google={item.query.platform === 'google'}>
-                  {PLATFORM_LABELS[item.query.platform] || item.query.platform}
-                </span>
-                <div class="refine-copy">
-                  <div class="suggestion-url" title={item.query.query_url}>{truncate(item.query.query_url, 50)}</div>
-                  <div class="refine-meta">{recommendationMeta(item)}{item.angle ? ` · ${item.angle}` : ''}</div>
-                  {#if item.reason}
-                    <div class="refine-reason">{item.reason}</div>
-                  {/if}
-                </div>
-                {#if item.query.angle}
-                  <span class="angle-tag">{item.query.angle}</span>
-                {/if}
-              </label>
-            {/each}
-          </div>
-          <div class="modal-actions">
-            <button class="add-btn" onclick={applySelectedRefinements} disabled={applyingRefine || refineSelected.size === 0}>
-              {applyingRefine ? 'Applying...' : `Apply ${refineSelected.size} Selected`}
-            </button>
-            <button class="cancel-btn" onclick={closeRefineModal}>Cancel</button>
-          </div>
-        {/if}
-      </div>
-    </div>
-  {/if}
+  <QueryJobReviewModal
+    {projectId}
+    job={reviewJob}
+    queries={queryList}
+    onClose={onQueryReviewModalClosed}
+    onHandled={onQueryReviewJobHandled}
+    onQueriesChanged={() => { loadQueries(); onQueriesChanged?.({ projectId }); }}
+  />
 </div>
 
 <style>
