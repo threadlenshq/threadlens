@@ -3,9 +3,10 @@
   import ProjectSettings from './components/ProjectSettings.svelte';
   import ScoutRunButton from './components/ScoutRunButton.svelte';
   import ActiveRunBanner from './components/ActiveRunBanner.svelte';
+  import TopbarJobBanner from './components/TopbarJobBanner.svelte';
   import FindingCard from './components/inbox/FindingCard.svelte';
   import DetailPanel from './components/DetailPanel.svelte';
-  import { projects as projectsApi, posts as postsApi, scout as scoutApi, queries as queriesApi, runtime as runtimeApi, onboarding as onboardingApi } from './lib/api.js';
+  import { projects as projectsApi, posts as postsApi, scout as scoutApi, queries as queriesApi, queryReviewJobs as queryReviewJobsApi, runtime as runtimeApi, onboarding as onboardingApi } from './lib/api.js';
   import { readUrlState, writeUrlState, clearUrlState } from './lib/url.js';
   import OnboardingWizard from './components/OnboardingWizard.svelte';
   import ExplorationChecklist from './components/onboarding/ExplorationChecklist.svelte';
@@ -91,6 +92,16 @@
   let pollTimer = $state(null);
   let timeTick = $state(0);
   let tickTimer = setInterval(() => { timeTick++; }, 60000);
+
+  // Query-review job state
+  let queryReviewJobs = $state([]);
+  let queryJobPollTimer = $state(null);
+  let activeQueryReviewJobId = $state(null);
+
+  let runningQueryJobs = $derived(queryReviewJobs.filter(j => j.status === 'running' || j.status === 'pending'));
+  let completedQueryJobs = $derived(queryReviewJobs.filter(j => j.status === 'completed'));
+  let failedQueryJobs = $derived(queryReviewJobs.filter(j => j.status === 'failed'));
+  let activeQueryReviewJob = $derived(activeQueryReviewJobId ? queryReviewJobs.find(j => j.id === activeQueryReviewJobId) || null : null);
 
   function relativeTime(dateStr) {
     if (!dateStr) return '';
@@ -233,6 +244,80 @@
     }
   }
 
+  async function fetchQueryReviewJobs() {
+    if (!selectedProjectId) {
+      queryReviewJobs = [];
+      return;
+    }
+    try {
+      const jobs = await queryReviewJobsApi.list(selectedProjectId);
+      // Keep only active/recent jobs: running, pending, completed, failed (not reviewed/archived)
+      queryReviewJobs = Array.isArray(jobs) ? jobs.filter(j =>
+        j.status === 'running' || j.status === 'pending' || j.status === 'completed' || j.status === 'failed'
+      ) : [];
+    } catch (e) {
+      console.error('Failed to fetch query review jobs:', e);
+    }
+  }
+
+  async function pollQueryReviewJobs() {
+    if (!selectedProjectId) return;
+    try {
+      const jobs = await queryReviewJobsApi.list(selectedProjectId);
+      queryReviewJobs = Array.isArray(jobs) ? jobs.filter(j =>
+        j.status === 'running' || j.status === 'pending' || j.status === 'completed' || j.status === 'failed'
+      ) : [];
+      const stillRunning = queryReviewJobs.some(j => j.status === 'running' || j.status === 'pending');
+      if (stillRunning) {
+        scheduleQueryJobPoll();
+      } else {
+        queryJobPollTimer = null;
+      }
+    } catch (e) {
+      console.error('Failed to poll query review jobs:', e);
+    }
+  }
+
+  function scheduleQueryJobPoll() {
+    clearTimeout(queryJobPollTimer);
+    queryJobPollTimer = setTimeout(pollQueryReviewJobs, 4000);
+  }
+
+  function stopQueryJobPoll() {
+    clearTimeout(queryJobPollTimer);
+    queryJobPollTimer = null;
+  }
+
+  function handleQueryReviewJobStarted(job) {
+    // Add or update job in list
+    const idx = queryReviewJobs.findIndex(j => j.id === job.id);
+    if (idx >= 0) {
+      queryReviewJobs = queryReviewJobs.map((j, i) => i === idx ? job : j);
+    } else {
+      queryReviewJobs = [...queryReviewJobs, job];
+    }
+    scheduleQueryJobPoll();
+  }
+
+  function handleQueryReviewJobHandled(jobId) {
+    // Remove job from visible list after user has reviewed/handled it
+    queryReviewJobs = queryReviewJobs.filter(j => j.id !== jobId);
+    if (activeQueryReviewJobId === jobId) {
+      activeQueryReviewJobId = null;
+    }
+  }
+
+  function closeQueryReviewModal() {
+    activeQueryReviewJobId = null;
+  }
+
+  function reviewQueryJob(job) {
+    activeQueryReviewJobId = job.id;
+    // Navigate to Settings > Queries to surface the review modal
+    view = 'sources';
+    writeUrlState({ view: 'sources', tab: 'queries' }, 'push');
+  }
+
   function handlePopState() {
     const urlState = readUrlState();
     view = urlState.view;
@@ -248,6 +333,7 @@
 
     if (urlState.project && urlState.project !== selectedProjectId) {
       stopPoll();
+      stopQueryJobPoll();
       selectedProjectId = urlState.project;
       selectedPost = null;
       loadPosts().then(() => {
@@ -258,6 +344,7 @@
       });
       fetchInitialRunState();
       loadEnabledQueryCount();
+      fetchQueryReviewJobs();
     } else {
       loadPosts().then(() => {
         if (urlState.post) {
@@ -274,6 +361,7 @@
   onDestroy(() => {
     window.removeEventListener('popstate', handlePopState);
     stopPoll();
+    stopQueryJobPoll();
     clearInterval(tickTimer);
   });
 
@@ -378,6 +466,7 @@
   // --- Project selection ---
   async function selectProject(id) {
     stopPoll();
+    stopQueryJobPoll();
     failedRuns = [];
     completedRuns = [];
     selectedProjectId = id;
@@ -392,6 +481,7 @@
     await loadPosts();
     await fetchInitialRunState();
     await loadEnabledQueryCount();
+    await fetchQueryReviewJobs();
   }
 
   async function loadEnabledQueryCount() {
@@ -727,6 +817,7 @@
 
       await loadPosts();
       await fetchInitialRunState();
+      await fetchQueryReviewJobs();
 
       if (urlState.post) {
         const found = postsList.find(p => p.id === urlState.post);
@@ -758,6 +849,7 @@
     <OnboardingWizard status={onboardingStatus} onStatusReload={handleOnboardingComplete} />
   {:else}
   <ActiveRunBanner runs={activeRuns} {failedRuns} {completedRuns} onDismissFailed={dismissFailedRun} onDismissCompleted={dismissCompletedRun} onCancel={cancelRun} />
+  <TopbarJobBanner runningJobs={runningQueryJobs} completedJobs={completedQueryJobs} failedJobs={failedQueryJobs} onReview={reviewQueryJob} />
 
   {#if onboardingShowsExploration}
     <ExplorationChecklist
@@ -1003,6 +1095,10 @@
             onProjectDeleted={handleProjectDeleted}
             onProjectCloned={handleProjectCloned}
             onTabChange={(tab) => writeUrlState({ tab })}
+            queryReviewJob={activeQueryReviewJob}
+            onQueryReviewJobStarted={handleQueryReviewJobStarted}
+            onQueryReviewJobHandled={handleQueryReviewJobHandled}
+            onQueryReviewModalClosed={closeQueryReviewModal}
           />
         {/key}
       </div>
