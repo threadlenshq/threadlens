@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"sort"
+	"strings"
 )
 
 type RuntimeMode string
@@ -132,6 +134,8 @@ func (r *LocalResolver) Snapshot(_ context.Context, subject Subject) (Snapshot, 
 	for _, cap := range CoreCapabilities {
 		capabilities[cap] = true
 	}
+	googleScoutConfigured := strings.TrimSpace(os.Getenv("PARALLEL_API_KEY")) != ""
+	capabilities[CapabilityScoutRunGoogle] = googleScoutConfigured
 	capabilities[CapabilityManagedAIUse] = false
 	capabilities[CapabilityPromptTemplatesApply] = true
 	capabilities[CapabilitySupportActive] = false
@@ -158,6 +162,15 @@ func (r *LocalResolver) Snapshot(_ context.Context, subject Subject) (Snapshot, 
 		}
 	}
 
+	messages := []RuntimeMessage{message}
+	if !googleScoutConfigured {
+		messages = append(messages, RuntimeMessage{
+			Code:    "google_parallel_api_key_missing",
+			Message: "Google Scout is disabled: PARALLEL_API_KEY is not set. Configure the key to enable Google search scouting.",
+			Level:   "warning",
+		})
+	}
+
 	return Snapshot{
 		RuntimeMode:  mode,
 		Edition:      edition,
@@ -170,7 +183,7 @@ func (r *LocalResolver) Snapshot(_ context.Context, subject Subject) (Snapshot, 
 		},
 		Support:  SupportStatus{Available: false, MaintenanceActive: false, Level: "community"},
 		Modules:  modules,
-		Messages: []RuntimeMessage{message},
+		Messages: messages,
 	}, nil
 }
 
