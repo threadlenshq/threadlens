@@ -113,6 +113,7 @@ func googleReportURL(projectID string, reportID int64, suffix string) string {
 }
 
 func TestGoogleReports_List(t *testing.T) {
+	t.Setenv("PARALLEL_API_KEY", "")
 	r, repo := newGoogleRouter(t)
 	_, _ = seedGoogleData(t, repo, "gp1")
 
@@ -166,6 +167,7 @@ func TestGoogleReports_GetByID_NotFound(t *testing.T) {
 }
 
 func TestGoogleReports_GetByID_EmbedRunFields(t *testing.T) {
+	t.Setenv("PARALLEL_API_KEY", "")
 	r, repo := newGoogleRouter(t)
 	_, reportID := seedGoogleData(t, repo, "gp2")
 

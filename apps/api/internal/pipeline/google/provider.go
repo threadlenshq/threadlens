@@ -163,7 +163,8 @@ func (p *ParallelSearchProvider) SearchBatch(ctx context.Context, queries []stri
 	if len(cleaned) == 0 {
 		return []SearchResult{}, nil
 	}
-	if p.APIKey == "" {
+	apiKey := safeStr(p.APIKey)
+	if apiKey == "" {
 		return nil, fmt.Errorf("Missing Parallel configuration (set PARALLEL_API_KEY)")
 	}
 
@@ -190,7 +191,7 @@ func (p *ParallelSearchProvider) SearchBatch(ctx context.Context, queries []stri
 	if err != nil {
 		return nil, fmt.Errorf("parallel search: build request: %w", err)
 	}
-	req.Header.Set("x-api-key", p.APIKey)
+	req.Header.Set("x-api-key", apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)

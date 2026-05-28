@@ -83,6 +83,37 @@ func TestScout_StartAsync_ReturnsRunning(t *testing.T) {
 	}
 }
 
+func TestScout_GoogleWithoutParallelKeyDeniedBeforeRunCreation(t *testing.T) {
+	t.Setenv("PARALLEL_API_KEY", "")
+	r, repo := newScoutRouter(t)
+	doRequest(t, r, http.MethodPost, "/api/projects", map[string]any{"id": "sp-google-locked", "name": "Test", "mode": "research"})
+
+	rr := doRequest(t, r, http.MethodPost, "/api/projects/sp-google-locked/scout?platform=google", nil)
+	if rr.Code != http.StatusPaymentRequired {
+		t.Fatalf("status = %d, want 402; body = %s", rr.Code, rr.Body.String())
+	}
+	var resp map[string]string
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	want := "capability denied: core.scout.run.google: capability_not_granted"
+	if resp["error"] != want {
+		t.Fatalf("error = %q, want %q", resp["error"], want)
+	}
+
+	// Confirm zero rows in scout_runs for this project/platform.
+	var count int
+	err := repo.DB.QueryRow(
+		`SELECT COUNT(*) FROM scout_runs WHERE project_id = 'sp-google-locked' AND platform = 'google'`,
+	).Scan(&count)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("expected 0 scout_runs rows, got %d", count)
+	}
+}
+
 func TestScout_ListRuns_ReturnsLatest20(t *testing.T) {
 	r, _ := newScoutRouter(t)
 	doRequest(t, r, http.MethodPost, "/api/projects", map[string]any{"id": "sp3", "name": "Test", "mode": "research"})
