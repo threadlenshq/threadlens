@@ -402,6 +402,9 @@ func TestAutoLaunchFieldPresent(t *testing.T) {
 // but the binary doesn't exist (best-effort, should not panic or error fatally).
 func TestAutoLaunchWithHelper(t *testing.T) {
 	clearBridgeEnv(t)
+	// Point config path to a non-existent file so loadFromConfigFile misses,
+	// even if a real ai-bridge.json exists on the host machine.
+	os.Setenv("SCOUT_AI_BRIDGE_CONFIG", filepath.Join(t.TempDir(), "no-such-bridge.json"))
 	os.Setenv("SCOUT_AI_BRIDGE_MODE", "local")
 	os.Setenv("SCOUT_AI_BRIDGE_HELPER", "/this/binary/does/not/exist")
 
