@@ -22,6 +22,7 @@ func newRuntimeRouter() http.Handler {
 }
 
 func TestRuntimeCapabilitiesRoute(t *testing.T) {
+	t.Setenv("PARALLEL_API_KEY", "")
 	router := newRuntimeRouter()
 	rr := doRequest(t, router, http.MethodGet, "/api/runtime/capabilities", nil)
 	if rr.Code != http.StatusOK {
@@ -37,6 +38,26 @@ func TestRuntimeCapabilitiesRoute(t *testing.T) {
 	capabilities := resp["capabilities"].(map[string]any)
 	if capabilities["core.scout.run.reddit"] != true {
 		t.Fatalf("core.scout.run.reddit must be true: %+v", capabilities)
+	}
+	if capabilities["core.scout.run.google"] != false {
+		t.Fatalf("core.scout.run.google must be false when PARALLEL_API_KEY is unset: %+v", capabilities)
+	}
+}
+
+func TestRuntimeCapabilitiesRouteWithParallelKey(t *testing.T) {
+	t.Setenv("PARALLEL_API_KEY", "parallel_test_key")
+	router := newRuntimeRouter()
+	rr := doRequest(t, router, http.MethodGet, "/api/runtime/capabilities", nil)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	capabilities := resp["capabilities"].(map[string]any)
+	if capabilities["core.scout.run.google"] != true {
+		t.Fatalf("core.scout.run.google must be true when PARALLEL_API_KEY is set: %+v", capabilities)
 	}
 }
 
