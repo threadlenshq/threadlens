@@ -6,7 +6,8 @@ import (
 	"testing"
 )
 
-func TestLocalResolverGrantsCoreCapabilities(t *testing.T) {
+func TestLocalResolverGrantsCoreCapabilitiesExceptGoogleWithoutParallelKey(t *testing.T) {
+	t.Setenv("PARALLEL_API_KEY", "   ")
 	resolver := NewLocalResolver(RuntimeModeSelfHosted, nil)
 	snapshot, err := resolver.Snapshot(context.Background(), Subject{})
 	if err != nil {
@@ -16,13 +17,61 @@ func TestLocalResolverGrantsCoreCapabilities(t *testing.T) {
 		t.Fatalf("RuntimeMode = %q, want %q", snapshot.RuntimeMode, RuntimeModeSelfHosted)
 	}
 	for _, cap := range CoreCapabilities {
+		if cap == CapabilityScoutRunGoogle {
+			continue
+		}
 		if !snapshot.Capabilities[cap] {
 			t.Fatalf("capability %s must be granted in local resolver", cap)
 		}
 	}
+	if snapshot.Capabilities[CapabilityScoutRunGoogle] {
+		t.Fatal("google scout capability must be denied when PARALLEL_API_KEY is blank")
+	}
 	if snapshot.Capabilities[CapabilityManagedAIUse] {
 		t.Fatal("managed AI capability must not be granted by the local open-core resolver")
 	}
+	if !hasRuntimeMessage(snapshot.Messages, "google_parallel_api_key_missing") {
+		t.Fatalf("missing google_parallel_api_key_missing message: %+v", snapshot.Messages)
+	}
+}
+
+func TestLocalResolverGrantsGoogleScoutCapabilityWithParallelKey(t *testing.T) {
+	t.Setenv("PARALLEL_API_KEY", "parallel_test_key")
+	resolver := NewLocalResolver(RuntimeModeSelfHosted, nil)
+	snapshot, err := resolver.Snapshot(context.Background(), Subject{})
+	if err != nil {
+		t.Fatalf("Snapshot returned error: %v", err)
+	}
+	if !snapshot.Capabilities[CapabilityScoutRunGoogle] {
+		t.Fatal("google scout capability must be granted when PARALLEL_API_KEY is configured")
+	}
+	if hasRuntimeMessage(snapshot.Messages, "google_parallel_api_key_missing") {
+		t.Fatalf("missing-key message must not be present with configured key: %+v", snapshot.Messages)
+	}
+}
+
+func TestLocalResolverCheckDeniesGoogleScoutWithoutParallelKey(t *testing.T) {
+	t.Setenv("PARALLEL_API_KEY", "")
+	resolver := NewLocalResolver(RuntimeModeSelfHosted, nil)
+	decision, err := resolver.Check(context.Background(), CheckRequest{Capability: CapabilityScoutRunGoogle})
+	if err != nil {
+		t.Fatalf("Check returned error: %v", err)
+	}
+	if decision.Allowed {
+		t.Fatal("google scout check must be denied without PARALLEL_API_KEY")
+	}
+	if decision.StatusCode != http.StatusPaymentRequired {
+		t.Fatalf("StatusCode = %d, want %d", decision.StatusCode, http.StatusPaymentRequired)
+	}
+}
+
+func hasRuntimeMessage(messages []RuntimeMessage, code string) bool {
+	for _, message := range messages {
+		if message.Code == code {
+			return true
+		}
+	}
+	return false
 }
 
 func TestLocalResolverDeniesHostedOnlyCapability(t *testing.T) {
