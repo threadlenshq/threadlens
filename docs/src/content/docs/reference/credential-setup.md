@@ -5,7 +5,7 @@ description: How to obtain each credential ThreadLens uses for AI providers, sea
 
 This page covers where to get each credential ThreadLens uses. Each section links to the official provider page and notes any prerequisites or subscription requirements.
 
-## Anthropic API key {#anthropic}
+## Anthropic API key
 
 `ANTHROPIC_API_KEY` — enables Anthropic-backed AI scoring, analysis, clustering, and reports.
 
@@ -20,7 +20,7 @@ This page covers where to get each credential ThreadLens uses. Each section link
 
 Billing is usage-based. Review the [Anthropic pricing page](https://www.anthropic.com/pricing) before enabling high-volume scouting.
 
-## Gemini API key {#gemini}
+## Gemini API key
 
 `GEMINI_API_KEY` — enables the Gemini-compatible provider path for AI scoring, analysis, and reports.
 
@@ -33,7 +33,7 @@ Billing is usage-based. Review the [Anthropic pricing page](https://www.anthropi
    GEMINI_API_KEY=AIza...
    ```
 
-## GitHub Copilot CLI {#copilot-cli}
+## GitHub Copilot CLI
 
 `copilot` provider — no environment variable required. Availability is detected at runtime by binary presence.
 
@@ -71,7 +71,7 @@ For full setup details see the [GitHub Copilot in the CLI documentation](https:/
 
 No `.env` change is needed. ThreadLens detects `copilot` availability through the local AI bridge if running in Docker, or directly if running outside Docker.
 
-## Claude CLI {#claude-cli}
+## Claude CLI
 
 `claude-cli` provider — no environment variable required. Availability is detected at runtime by binary presence.
 
@@ -95,7 +95,7 @@ For full setup details see the [Claude Code documentation](https://docs.anthropi
 
 No `.env` change is needed. ThreadLens detects `claude-cli` availability through the local AI bridge if running in Docker, or directly if running outside Docker.
 
-## Bluesky credentials {#bluesky}
+## Bluesky credentials
 
 `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` — both required to enable Bluesky scouting.
 
@@ -117,7 +117,7 @@ To create an App Password:
 
 Do not use your account login password. Only App Passwords are supported, and they can be revoked from the same settings page without affecting your account.
 
-## Parallel API key {#parallel}
+## Parallel API key
 
 `PARALLEL_API_KEY` — enables Google Search scouting through the Parallel.ai search provider.
 
