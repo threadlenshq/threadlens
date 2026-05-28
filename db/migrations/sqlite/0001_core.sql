@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS query_review_jobs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   kind TEXT NOT NULL CHECK (kind IN ('suggest', 'refine')),
-  status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed')),
+  status TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'completed', 'failed')),
   step TEXT,
   refinement TEXT,
   result_json TEXT,
@@ -110,7 +110,8 @@ CREATE TABLE IF NOT EXISTS query_review_jobs (
   resolution TEXT CHECK (resolution IN ('applied', 'denied')),
   started_at DATETIME NOT NULL DEFAULT (datetime('now')),
   completed_at DATETIME,
-  reviewed_at DATETIME
+  reviewed_at DATETIME,
+  CHECK ((reviewed_at IS NULL AND resolution IS NULL) OR (reviewed_at IS NOT NULL AND resolution IS NOT NULL AND status IN ('completed', 'failed')))
 );
 
 CREATE TABLE IF NOT EXISTS schedules (

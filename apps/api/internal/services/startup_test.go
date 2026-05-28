@@ -35,6 +35,27 @@ func insertRunningRun(t *testing.T, db *sql.DB, projectID string, startedAt time
 	return id
 }
 
+func insertQueryReviewJob(t *testing.T, db *sql.DB, projectID string, startedAt time.Time, status string) int64 {
+	t.Helper()
+	_, err := db.Exec(
+		`INSERT OR IGNORE INTO projects (id, name, mode) VALUES (?, 'Test', 'research')`,
+		projectID,
+	)
+	if err != nil {
+		t.Fatalf("insert project: %v", err)
+	}
+	res, err := db.Exec(
+		`INSERT INTO query_review_jobs (project_id, kind, status, started_at)
+		 VALUES (?, 'suggest', ?, ?)`,
+		projectID, status, startedAt.UTC().Format("2006-01-02 15:04:05"),
+	)
+	if err != nil {
+		t.Fatalf("insert query review job: %v", err)
+	}
+	id, _ := res.LastInsertId()
+	return id
+}
+
 // TestStartupReconciliation_OrphanedRunsFailed verifies that running scout_runs
 // older than 5 minutes are marked failed with "Server restarted".
 func TestStartupReconciliation_OrphanedRunsFailed(t *testing.T) {
@@ -60,6 +81,47 @@ func TestStartupReconciliation_OrphanedRunsFailed(t *testing.T) {
 	}
 	if errMsg.String != "Server restarted" {
 		t.Errorf("expected error='Server restarted', got %q", errMsg.String)
+	}
+}
+
+// TestStartupReconciliation_StaleQueryReviewJobsFailed verifies that stale query
+// review jobs are marked failed on startup while fresh ones remain running.
+func TestStartupReconciliation_StaleQueryReviewJobsFailed(t *testing.T) {
+	db := testhelpers.OpenTestDB(t)
+	repo := repository.New(db)
+	ctx := context.Background()
+
+	staleTime := time.Now().Add(-20 * time.Minute)
+	freshTime := time.Now().Add(-2 * time.Minute)
+	staleID := insertQueryReviewJob(t, db, "proj-stale-review", staleTime, "running")
+	freshID := insertQueryReviewJob(t, db, "proj-fresh-review", freshTime, "running")
+
+	if err := services.RunStartupTasks(ctx, repo, nil); err != nil {
+		t.Fatalf("RunStartupTasks: %v", err)
+	}
+
+	var staleStatus, staleError, staleCompleted sql.NullString
+	row := db.QueryRow(`SELECT status, error, completed_at FROM query_review_jobs WHERE id = ?`, staleID)
+	if err := row.Scan(&staleStatus, &staleError, &staleCompleted); err != nil {
+		t.Fatalf("scan stale job: %v", err)
+	}
+	if staleStatus.String != "failed" {
+		t.Errorf("expected stale job status=failed, got %q", staleStatus.String)
+	}
+	if staleError.String != "Server restarted before query review finished" {
+		t.Errorf("expected stale job error to be set, got %q", staleError.String)
+	}
+	if !staleCompleted.Valid {
+		t.Errorf("expected stale job completed_at to be set")
+	}
+
+	var freshStatus string
+	row = db.QueryRow(`SELECT status FROM query_review_jobs WHERE id = ?`, freshID)
+	if err := row.Scan(&freshStatus); err != nil {
+		t.Fatalf("scan fresh job: %v", err)
+	}
+	if freshStatus != "running" {
+		t.Errorf("expected fresh job to remain running, got %q", freshStatus)
 	}
 }
 

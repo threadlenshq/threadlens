@@ -105,7 +105,7 @@ func (r *Repository) FailQueryReviewJob(ctx context.Context, projectID string, j
 	return r.GetQueryReviewJob(ctx, projectID, jobID)
 }
 
-func (r *Repository) MarkQueryReviewJobReviewed(ctx context.Context, projectID string, jobID int64, resolution domain.QueryReviewResolution) (domain.QueryReviewJob, error) {
+func (r *Repository) MarkQueryReviewJobReviewed(ctx context.Context, projectID string, jobID int64, resolution string) (domain.QueryReviewJob, error) {
 	res, err := r.DB.ExecContext(ctx, `
 		UPDATE query_review_jobs
 		SET reviewed_at = datetime('now'), resolution = ?

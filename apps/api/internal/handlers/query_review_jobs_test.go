@@ -138,14 +138,18 @@ func TestQueryReviewJob_CreateRefineCompletesAndPersistsResult(t *testing.T) {
 	}
 }
 
-// TestQueryReviewJob_FailedGenerationPersistsError verifies that when a job is marked
-// failed (e.g. by the background worker or startup cleanup), the error field is persisted
-// and the job is visible in the GET single-job endpoint.
+// TestQueryReviewJob_FailedGenerationPersistsError verifies that when the background AI
+// generation step fails, the job runner calls FailQueryReviewJob so the error is persisted,
+// and the GET single-job endpoint returns status "failed" with a non-empty error field.
+// This test drives the failure through the real HTTP → background-goroutine path by
+// configuring the fake AI provider to return an unparseable response (empty string), which
+// causes querySvc.Suggest to return a 500 error and triggers FailQueryReviewJob.
 func TestQueryReviewJob_FailedGenerationPersistsError(t *testing.T) {
-	router, repo := newQueryReviewRouter(t, `[]`, nil)
-	ctx := context.Background()
+	// Returning an empty string (no error) causes parseSuggestionArray to fail,
+	// so Suggest returns http.StatusInternalServerError which triggers FailQueryReviewJob
+	// inside runQueryReviewJob — the real background-goroutine failure path.
+	router, _ := newQueryReviewRouter(t, "not-valid-json", nil)
 
-	// Set up project and a running job via HTTP.
 	doRequest(t, router, http.MethodPost, "/api/projects", map[string]any{"id": "p1", "name": "Test", "mode": "research"})
 	rr := doRequest(t, router, http.MethodPost, "/api/projects/p1/query-review-jobs", map[string]any{"kind": "suggest"})
 	if rr.Code != http.StatusAccepted {
@@ -155,47 +159,10 @@ func TestQueryReviewJob_FailedGenerationPersistsError(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}
-	jobID := int64(created["id"].(float64))
+	jobID := int(created["id"].(float64))
 
-	// Wait for the background goroutine to settle (it completes with notice in test mode).
-	waitForQueryReviewStatus(t, router, "p1", int(jobID), "completed")
-
-	// Simulate a failure being persisted (e.g. by a subsequent goroutine overwrite or
-	// by directly exercising FailQueryReviewJob on a fresh running job).
-	_, err := repo.DB.ExecContext(ctx,
-		`INSERT INTO query_review_jobs (project_id, kind, status, started_at) VALUES ('p1', 'suggest', 'running', datetime('now'))`,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var failedID int64
-	if err := repo.DB.QueryRowContext(ctx, `SELECT id FROM query_review_jobs WHERE status='running' AND project_id='p1'`).Scan(&failedID); err != nil {
-		t.Fatal(err)
-	}
-
-	failed, err := repo.FailQueryReviewJob(ctx, "p1", failedID, "AI provider exploded during processing")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if failed.Status != "failed" {
-		t.Fatalf("status = %q, want failed", failed.Status)
-	}
-	if failed.Error == nil || *failed.Error == "" {
-		t.Fatalf("expected error to be set, got nil/empty")
-	}
-
-	// Verify via HTTP GET that the error is persisted.
-	getRR := doRequest(t, router, http.MethodGet, "/api/projects/p1/query-review-jobs/"+itoa(int(failedID)), nil)
-	if getRR.Code != http.StatusOK {
-		t.Fatalf("get status = %d body = %s", getRR.Code, getRR.Body.String())
-	}
-	var job map[string]any
-	if err := json.Unmarshal(getRR.Body.Bytes(), &job); err != nil {
-		t.Fatal(err)
-	}
-	if job["status"] != "failed" {
-		t.Fatalf("job status = %v, want failed", job["status"])
-	}
+	// The background goroutine should transition the job to "failed" via FailQueryReviewJob.
+	job := waitForQueryReviewStatus(t, router, "p1", jobID, "failed")
 	if job["error"] == nil || job["error"] == "" {
 		t.Fatalf("expected error field on failed job, got %v", job["error"])
 	}

@@ -27,12 +27,15 @@ type queryReviewJobReviewedRequest struct {
 }
 
 func MountQueryReviewJobRoutes(r chi.Router, repo *repository.Repository, querySvc *services.QueryService) {
-	r.Post("/api/projects/{id}/query-review-jobs", func(w http.ResponseWriter, req *http.Request) {
-		projectID := chi.URLParam(req, "id")
-		var body queryReviewJobCreateRequest
-		_ = httpx.DecodeJSON(req, &body)
-		body.Kind = strings.TrimSpace(body.Kind)
-		body.Refinement = strings.TrimSpace(body.Refinement)
+		r.Post("/api/projects/{id}/query-review-jobs", func(w http.ResponseWriter, req *http.Request) {
+			projectID := chi.URLParam(req, "id")
+			var body queryReviewJobCreateRequest
+			if err := httpx.DecodeJSON(req, &body); err != nil {
+				httpx.WriteError(w, http.StatusBadRequest, "Invalid request body")
+				return
+			}
+			body.Kind = strings.TrimSpace(body.Kind)
+			body.Refinement = strings.TrimSpace(body.Refinement)
 
 		if body.Kind != string(domain.QueryReviewKindSuggest) && body.Kind != string(domain.QueryReviewKindRefine) {
 			httpx.WriteError(w, http.StatusBadRequest, "kind must be suggest or refine")
@@ -85,21 +88,37 @@ func MountQueryReviewJobRoutes(r chi.Router, repo *repository.Repository, queryS
 		httpx.WriteJSON(w, http.StatusOK, job)
 	})
 
-	r.Post("/api/projects/{id}/query-review-jobs/{jobId}/reviewed", func(w http.ResponseWriter, req *http.Request) {
-		projectID := chi.URLParam(req, "id")
-		jobID, ok := parseJobID(w, req)
-		if !ok {
-			return
-		}
-		var body queryReviewJobReviewedRequest
-		_ = httpx.DecodeJSON(req, &body)
-		if body.Resolution != string(domain.QueryReviewResolutionApplied) && body.Resolution != string(domain.QueryReviewResolutionDenied) {
-			httpx.WriteError(w, http.StatusBadRequest, "resolution must be applied or denied")
-			return
-		}
-		job, err := repo.MarkQueryReviewJobReviewed(req.Context(), projectID, jobID, body.Resolution)
-		if err != nil {
-			writeRepoError(w, err)
+		r.Post("/api/projects/{id}/query-review-jobs/{jobId}/reviewed", func(w http.ResponseWriter, req *http.Request) {
+			projectID := chi.URLParam(req, "id")
+			jobID, ok := parseJobID(w, req)
+			if !ok {
+				return
+			}
+			var body queryReviewJobReviewedRequest
+			if err := httpx.DecodeJSON(req, &body); err != nil {
+				httpx.WriteError(w, http.StatusBadRequest, "Invalid request body")
+				return
+			}
+			if body.Resolution != string(domain.QueryReviewResolutionApplied) && body.Resolution != string(domain.QueryReviewResolutionDenied) {
+				httpx.WriteError(w, http.StatusBadRequest, "resolution must be applied or denied")
+				return
+			}
+			job, err := repo.GetQueryReviewJob(req.Context(), projectID, jobID)
+			if err != nil {
+				writeRepoError(w, err)
+				return
+			}
+			if job.Status != domain.QueryReviewStatusCompleted && job.Status != domain.QueryReviewStatusFailed {
+				httpx.WriteError(w, http.StatusConflict, "Query review job is not ready for review")
+				return
+			}
+			if job.ReviewedAt != nil {
+				httpx.WriteError(w, http.StatusConflict, "Query review job has already been reviewed")
+				return
+			}
+			job, err = repo.MarkQueryReviewJobReviewed(req.Context(), projectID, jobID, body.Resolution)
+			if err != nil {
+				writeRepoError(w, err)
 			return
 		}
 		httpx.WriteJSON(w, http.StatusOK, job)

@@ -13,6 +13,10 @@
     onProjectDeleted,
     onProjectCloned,
     onTabChange,
+    queryReviewJob = null,
+    onQueryReviewJobStarted,
+    onQueryReviewJobHandled,
+    onQueryReviewModalClosed,
   } = $props();
 
   let activeTab = $state(initialTab);
@@ -283,7 +287,14 @@
       </div>
 
     {:else if activeTab === 'queries'}
-      <QueryEditor {projectId} onQueriesChanged={(detail) => onQueriesChanged?.(detail)} />
+      <QueryEditor
+        {projectId}
+        onQueriesChanged={(detail) => onQueriesChanged?.(detail)}
+        reviewJob={queryReviewJob}
+        onQueryReviewJobStarted={(job) => onQueryReviewJobStarted?.(job)}
+        onQueryReviewJobHandled={(job) => onQueryReviewJobHandled?.(job)}
+        onQueryReviewModalClosed={() => onQueryReviewModalClosed?.()}
+      />
 
     {:else if activeTab === 'prompts'}
       <PromptEditor {projectId} />
