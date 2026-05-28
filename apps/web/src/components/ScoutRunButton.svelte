@@ -1,6 +1,7 @@
 <script>
   import { scout as scoutApi } from '../lib/api.js';
-  import { hasCapability, scoutCapabilityForPlatform } from '../lib/capabilities.js';
+  import { hasCapability, scoutCapabilityForPlatform, isGoogleScoutLocked } from '../lib/capabilities.js';
+  import GoogleLockedNotice from './GoogleLockedNotice.svelte';
 
   let {
     projectId,
@@ -16,7 +17,9 @@
   let toastTimeout = $state(null);
   let showDropdown = $state(false);
   let selectedPlatform = $state('all');
+  let showGoogleLockedNotice = $state(false);
   let disabled = $derived(running || externalRunning || !projectId);
+  let googleLocked = $derived(isGoogleScoutLocked(capabilities));
 
   const platforms = [
     { value: 'all', label: 'All Platforms' },
@@ -38,6 +41,10 @@
     return hasCapability(capabilities, scoutCapabilityForPlatform(platform));
   }
 
+  function platformLocked(platform) {
+    return platform === 'google' && googleLocked;
+  }
+
   function showToast(msg) {
     toastMessage = msg;
     clearTimeout(toastTimeout);
@@ -48,6 +55,10 @@
 
   async function run() {
     if (disabled) return;
+    if (platformLocked(selectedPlatform)) {
+      showGoogleLockedNotice = true;
+      return;
+    }
     if (!platformAllowed(selectedPlatform)) {
       showToast('This scout run is not available for the current server capabilities.');
       return;
@@ -66,8 +77,8 @@
       if (selectedPlatform === 'all') {
         const allPlatforms = ['reddit', 'bluesky', 'google'];
         const allowedPlatforms = capabilities
-          ? allPlatforms.filter((p) => hasCapability(capabilities, scoutCapabilityForPlatform(p)))
-          : allPlatforms;
+          ? allPlatforms.filter((p) => hasCapability(capabilities, scoutCapabilityForPlatform(p)) && !platformLocked(p))
+          : allPlatforms.filter((p) => !platformLocked(p));
         results = await Promise.all(allowedPlatforms.map((p) => scoutApi.run(projectId, p)));
       } else {
         results = [await scoutApi.run(projectId, selectedPlatform)];
@@ -86,6 +97,11 @@
   }
 
   function selectPlatform(val) {
+    if (platformLocked(val)) {
+      showDropdown = false;
+      showGoogleLockedNotice = true;
+      return;
+    }
     selectedPlatform = val;
     showDropdown = false;
     run();
@@ -137,10 +153,11 @@
         <button
           class="dropdown-item"
           class:selected={selectedPlatform === p.value}
-          disabled={!platformAllowed(p.value)}
+          class:locked={platformLocked(p.value)}
+          disabled={!platformAllowed(p.value) && !platformLocked(p.value)}
           onclick={() => selectPlatform(p.value)}
         >
-          {p.label}
+          {p.label}{#if platformLocked(p.value)} 🔒{/if}
         </button>
       {/each}
     </div>
@@ -151,6 +168,8 @@
       {toastMessage}
     </div>
   {/if}
+
+  <GoogleLockedNotice open={showGoogleLockedNotice} onClose={() => { showGoogleLockedNotice = false; }} />
 </div>
 
 <style>
@@ -282,6 +301,16 @@
   .dropdown-item.selected {
     color: #7c6af5;
     background: #2a2a45;
+  }
+
+  .dropdown-item.locked {
+    color: #888;
+    cursor: pointer;
+  }
+
+  .dropdown-item.locked:hover {
+    background: #2a2a3a;
+    color: #aaa;
   }
 
   .toast-error {
