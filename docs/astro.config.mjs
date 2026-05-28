@@ -25,6 +25,7 @@ export default defineConfig({
             { slug: 'start-here/quick-start' },
             { slug: 'start-here/configuration-basics' },
             { slug: 'start-here/first-project' },
+            { slug: 'start-here/first-value-in-15-minutes' },
           ],
         },
         {
@@ -44,10 +45,12 @@ export default defineConfig({
             { slug: 'reference/licensing' },
             { slug: 'reference/environment-variables' },
             { slug: 'reference/credential-setup' },
+            { slug: 'reference/local-ai-bridge' },
             { slug: 'reference/ports-and-local-urls' },
             { slug: 'reference/docker-commands-and-profiles' },
             { slug: 'reference/api-shape-overview' },
             { slug: 'reference/data-storage-and-backups' },
+            { slug: 'reference/self-host-troubleshooting' },
           ],
         },
         {
