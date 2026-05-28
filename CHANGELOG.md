@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.4.0 - 2026-05-28
+
+Tag: `threadlens-v0.4.0`
+
+### Features
+
+- feat(App): add query-review job state, polling, banner, and Settings wiring (`deb1639`)
+- feat(web): add QueryJobReviewModal component for query review jobs (`fdc8be5`)
+- feat: add queryReviewJobs API client export to open-core web api.js (`1a1a925`)
+- feat: mount query review job routes in app router (`887ce7b`)
+- feat: add query review job HTTP handlers (Task 7) (`0aa0ff7`)
+- feat(repository): add query review job persistence helpers (`3399794`)
+- feat(db): add query_review_jobs table and indexes to SQLite migration (`44241ea`)
+
+### Fixes
+
+- fix(query-review): add missing background job migrations (`3b9c87f`)
+- fix(ai): set explicit config path in TestAutoLaunchWithHelper to avoid host file interference (`4f1237b`)
+- fix(web): correct backend contract in QueryJobReviewModal (kind, resolution, refine shape) (`a0598e3`)
+- fix(repository): tighten CreateQueryReviewJob signature to use domain.QueryReviewKind and correct param order (`c6dc510`)
+- fix(threadlens): improve Reddit query quality and refinement (`b3395eb`)
+- fix(ai): set explicit config path in TestAutoLaunchWithHelper to avoid host file interference (`3d974dc`)
+
+### Maintenance
+
+- Add frontend regression tests for query review background flow (`384b135`)
+- refactor(QueryEditor): replace blocking suggest/refine with background job flow (`b387df5`)
+- test(handlers): add backend contract tests for query review job API (Task 9) (`358d44f`)
+- startup: mark stale query review jobs failed on boot (Task 6) (`63c614c`)
+- test(db): add query_review_jobs to wiring table assertions (`82457e3`)
+- Add query_review_jobs table and indexes to Postgres migration (`1e9a561`)
+- Add QueryReviewJob domain type with kind/status/resolution constants (`255ae31`)
+
 ## 0.3.0 - 2026-05-27
 
 Tag: `threadlens-v0.3.0`
