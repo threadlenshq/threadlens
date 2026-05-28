@@ -55,6 +55,13 @@ export const queries = {
   refine: (pid, body = {}) => api(`/api/projects/${pid}/queries/refine`, { method: 'POST', body }),
 };
 
+export const queryReviewJobs = {
+  create: (pid, body = {}) => api(`/api/projects/${pid}/query-review-jobs`, { method: 'POST', body }),
+  list: (pid) => api(`/api/projects/${pid}/query-review-jobs`),
+  get: (pid, jobId) => api(`/api/projects/${pid}/query-review-jobs/${jobId}`),
+  reviewed: (pid, jobId, body) => api(`/api/projects/${pid}/query-review-jobs/${jobId}/reviewed`, { method: 'POST', body }),
+};
+
 export const prompts = {
   list: (pid) => api(`/api/projects/${pid}/prompts`),
   create: (pid, body) => api(`/api/projects/${pid}/prompts`, { method: 'POST', body }),
