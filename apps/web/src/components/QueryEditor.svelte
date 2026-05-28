@@ -103,6 +103,7 @@
   let showRefineConfirmModal = $state(false);
   let suggestRefinement = $state('');
   let suggestError = $state('');
+  let refineError = $state('');
   let startingJob = $state(false);
 
   async function loadQueries() {
