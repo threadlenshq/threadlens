@@ -6,7 +6,7 @@
   import TopbarJobBanner from './components/TopbarJobBanner.svelte';
   import FindingCard from './components/inbox/FindingCard.svelte';
   import DetailPanel from './components/DetailPanel.svelte';
-  import { projects as projectsApi, posts as postsApi, scout as scoutApi, queries as queriesApi, queryReviewJobs as queryReviewJobsApi, runtime as runtimeApi, onboarding as onboardingApi } from './lib/api.js';
+  import { projects as projectsApi, posts as postsApi, scout as scoutApi, queries as queriesApi, queryReviewJobs as queryReviewJobsApi, runtime as runtimeApi, onboarding as onboardingApi, google as googleApi } from './lib/api.js';
   import { readUrlState, writeUrlState, clearUrlState } from './lib/url.js';
   import OnboardingWizard from './components/OnboardingWizard.svelte';
   import ExplorationChecklist from './components/onboarding/ExplorationChecklist.svelte';
@@ -22,6 +22,8 @@
   import GoogleReportView from './components/GoogleReportView.svelte';
   import ModelConfig from './components/ModelConfig.svelte';
   import NewProjectModal from './components/NewProjectModal.svelte';
+  import GoogleLockedNotice from './components/GoogleLockedNotice.svelte';
+  import { isGoogleScoutLocked } from './lib/capabilities.js';
   import { POST_STATUSES } from '@scout/shared';
 
   // --- Onboarding gate ---
@@ -56,6 +58,11 @@
   let activeGoogleReportId = $state(null);
   let reportSource = $state('social'); // 'social' | 'google'
   let capabilitySnapshot = $state(null);
+  let googleLocked = $derived(isGoogleScoutLocked(capabilitySnapshot));
+
+  // Google report presence state
+  let showGoogleLockedNotice = $state(false);
+  let googleReportCount = $state(0);
 
   // Posts state
   let postsList = $state([]);
@@ -344,6 +351,7 @@
       });
       fetchInitialRunState();
       loadEnabledQueryCount();
+      loadGoogleReportPresence();
       fetchQueryReviewJobs();
     } else {
       loadPosts().then(() => {
@@ -481,6 +489,7 @@
     await loadPosts();
     await fetchInitialRunState();
     await loadEnabledQueryCount();
+    await loadGoogleReportPresence();
     await fetchQueryReviewJobs();
   }
 
@@ -497,6 +506,19 @@
     } catch {
       enabledQueryCount = null;
       hasGoogleQueries = false;
+    }
+  }
+
+  async function loadGoogleReportPresence() {
+    if (!selectedProjectId) {
+      googleReportCount = 0;
+      return;
+    }
+    try {
+      const reports = await googleApi.reports(selectedProjectId);
+      googleReportCount = Array.isArray(reports) ? reports.length : 0;
+    } catch {
+      googleReportCount = 0;
     }
   }
 
@@ -525,12 +547,24 @@
     await loadEnabledQueryCount();
   }
 
-  function selectReportSource(source) {
-    if (source === 'google' && !hasGoogleQueries) return;
+  function selectReportSource(source, options = {}) {
+    if (source === 'google' && googleLocked) {
+      if (!options.skipLockCheck) {
+        showGoogleLockedNotice = true;
+      }
+      return;
+    }
     reportSource = source;
     activeReportId = null;
     activeGoogleReportId = null;
     writeUrlState({ reportSource: source, report: null, greport: null });
+  }
+
+  function viewExistingGoogleReports() {
+    showGoogleLockedNotice = false;
+    reportSource = 'google';
+    activeGoogleReportId = null;
+    writeUrlState({ reportSource: 'google', report: null, greport: null });
   }
 
   function projectSettingsTabForView(nextView) {
@@ -555,14 +589,6 @@
     }
     writeUrlState({ view: nextView }, 'push');
   }
-
-  $effect(() => {
-    if (!hasGoogleQueries && reportSource === 'google') {
-      reportSource = 'social';
-      activeGoogleReportId = null;
-      writeUrlState({ reportSource: 'social' });
-    }
-  });
 
   async function handleProjectDeleted(detail) {
     const { id } = detail;
@@ -811,6 +837,7 @@
       selectedProjectId = targetProject;
       writeUrlState({ project: targetProject }, 'replace');
       await loadEnabledQueryCount();
+      await loadGoogleReportPresence();
       reportSource = urlState.reportSource;
       activeReportId = urlState.report;
       activeGoogleReportId = urlState.greport;
@@ -860,6 +887,8 @@
       onProjectReady={async (projectId) => { await loadProjects(); await selectProject(projectId); }}
       onNavigate={(nextView) => navigateTo(nextView)}
       onClose={() => { checklistOpen = false; }}
+      googleLocked={googleLocked}
+      onGoogleLocked={() => { showGoogleLockedNotice = true; }}
     />
   {/if}
 
@@ -1113,18 +1142,18 @@
           >
             Social
           </button>
-          {#if hasGoogleQueries}
-            <button
-              class="report-source-btn"
-              class:active={reportSource === 'google'}
-              onclick={() => selectReportSource('google')}
-            >
-              Google
-            </button>
-          {/if}
+          <button
+            class="report-source-btn"
+            class:active={reportSource === 'google'}
+            class:locked={googleLocked}
+            onclick={() => selectReportSource('google')}
+            title={googleLocked ? 'Google Search requires a PARALLEL_API_KEY to be configured on your Scout server' : 'Google Search reports'}
+          >
+            {#if googleLocked}🔒 {/if}Google
+          </button>
         </div>
 
-        {#if reportSource === 'google' && hasGoogleQueries}
+        {#if reportSource === 'google'}
           {#if activeGoogleReportId}
             <GoogleReportView
               projectId={selectedProjectId}
@@ -1134,6 +1163,7 @@
           {:else}
             <GoogleReportsTab
               projectId={selectedProjectId}
+              googleLocked={googleLocked}
               onViewReport={({ reportId }) => { activeGoogleReportId = reportId; writeUrlState({ greport: reportId }); }}
             />
           {/if}
@@ -1162,6 +1192,13 @@
   open={showNewProjectModal}
   onClose={() => showNewProjectModal = false}
   onCreate={handleProjectCreate}
+/>
+
+<GoogleLockedNotice
+  open={showGoogleLockedNotice}
+  showViewExistingReports={googleReportCount > 0}
+  onClose={() => { showGoogleLockedNotice = false; }}
+  onViewExistingReports={viewExistingGoogleReports}
 />
 
 <style>
@@ -1606,5 +1643,16 @@
     color: #e2e2e8;
     border-color: #7c6af5;
     background: #23233a;
+  }
+
+  .report-source-btn.locked {
+    color: #666;
+    border-color: #2a2a3a;
+    cursor: pointer;
+  }
+
+  .report-source-btn.locked:hover {
+    border-color: #e5a550;
+    color: #e5a550;
   }
 </style>
