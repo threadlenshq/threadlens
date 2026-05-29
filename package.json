@@ -19,6 +19,7 @@
     "test:go": "cd apps/api && go test ./...",
     "test:bridge-bootstrap": "bash scripts/bootstrap-ai-bridge.test.sh",
     "test:self-host-smoke": "bash scripts/self-host-smoke.test.sh",
+    "ui:dev": "pnpm --dir apps/showcase run dev",
     "docs:dev": "pnpm --dir docs run dev",
     "docs:build": "pnpm --dir docs run build",
     "docs:check": "pnpm --dir docs run check",
