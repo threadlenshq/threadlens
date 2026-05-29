@@ -83,6 +83,16 @@ pnpm run test:go
 pnpm run build:go
 ```
 
+### Contributor showcase (dev-only)
+
+The showcase is a local developer tool for browsing curated ThreadLens usage scenarios and static UI previews. It is dev-only and is not included in any production or Docker build.
+
+```bash
+pnpm run ui:dev
+```
+
+Launch it when you want to explore representative UI states, verify component behaviour, or get familiar with the frontend before diving into code.
+
 ## Configuration
 
 ThreadLens reads shared runtime settings from `.env`. Start from the checked-in example:
