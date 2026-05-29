@@ -10,12 +10,14 @@
   try {
     validateScenarios(scenarios, previewRegistry);
   } catch (err) {
-    validationError = err.message;
+    validationError = err instanceof Error ? err.message : String(err);
   }
 
-  let selectedId = $state(scenarios.length > 0 ? scenarios[0].id : null);
+  const safeScenarios = Array.isArray(scenarios) ? scenarios : [];
 
-  let selectedScenario = $derived(scenarios.find((s) => s.id === selectedId) ?? null);
+  let selectedId = $state(safeScenarios.length > 0 ? safeScenarios[0].id : null);
+
+  let selectedScenario = $derived(safeScenarios.find((s) => s.id === selectedId) ?? null);
 
   function handleSelect(id) {
     selectedId = id;
@@ -30,7 +32,7 @@
   </div>
 {:else}
   <div class="app-layout">
-    <ScenarioSidebar {scenarios} selectedId={selectedId} onSelect={handleSelect} />
+    <ScenarioSidebar scenarios={safeScenarios} selectedId={selectedId} onSelect={handleSelect} />
     <ScenarioDetail scenario={selectedScenario} {previewRegistry} />
   </div>
 {/if}
