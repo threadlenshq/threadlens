@@ -5,7 +5,7 @@
   import ScenarioSidebar from './components/ScenarioSidebar.svelte';
   import ScenarioDetail from './components/ScenarioDetail.svelte';
 
-  let validationError = null;
+  let validationError = $state(null);
 
   try {
     validateScenarios(scenarios, previewRegistry);
