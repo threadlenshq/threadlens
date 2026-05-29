@@ -982,43 +982,34 @@
       {:else}
         <div class="filter-bar">
           <div class="filter-group">
-            <span class="filter-label">Platform:</span>
-            {#each ['all', 'reddit', 'bluesky'] as p}
-              <button
-                class="filter-btn"
-                class:active={filterPlatform === p}
-                onclick={() => { filterPlatform = p; applyFilters(); }}
-              >
-                {p === 'all' ? 'All' : p.charAt(0).toUpperCase() + p.slice(1)}
-              </button>
-            {/each}
+            <span class="filter-label">Platform</span>
+            <select class="filter-select" bind:value={filterPlatform} onchange={applyFilters}>
+              <option value="all">All</option>
+              <option value="reddit">Reddit</option>
+              <option value="bluesky">Bluesky</option>
+            </select>
           </div>
           <div class="filter-group">
-            <span class="filter-label">Status:</span>
+            <span class="filter-label">Status</span>
             {#if projectMode === 'research'}
-              {#each ['new', 'starred', 'reviewed', 'excluded', 'all'] as s}
-                <button
-                  class="filter-btn"
-                  class:active={filterStatus === s}
-                  onclick={() => { filterStatus = s; applyFilters(); }}
-                >
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                </button>
-              {/each}
+              <select class="filter-select" bind:value={filterStatus} onchange={applyFilters}>
+                <option value="new">New</option>
+                <option value="starred">Starred</option>
+                <option value="reviewed">Reviewed</option>
+                <option value="excluded">Excluded</option>
+                <option value="all">All</option>
+              </select>
             {:else}
-              {#each ['new', 'drafted', 'commented', 'all'] as s}
-                <button
-                  class="filter-btn"
-                  class:active={filterStatus === s}
-                  onclick={() => { filterStatus = s; applyFilters(); }}
-                >
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                </button>
-              {/each}
+              <select class="filter-select" bind:value={filterStatus} onchange={applyFilters}>
+                <option value="new">New</option>
+                <option value="drafted">Drafted</option>
+                <option value="commented">Commented</option>
+                <option value="all">All</option>
+              </select>
             {/if}
           </div>
           <div class="filter-group">
-            <span class="filter-label">Score:</span>
+            <span class="filter-label">Score</span>
             <select class="filter-select" bind:value={filterScore} onchange={applyFilters}>
               <option value="">Any</option>
               <option value="lt3">3-</option>
@@ -1026,14 +1017,6 @@
               <option value="5">5+</option>
               <option value="7">7+</option>
               <option value="9">9+</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <span class="filter-label">Per page:</span>
-            <select class="filter-select" bind:value={postsPageLimit} onchange={handlePageLimitChange}>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
             </select>
           </div>
           {#if projectMode === 'marketing'}
@@ -1051,6 +1034,7 @@
       <div class="posts-layout">
         <!-- Post list sidebar -->
         <div class="post-list">
+          <div class="post-list-scroll">
           {#if loadingPosts}
             <div class="loading">Loading posts...</div>
           {:else if postsList.length === 0}
@@ -1078,6 +1062,9 @@
                 onBulkToggle={handleBulkToggle}
               />
             {/each}
+          {/if}
+          </div>
+          {#if !loadingPosts && postsList.length > 0}
             <div class="pagination-bar">
               <div class="pagination-summary">
                 Page {postsPagination.page} of {postsPagination.totalPages} · {postsPagination.total} posts
@@ -1087,12 +1074,24 @@
                   class="pagination-btn"
                   disabled={!postsPagination.hasPreviousPage || loadingPosts}
                   onclick={() => changePostsPage(postsPagination.page - 1)}
-                >Previous</button>
+                  aria-label="Previous page"
+                  title="Previous page"
+                >‹</button>
                 <button
                   class="pagination-btn"
                   disabled={!postsPagination.hasNextPage || loadingPosts}
                   onclick={() => changePostsPage(postsPagination.page + 1)}
-                >Next</button>
+                  aria-label="Next page"
+                  title="Next page"
+                >›</button>
+              </div>
+              <div class="pagination-per-page">
+                <span class="pagination-per-page-label">Per page</span>
+                <select class="filter-select" bind:value={postsPageLimit} onchange={handlePageLimitChange}>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
               </div>
             </div>
           {/if}
@@ -1341,30 +1340,7 @@
   .filter-label {
     font-size: 12px;
     color: #666;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .filter-btn {
-    padding: 4px 10px;
-    background: none;
-    border: 1px solid #2a2a3a;
-    border-radius: 4px;
-    color: #888;
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .filter-btn:hover {
-    border-color: #7c6af5;
-    color: #e2e2e8;
-  }
-
-  .filter-btn.active {
-    background: #2a2a45;
-    border-color: #7c6af5;
-    color: #e2e2e8;
+    white-space: nowrap;
   }
 
   .filter-select {
@@ -1522,6 +1498,13 @@
     width: 340px;
     flex-shrink: 0;
     border-right: 1px solid #2a2a3a;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .post-list-scroll {
+    flex: 1;
     overflow-y: auto;
     padding: 8px;
     display: flex;
@@ -1530,36 +1513,55 @@
   }
 
   .pagination-bar {
-    margin-top: auto;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
     gap: 8px;
-    padding: 12px 8px 4px;
+    padding: 8px;
     border-top: 1px solid #2a2a3a;
-    background: linear-gradient(180deg, rgba(15, 15, 19, 0) 0%, rgba(15, 15, 19, 1) 24%);
-    position: sticky;
-    bottom: 0;
+    background: #0f0f13;
+    flex-shrink: 0;
+  }
+
+  .pagination-per-page {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .pagination-per-page-label {
+    font-size: 11px;
+    color: #555;
+    white-space: nowrap;
   }
 
   .pagination-summary {
-    font-size: 12px;
+    font-size: 10px;
     color: #8f8fa5;
-    text-align: center;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .pagination-actions {
     display: flex;
-    gap: 8px;
+    gap: 4px;
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
   }
 
   .pagination-btn {
-    flex: 1;
-    padding: 8px 10px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
     border-radius: 6px;
     border: 1px solid #2a2a3a;
     background: #1a1a24;
     color: #e2e2e8;
-    font-size: 13px;
+    font-size: 16px;
+    line-height: 1;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
   }
