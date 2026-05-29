@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { configDefaults } from 'vitest/config';
 
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, '../..');
 const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://localhost:4747';
