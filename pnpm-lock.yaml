@@ -12,6 +12,25 @@ importers:
         specifier: ^2.0.0
         version: 2.9.9
 
+  apps/showcase:
+    dependencies:
+      '@scout/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^5.0.3
+        version: 5.1.1(svelte@5.55.5)(vite@6.4.2(@types/node@24.12.3)(yaml@2.8.4))
+      svelte:
+        specifier: ^5.16.2
+        version: 5.55.5
+      vite:
+        specifier: ^6.0.11
+        version: 6.4.2(@types/node@24.12.3)(yaml@2.8.4)
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@24.12.3)
+
   apps/web:
     dependencies:
       '@scout/shared':
