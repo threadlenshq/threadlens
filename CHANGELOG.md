@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.5.0 - 2026-05-29
+
+Tag: `threadlens-v0.5.0`
+
+### Features
+
+- feat(app): wire Google lock state through App.svelte (task 9) (`bed917c`)
+- feat: update Google tab copy and onboarding for locked state (`7b0df8f`)
+- feat: show Google as locked in ScoutRunButton, open locked modal on interaction (`9f37d9a`)
+- feat: add Google gating capability helpers and locked notice modal (`043cdf4`)
+- feat(entitlements): deny CapabilityScoutRunGoogle when PARALLEL_API_KEY is absent (`54522c9`)
+
+### Fixes
+
+- fix(app): compact sidebar filters and pagination (`13952d1`)
+- fix(app): remove dead skipLockCheck option and guard async project race in loadGoogleReportPresence (`296695e`)
+- fix(docs): add missing pages to sidebar nav (`6d4972d`)
+- fix(docs): correct broken anchor fragment links to credential-setup headings (`b902e21`)
+- fix(docs): remove literal anchor syntax (`a157330`)
+
+### Maintenance
+
+- test(frontend): add google-gating tests for locked Google UX (`8ae24ec`)
+- test: add Google gating safety tests and trim PARALLEL_API_KEY before use (`2e52583`)
+- test(runtime): add Google capability tests gated on PARALLEL_API_KEY (`7f8a7e7`)
+- refactor(entitlements): extract googleScoutConfigured helper and make Google capability explicit (`47a969f`)
+- test(entitlements): split unset/whitespace cases, add local message code constant (`b6ec6d6`)
+- test(entitlements): add Google capability environment-aware tests (`3098102`)
+
 ## 0.4.0 - 2026-05-28
 
 Tag: `threadlens-v0.4.0`
