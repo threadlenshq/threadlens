@@ -1,0 +1,105 @@
+@import '../../web/src/styles/tokens.css';
+
+:global(*) {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-text-primary);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: var(--color-brand-hover);
+}
+
+/* Utility shims used by imported open-core components that were authored with utility classes. */
+:global(.bg-canvas) { background: var(--color-canvas) !important; }
+:global(.bg-surface) { background: var(--color-surface) !important; }
+:global(.bg-canvas-sunken) { background: #0b0b0f !important; }
+:global(.bg-muted\/20) { background: rgba(94, 94, 112, 0.2) !important; }
+:global(.bg-brand\/5) { background: rgba(124, 106, 245, 0.05) !important; }
+:global(.bg-brand\/10) { background: rgba(124, 106, 245, 0.1) !important; }
+:global(.border) { border-width: 1px !important; border-style: solid !important; }
+:global(.border-base) { border-color: var(--color-border) !important; }
+:global(.border-subtle) { border-color: #1e1e2a !important; }
+:global(.border-elevated) { border-color: #323248 !important; }
+:global(.border-brand\/20) { border-color: rgba(124, 106, 245, 0.2) !important; }
+:global(.border-brand\/30) { border-color: rgba(124, 106, 245, 0.3) !important; }
+:global(.rounded-md) { border-radius: 6px !important; }
+:global(.rounded-lg) { border-radius: 8px !important; }
+:global(.rounded-full) { border-radius: 999px !important; }
+:global(.shadow-sm) { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important; }
+:global(.shadow-elevated) { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important; }
+:global(.text-primary) { color: var(--color-text-primary) !important; }
+:global(.text-secondary) { color: var(--color-text-secondary) !important; }
+:global(.text-brand) { color: var(--color-brand) !important; }
+:global(.text-label) { font-size: 11px !important; }
+:global(.text-body) { font-size: 14px !important; }
+:global(.text-section-title) { font-size: 16px !important; }
+:global(.text-sm) { font-size: 13px !important; }
+:global(.font-medium) { font-weight: 500 !important; }
+:global(.font-semibold) { font-weight: 600 !important; }
+:global(.uppercase) { text-transform: uppercase !important; }
+:global(.tracking-wider) { letter-spacing: 0.06em !important; }
+:global(.truncate) { overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+:global(.animate-pulse) { animation: showcase-pulse 1.4s ease-in-out infinite; }
+:global(.hidden) { display: none !important; }
+:global(.flex) { display: flex !important; }
+:global(.inline-flex) { display: inline-flex !important; }
+:global(.flex-col) { flex-direction: column !important; }
+:global(.flex-1) { flex: 1 1 0% !important; }
+:global(.items-center) { align-items: center !important; }
+:global(.justify-between) { justify-content: space-between !important; }
+:global(.overflow-y-auto) { overflow-y: auto !important; }
+:global(.h-full) { height: 100% !important; }
+:global(.w-10) { width: 40px !important; }
+:global(.h-10) { height: 40px !important; }
+:global(.h-3) { height: 12px !important; }
+:global(.h-4) { height: 16px !important; }
+:global(.h-5) { height: 20px !important; }
+:global(.w-1\/2) { width: 50% !important; }
+:global(.w-1\/3) { width: 33.333% !important; }
+:global(.w-3\/4) { width: 75% !important; }
+:global(.w-4\/6) { width: 66.666% !important; }
+:global(.w-5\/6) { width: 83.333% !important; }
+:global(.w-full) { width: 100% !important; }
+:global(.w-\[300px\]) { width: 300px !important; }
+:global(.p-0) { padding: 0 !important; }
+:global(.p-3) { padding: 12px !important; }
+:global(.p-4) { padding: 16px !important; }
+:global(.p-5) { padding: 20px !important; }
+:global(.mb-2) { margin-bottom: 8px !important; }
+:global(.mb-4) { margin-bottom: 16px !important; }
+:global(.space-y-2 > * + *) { margin-top: 8px !important; }
+:global(.space-y-3 > * + *) { margin-top: 12px !important; }
+:global(.space-y-4 > * + *) { margin-top: 16px !important; }
+:global(.space-y-6 > * + *) { margin-top: 24px !important; }
+:global(.space-x-4 > * + *) { margin-left: 16px !important; }
+
+@media (min-width: 1280px) {
+  :global(.xl\:flex) { display: flex !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(.animate-pulse) { animation: none; opacity: 0.7; }
+}
+
+@keyframes showcase-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
