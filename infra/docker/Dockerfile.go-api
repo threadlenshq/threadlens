@@ -62,9 +62,9 @@ FROM golang:1.25-bookworm AS dev
 
 WORKDIR /src
 
-COPY apps/api/go.mod apps/api/go.sum ./
-COPY db/go.mod db/go.sum ./
-RUN go mod download
+COPY apps/api/go.mod apps/api/go.sum ./apps/api/
+COPY db/go.mod db/go.sum ./db/
+RUN cd apps/api && go mod download
 
 WORKDIR /src
 
