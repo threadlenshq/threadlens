@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.6.0 - 2026-05-30
+
+Tag: `threadlens-v0.6.0`
+
+### Features
+
+- feat(showcase): add Vite bootstrap files for showcase app (`fa26a12`)
+- feat: add ui:dev scripts to launch showcase app from root and open-core (`f400e86`)
+- feat(showcase): add App.svelte with manifest validation and sidebar/detail layout (`5b35fff`)
+- feat(showcase): add static preview snippets for all v1 scenario groups (Task 7) (`fad5f11`)
+- feat(showcase): add ScenarioSidebar, ScenarioDetail, and PreviewCard components (Task 6) (`ce03862`)
+- feat(showcase): add scenario manifest and preview registry (Task 5) (`be141e9`)
+- feat(showcase): add reusable styles, utility shims, and Svelte mount entry (`5a62f61`)
+
+### Fixes
+
+- fix(docker): correct go module paths in dev stage (`22daf0e`)
+- fix(reddit): solve JS challenge to bypass 403 on anonymous API access (`4ee4a05`)
+- fix: use $state for validationError in showcase App.svelte; correct showcase port in README (`7cb6fdf`)
+- fix(showcase): guard App.svelte against non-array scenarios and non-Error throws (`f845ca1`)
+
+### Documentation
+
+- docs: add showcase design spec and implementation plan (`dcebdb1`)
+- docs: add contributor showcase notes to root and open-core READMEs (`6da7c96`)
+
+### Maintenance
+
+- chore: remove unused ad hoc component preview files (`75aa335`)
+- Add showcase manifest validation helper and unit tests (`9f06e99`)
+- Add static mock data for deterministic showcase previews (`27ba11b`)
+- Remove unused StatusChip and FindingToolbar components; simplify ComponentPreview to InsightPane only (`b093668`)
+
 ## 0.5.0 - 2026-05-29
 
 Tag: `threadlens-v0.5.0`
