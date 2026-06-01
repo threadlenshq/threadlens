@@ -15,7 +15,7 @@ export default defineConfig({
   test: {
     root: repoRoot,
     environmentMatchGlobs: [['test/frontend/**/*.test.js', 'jsdom']],
-    exclude: [...configDefaults.exclude, '.worktrees/**'],
+    exclude: [...configDefaults.exclude, '.worktrees/**', 'db/**'],
     alias: [
       {
         find: /^svelte$/,

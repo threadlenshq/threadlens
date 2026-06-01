@@ -956,15 +956,27 @@
               {/each}
             </div>
             <div class="bulk-actions">
-              <button class="action-btn reviewed" onclick={() => handleBulkStatusChange('reviewed')}>
-                Mark as Reviewed
-              </button>
-              <button class="action-btn star" onclick={() => handleBulkStatusChange('starred')}>
-                Star
-              </button>
-              <button class="action-btn exclude" onclick={() => handleBulkStatusChange('excluded')}>
-                Exclude
-              </button>
+              {#if projectMode === 'marketing'}
+                <button class="action-btn comment" onclick={() => handleBulkStatusChange('commented')}>
+                  Mark as Commented
+                </button>
+                <button class="action-btn skip" onclick={() => handleBulkStatusChange('skipped')}>
+                  Skip
+                </button>
+                <button class="action-btn exclude" onclick={() => handleBulkStatusChange('excluded')}>
+                  Exclude
+                </button>
+              {:else}
+                <button class="action-btn reviewed" onclick={() => handleBulkStatusChange('reviewed')}>
+                  Mark as Reviewed
+                </button>
+                <button class="action-btn star" onclick={() => handleBulkStatusChange('starred')}>
+                  Star
+                </button>
+                <button class="action-btn exclude" onclick={() => handleBulkStatusChange('excluded')}>
+                  Exclude
+                </button>
+              {/if}
             </div>
           </div>
           <div class="bulk-right">
@@ -1004,6 +1016,7 @@
                 <option value="new">New</option>
                 <option value="drafted">Drafted</option>
                 <option value="commented">Commented</option>
+                <option value="skipped">Skipped</option>
                 <option value="all">All</option>
               </select>
             {/if}
@@ -1449,6 +1462,27 @@
 
   .bulk-actions .action-btn.exclude:hover {
     background: #e06c7525;
+  }
+
+  .bulk-actions .action-btn.comment {
+    background: #98c37918;
+    color: #98c379;
+    border: 1px solid #98c37935;
+  }
+
+  .bulk-actions .action-btn.comment:hover {
+    background: #98c37930;
+  }
+
+  .bulk-actions .action-btn.skip {
+    background: #2a2a3a;
+    color: #6b6b80;
+    border: 1px solid #3a3a50;
+  }
+
+  .bulk-actions .action-btn.skip:hover {
+    background: #3a3a50;
+    color: #9090a8;
   }
 
   .bulk-right {
