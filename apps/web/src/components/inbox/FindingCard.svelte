@@ -21,4 +21,11 @@
   .finding-card-wrapper :global(.card:hover) {
     border-color: var(--color-border-hover);
   }
+  .finding-card-wrapper :global(.card:hover .bulk-checkbox) {
+    opacity: 1;
+  }
+  .finding-card-wrapper :global(.card:hover .bulk-checkbox + .badges),
+  .finding-card-wrapper :global(.bulk-checkbox.visible + .badges) {
+    margin-left: 22px;
+  }
 </style>

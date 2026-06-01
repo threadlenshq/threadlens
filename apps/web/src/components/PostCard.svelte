@@ -97,8 +97,7 @@
   onkeydown={(e) => e.key === 'Enter' && onSelect?.(post)}
 >
   <div class="card-top">
-    {#if projectMode === 'research'}
-      <div
+    <div
         class="bulk-checkbox"
         class:visible={bulkMode || checked}
         onclick={toggleCheck}
@@ -117,7 +116,6 @@
           </svg>
         {/if}
       </div>
-    {/if}
     <div class="badges">
       <span class="platform-badge" style="background: {platformColor}20; color: {platformColor}; border-color: {platformColor}40">
         {post.platform === 'reddit' ? 'Reddit' : 'Bluesky'}

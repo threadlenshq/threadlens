@@ -946,7 +946,7 @@
       </div>
     {:else if view === 'posts'}
       <!-- Filter bar / Bulk action bar -->
-      {#if bulkMode && projectMode === 'research'}
+      {#if bulkMode}
         <div class="filter-bar bulk-bar">
           <div class="bulk-left">
             <span class="bulk-count">{selectedIds.size} post{selectedIds.size === 1 ? '' : 's'} selected</span>
