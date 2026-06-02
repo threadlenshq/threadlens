@@ -35,12 +35,48 @@ func InitSchema(db *sql.DB) error {
 		{"scout_runs", "warnings", "ALTER TABLE scout_runs ADD COLUMN warnings TEXT"},
 		{"projects", "description", "ALTER TABLE projects ADD COLUMN description TEXT"},
 		{"posts", "signal_type", "ALTER TABLE posts ADD COLUMN signal_type TEXT"},
+		{"posts", "filter_state", "ALTER TABLE posts ADD COLUMN filter_state TEXT NOT NULL DEFAULT 'visible' CHECK (filter_state IN ('visible', 'filtered'))"},
+		{"posts", "filter_reason", "ALTER TABLE posts ADD COLUMN filter_reason TEXT"},
+		{"posts", "filter_reasons_json", "ALTER TABLE posts ADD COLUMN filter_reasons_json TEXT NOT NULL DEFAULT '[]'"},
+		{"posts", "filter_explanation", "ALTER TABLE posts ADD COLUMN filter_explanation TEXT NOT NULL DEFAULT ''"},
+		{"posts", "filter_confidence", "ALTER TABLE posts ADD COLUMN filter_confidence REAL"},
+		{"posts", "filter_source", "ALTER TABLE posts ADD COLUMN filter_source TEXT NOT NULL DEFAULT 'none' CHECK (filter_source IN ('none', 'rules', 'ai', 'trusted_override'))"},
+		{"posts", "filter_signature", "ALTER TABLE posts ADD COLUMN filter_signature TEXT NOT NULL DEFAULT ''"},
+		{"posts", "filter_job_id", "ALTER TABLE posts ADD COLUMN filter_job_id INTEGER"},
+		{"posts", "filtered_at", "ALTER TABLE posts ADD COLUMN filtered_at DATETIME"},
+		{"posts", "recovered_at", "ALTER TABLE posts ADD COLUMN recovered_at DATETIME"},
+		{"posts", "recovery_note", "ALTER TABLE posts ADD COLUMN recovery_note TEXT"},
+		{"posts", "source_identity_json", "ALTER TABLE posts ADD COLUMN source_identity_json TEXT NOT NULL DEFAULT '{}'"},
 		{"google_results", "mentioned_products", "ALTER TABLE google_results ADD COLUMN mentioned_products TEXT NOT NULL DEFAULT '[]'"},
+		{"google_results", "filter_state", "ALTER TABLE google_results ADD COLUMN filter_state TEXT NOT NULL DEFAULT 'visible' CHECK (filter_state IN ('visible', 'filtered'))"},
+		{"google_results", "filter_reason", "ALTER TABLE google_results ADD COLUMN filter_reason TEXT"},
+		{"google_results", "filter_reasons_json", "ALTER TABLE google_results ADD COLUMN filter_reasons_json TEXT NOT NULL DEFAULT '[]'"},
+		{"google_results", "filter_explanation", "ALTER TABLE google_results ADD COLUMN filter_explanation TEXT NOT NULL DEFAULT ''"},
+		{"google_results", "filter_confidence", "ALTER TABLE google_results ADD COLUMN filter_confidence REAL"},
+		{"google_results", "filter_source", "ALTER TABLE google_results ADD COLUMN filter_source TEXT NOT NULL DEFAULT 'none' CHECK (filter_source IN ('none', 'rules', 'ai', 'trusted_override'))"},
+		{"google_results", "filter_signature", "ALTER TABLE google_results ADD COLUMN filter_signature TEXT NOT NULL DEFAULT ''"},
+		{"google_results", "filter_job_id", "ALTER TABLE google_results ADD COLUMN filter_job_id INTEGER"},
+		{"google_results", "filtered_at", "ALTER TABLE google_results ADD COLUMN filtered_at DATETIME"},
+		{"google_results", "recovered_at", "ALTER TABLE google_results ADD COLUMN recovered_at DATETIME"},
+		{"google_results", "recovery_note", "ALTER TABLE google_results ADD COLUMN recovery_note TEXT"},
+		{"google_results", "source_identity_json", "ALTER TABLE google_results ADD COLUMN source_identity_json TEXT NOT NULL DEFAULT '{}'"},
 	}
 	for _, m := range migrations {
 		if err = addColumnIfMissing(tx, m.table, m.column, m.alter); err != nil {
 			return err
 		}
+	}
+
+	// Filter indexes depend on columns added by migrations above; they must run
+	// after ALTER TABLE statements so they succeed on existing databases.
+	filterIndexSQL := `
+CREATE INDEX IF NOT EXISTS idx_posts_filter_state ON posts(project_id, filter_state, platform);
+CREATE INDEX IF NOT EXISTS idx_google_results_filter_state ON google_results(project_id, filter_state, domain);
+CREATE INDEX IF NOT EXISTS idx_filter_trust_project ON filter_trust_records(project_id, platform, trust_type, source_kind, source_key);
+CREATE INDEX IF NOT EXISTS idx_filter_jobs_project ON filter_jobs(project_id, status, started_at);
+`
+	if _, err = tx.Exec(filterIndexSQL); err != nil {
+		return fmt.Errorf("create filter indexes: %w", err)
 	}
 
 	if err = tx.Commit(); err != nil {
@@ -149,6 +185,18 @@ CREATE TABLE IF NOT EXISTS posts (
   draft_comment TEXT,
   draft_provider TEXT,
   signal_type TEXT,
+  filter_state TEXT NOT NULL DEFAULT 'visible' CHECK (filter_state IN ('visible', 'filtered')),
+  filter_reason TEXT,
+  filter_reasons_json TEXT NOT NULL DEFAULT '[]',
+  filter_explanation TEXT NOT NULL DEFAULT '',
+  filter_confidence REAL,
+  filter_source TEXT NOT NULL DEFAULT 'none' CHECK (filter_source IN ('none', 'rules', 'ai', 'trusted_override')),
+  filter_signature TEXT NOT NULL DEFAULT '',
+  filter_job_id INTEGER,
+  filtered_at DATETIME,
+  recovered_at DATETIME,
+  recovery_note TEXT,
+  source_identity_json TEXT NOT NULL DEFAULT '{}',
   created_at DATETIME,
   found_at DATETIME NOT NULL DEFAULT (datetime('now')),
   scouted_at DATETIME NOT NULL DEFAULT (datetime('now'))
@@ -203,6 +251,32 @@ CREATE TABLE IF NOT EXISTS query_review_jobs (
   completed_at DATETIME,
   reviewed_at DATETIME,
   CHECK ((reviewed_at IS NULL AND resolution IS NULL) OR (reviewed_at IS NOT NULL AND resolution IS NOT NULL AND status IN ('completed', 'failed')))
+);
+
+CREATE TABLE IF NOT EXISTS filter_trust_records (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky', 'google', 'all')),
+  trust_type TEXT NOT NULL CHECK (trust_type IN ('source', 'filter_signature')),
+  source_kind TEXT NOT NULL,
+  source_key TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+  created_by TEXT NOT NULL DEFAULT 'self_host_owner',
+  UNIQUE(project_id, platform, trust_type, source_kind, source_key)
+);
+
+CREATE TABLE IF NOT EXISTS filter_jobs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'completed', 'failed')),
+  step TEXT,
+  requested_scope TEXT NOT NULL CHECK (requested_scope IN ('selected_visible_posts', 'selected_filtered_findings', 'selected_google_results')),
+  target_ids_json TEXT NOT NULL DEFAULT '[]',
+  result_json TEXT,
+  error TEXT,
+  started_at DATETIME NOT NULL DEFAULT (datetime('now')),
+  completed_at DATETIME
 );
 
 CREATE TABLE IF NOT EXISTS schedules (
@@ -271,6 +345,18 @@ CREATE TABLE IF NOT EXISTS google_results (
   canonical_url TEXT NOT NULL DEFAULT '',
   content_hash TEXT NOT NULL DEFAULT '',
   mentioned_products TEXT NOT NULL DEFAULT '[]',
+  filter_state TEXT NOT NULL DEFAULT 'visible' CHECK (filter_state IN ('visible', 'filtered')),
+  filter_reason TEXT,
+  filter_reasons_json TEXT NOT NULL DEFAULT '[]',
+  filter_explanation TEXT NOT NULL DEFAULT '',
+  filter_confidence REAL,
+  filter_source TEXT NOT NULL DEFAULT 'none' CHECK (filter_source IN ('none', 'rules', 'ai', 'trusted_override')),
+  filter_signature TEXT NOT NULL DEFAULT '',
+  filter_job_id INTEGER,
+  filtered_at DATETIME,
+  recovered_at DATETIME,
+  recovery_note TEXT,
+  source_identity_json TEXT NOT NULL DEFAULT '{}',
   created_at DATETIME NOT NULL DEFAULT (datetime('now'))
 );
 

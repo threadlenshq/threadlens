@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"testing"
 
+	internaldb "github.com/kyle/scout/open-core/apps/api/internal/db"
 	shareddb "github.com/kyle/scout/open-core/db"
 )
 
@@ -141,4 +142,56 @@ func TestSharedDBOpenWiring_MigrationColumns(t *testing.T) {
 			t.Errorf("column %s.%s missing — migration may not have run", c.table, c.column)
 		}
 	}
+}
+
+// TestInitSchemaAddsFilteringTablesAndColumns verifies that InitSchema creates
+// the filter_trust_records and filter_jobs tables and adds filter columns to
+// posts and google_results. It opens an in-memory DB via the shared module
+// (which runs SQL file migrations) and then calls InitSchema to apply the
+// additive ALTER TABLE migrations and new table definitions.
+func TestInitSchemaAddsFilteringTablesAndColumns(t *testing.T) {
+	db := openMemDB(t)
+	if err := internaldb.InitSchema(db); err != nil {
+		t.Fatalf("InitSchema: %v", err)
+	}
+
+	for _, tc := range []struct{ table, column string }{
+		{"posts", "filter_state"}, {"posts", "filter_reasons_json"}, {"posts", "source_identity_json"},
+		{"google_results", "filter_state"}, {"google_results", "filter_reasons_json"}, {"google_results", "source_identity_json"},
+	} {
+		if !columnExists(t, db, tc.table, tc.column) {
+			t.Fatalf("expected %s.%s to exist", tc.table, tc.column)
+		}
+	}
+
+	for _, table := range []string{"filter_trust_records", "filter_jobs"} {
+		var name string
+		err := db.QueryRow("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", table).Scan(&name)
+		if err != nil {
+			t.Fatalf("expected table %s: %v", table, err)
+		}
+	}
+}
+
+func columnExists(t *testing.T, db *sql.DB, table, column string) bool {
+	t.Helper()
+	rows, err := db.Query("PRAGMA table_info(" + table + ")")
+	if err != nil {
+		t.Fatalf("PRAGMA table_info(%s): %v", table, err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notNull int
+		var defaultValue any
+		var pk int
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &defaultValue, &pk); err != nil {
+			t.Fatalf("scan table info: %v", err)
+		}
+		if name == column {
+			return true
+		}
+	}
+	return false
 }
