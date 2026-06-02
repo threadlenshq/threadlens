@@ -6,7 +6,9 @@
   import TopbarJobBanner from './components/TopbarJobBanner.svelte';
   import FindingCard from './components/inbox/FindingCard.svelte';
   import DetailPanel from './components/DetailPanel.svelte';
-  import { projects as projectsApi, posts as postsApi, scout as scoutApi, queries as queriesApi, queryReviewJobs as queryReviewJobsApi, runtime as runtimeApi, onboarding as onboardingApi, google as googleApi } from './lib/api.js';
+  import { projects as projectsApi, posts as postsApi, scout as scoutApi, queries as queriesApi, queryReviewJobs as queryReviewJobsApi, runtime as runtimeApi, onboarding as onboardingApi, google as googleApi, filters as filtersApi } from './lib/api.js';
+  import { FILTERED_FINDINGS_LABEL, REFILTER_SELECTED_LABEL } from './lib/filterLabels.js';
+  import FilteredFindingsTab from './components/FilteredFindingsTab.svelte';
   import { readUrlState, writeUrlState, clearUrlState } from './lib/url.js';
   import OnboardingWizard from './components/OnboardingWizard.svelte';
   import ExplorationChecklist from './components/onboarding/ExplorationChecklist.svelte';
@@ -109,6 +111,76 @@
   let completedQueryJobs = $derived(queryReviewJobs.filter(j => j.status === 'completed'));
   let failedQueryJobs = $derived(queryReviewJobs.filter(j => j.status === 'failed'));
   let activeQueryReviewJob = $derived(activeQueryReviewJobId ? queryReviewJobs.find(j => j.id === activeQueryReviewJobId) || null : null);
+
+  // Filter job state
+  let filterJobs = $state([]);
+  let filterJobPollTimer = $state(null);
+
+  let runningFilterJobs = $derived(filterJobs.filter(j => j.status === 'running'));
+  let completedFilterJobs = $derived(filterJobs.filter(j => j.status === 'completed'));
+  let failedFilterJobs = $derived(filterJobs.filter(j => j.status === 'failed'));
+
+  function formatFilterJobResult(result) {
+    if (!result) return 'Complete';
+    return `Filtered ${result.filtered ?? 0} · Restored ${result.restored_by_trust ?? 0} · Unchanged ${result.unchanged ?? 0} · Failed ${result.failed ?? 0}`;
+  }
+
+  let normalizedRunningFilterJobs = $derived(runningFilterJobs.map(j => ({ ...j, id: `filter-${j.id}`, label: 'Filtering', step: j.step || 'Running...' })));
+  let normalizedCompletedFilterJobs = $derived(completedFilterJobs.map(j => ({ ...j, id: `filter-${j.id}`, label: 'Filtering', step: formatFilterJobResult(j.result), hideReview: true })));
+  let normalizedFailedFilterJobs = $derived(failedFilterJobs.map(j => ({ ...j, id: `filter-${j.id}`, label: 'Filtering', step: j.error || 'Job failed', hideReview: true })));
+
+  async function fetchFilterJobs() {
+    if (!selectedProjectId) {
+      filterJobs = [];
+      return;
+    }
+    try {
+      const jobs = await filtersApi.jobs(selectedProjectId);
+      filterJobs = Array.isArray(jobs) ? jobs.filter(j =>
+        j.status === 'running' || j.status === 'completed' || j.status === 'failed'
+      ) : [];
+      // Resume polling if any jobs are still running
+      const hasRunning = filterJobs.some(j => j.status === 'running');
+      if (hasRunning) {
+        scheduleFilterJobPoll();
+      }
+    } catch (e) {
+      console.error('Failed to fetch filter jobs:', e);
+    }
+  }
+
+  async function pollFilterJobs() {
+    if (!selectedProjectId) return;
+    try {
+      const jobs = await filtersApi.jobs(selectedProjectId);
+      const prevRunning = filterJobs.filter(j => j.status === 'running').map(j => j.id);
+      filterJobs = Array.isArray(jobs) ? jobs.filter(j =>
+        j.status === 'running' || j.status === 'completed' || j.status === 'failed'
+      ) : [];
+      const nowCompleted = filterJobs.filter(j => j.status === 'completed' && prevRunning.includes(j.id));
+      if (nowCompleted.length > 0) {
+        await loadPosts();
+      }
+      const stillRunning = filterJobs.some(j => j.status === 'running');
+      if (stillRunning) {
+        scheduleFilterJobPoll();
+      } else {
+        filterJobPollTimer = null;
+      }
+    } catch (e) {
+      console.error('Failed to poll filter jobs:', e);
+    }
+  }
+
+  function scheduleFilterJobPoll() {
+    clearTimeout(filterJobPollTimer);
+    filterJobPollTimer = setTimeout(pollFilterJobs, 3000);
+  }
+
+  function stopFilterJobPoll() {
+    clearTimeout(filterJobPollTimer);
+    filterJobPollTimer = null;
+  }
 
   function relativeTime(dateStr) {
     if (!dateStr) return '';
@@ -341,6 +413,7 @@
     if (urlState.project && urlState.project !== selectedProjectId) {
       stopPoll();
       stopQueryJobPoll();
+      stopFilterJobPoll();
       selectedProjectId = urlState.project;
       selectedPost = null;
       loadPosts().then(() => {
@@ -353,6 +426,7 @@
       loadEnabledQueryCount();
       loadGoogleReportPresence();
       fetchQueryReviewJobs();
+      fetchFilterJobs();
     } else {
       loadPosts().then(() => {
         if (urlState.post) {
@@ -370,6 +444,7 @@
     window.removeEventListener('popstate', handlePopState);
     stopPoll();
     stopQueryJobPoll();
+    stopFilterJobPoll();
     clearInterval(tickTimer);
   });
 
@@ -475,6 +550,7 @@
   async function selectProject(id) {
     stopPoll();
     stopQueryJobPoll();
+    stopFilterJobPoll();
     failedRuns = [];
     completedRuns = [];
     selectedProjectId = id;
@@ -491,6 +567,7 @@
     await loadEnabledQueryCount();
     await loadGoogleReportPresence();
     await fetchQueryReviewJobs();
+    await fetchFilterJobs();
   }
 
   async function loadEnabledQueryCount() {
@@ -788,6 +865,23 @@
     }
   }
 
+  async function handleRefilterSelected() {
+    if (!selectedProjectId || selectedIds.size === 0) return;
+    const targets = [...selectedIds].map(id => ({ finding_type: 'post', id }));
+    try {
+      const job = await filtersApi.createJob(selectedProjectId, {
+        requested_scope: 'selected_visible_posts',
+        targets,
+      });
+      selectedIds = new Set();
+      // Add job to list and schedule polling
+      filterJobs = [job, ...filterJobs];
+      scheduleFilterJobPoll();
+    } catch (e) {
+      console.error('Failed to create re-filter job:', e);
+    }
+  }
+
   // --- Mount ---
   let appInitialized = $state(false);
 
@@ -810,7 +904,7 @@
     await Promise.all([loadCapabilities(), loadProjects()]);
     const urlState = readUrlState();
 
-    const validViews = ['posts', 'settings', 'sources', 'reports', 'models'];
+    const validViews = ['posts', 'settings', 'sources', 'reports', 'models', 'filtered'];
     const validReportSources = ['social', 'google'];
     const validPlatforms = ['all', 'reddit', 'bluesky'];
     const validStatuses = [...POST_STATUSES, 'all'];
@@ -848,6 +942,7 @@
       await loadPosts();
       await fetchInitialRunState();
       await fetchQueryReviewJobs();
+      await fetchFilterJobs();
 
       if (urlState.post) {
         const found = postsList.find(p => p.id === urlState.post);
@@ -879,7 +974,7 @@
     <OnboardingWizard status={onboardingStatus} onStatusReload={handleOnboardingComplete} />
   {:else}
   <ActiveRunBanner runs={activeRuns} {failedRuns} {completedRuns} onDismissFailed={dismissFailedRun} onDismissCompleted={dismissCompletedRun} onCancel={cancelRun} />
-  <TopbarJobBanner runningJobs={runningQueryJobs} completedJobs={completedQueryJobs} failedJobs={failedQueryJobs} onReview={reviewQueryJob} />
+  <TopbarJobBanner runningJobs={[...runningQueryJobs, ...normalizedRunningFilterJobs]} completedJobs={[...completedQueryJobs, ...normalizedCompletedFilterJobs]} failedJobs={[...failedQueryJobs, ...normalizedFailedFilterJobs]} onReview={reviewQueryJob} />
 
   {#if onboardingShowsExploration}
     <ExplorationChecklist
@@ -977,6 +1072,9 @@
                   Exclude
                 </button>
               {/if}
+              <button class="action-btn refilter" onclick={handleRefilterSelected}>
+                {REFILTER_SELECTED_LABEL}
+              </button>
             </div>
           </div>
           <div class="bulk-right">
@@ -1197,6 +1295,10 @@
             />
           {/if}
         {/if}
+      </div>
+    {:else if view === 'filtered'}
+      <div class="full-width-view">
+        <FilteredFindingsTab projectId={selectedProjectId} api={filtersApi} onJobCreated={fetchFilterJobs} onRestored={loadPosts} />
       </div>
     {/if}
   </AppShell>
@@ -1489,6 +1591,16 @@
     display: flex;
     align-items: center;
     gap: 12px;
+  }
+
+  .bulk-actions .action-btn.refilter {
+    background: #23233a;
+    color: #c0a0f0;
+    border: 1px solid #7c6af550;
+  }
+
+  .bulk-actions .action-btn.refilter:hover {
+    background: #7c6af520;
   }
 
   .bulk-cancel-btn {

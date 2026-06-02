@@ -48,19 +48,25 @@
         <span class="success-icon">&#10003;</span>
         <span class="label completed">{job.label || 'Query Review'}</span>
         <span class="step completed">
-          {job.result_count != null
-            ? `${job.result_count} result${job.result_count !== 1 ? 's' : ''}`
-            : 'Complete'}
+          {job.step != null
+            ? job.step
+            : job.result_count != null
+              ? `${job.result_count} result${job.result_count !== 1 ? 's' : ''}`
+              : 'Complete'}
         </span>
-        <button class="review-btn" onclick={() => onReview?.(job)}>Review</button>
+        {#if onReview && !job.hideReview}
+          <button class="review-btn" onclick={() => onReview?.(job)}>Review</button>
+        {/if}
       </div>
     {/each}
     {#each failedJobs as job (job.id)}
       <div class="job-row failed">
         <span class="fail-icon">&#10007;</span>
         <span class="label failed">{job.label || 'Query Review'}</span>
-        <span class="step failed">{job.error || 'Job failed'}</span>
-        <button class="review-btn" onclick={() => onReview?.(job)}>Review</button>
+        <span class="step failed">{job.error || job.step || 'Job failed'}</span>
+        {#if onReview && !job.hideReview}
+          <button class="review-btn" onclick={() => onReview?.(job)}>Review</button>
+        {/if}
       </div>
     {/each}
   </div>
