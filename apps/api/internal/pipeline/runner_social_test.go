@@ -135,8 +135,9 @@ func TestSocialRunnerSeenFiltering(t *testing.T) {
 	}
 }
 
-// SocialRunnerPromotionalFilterReddit: promotional posts are dropped for Reddit.
-func TestSocialRunnerPromotionalFilterReddit(t *testing.T) {
+// SocialRunnerPersistsPromotionalRedditAsFiltered: promotional posts are persisted
+// as filtered rows while only visible posts count toward postsFound.
+func TestSocialRunnerPersistsPromotionalRedditAsFiltered(t *testing.T) {
 	runner, repo := newTestRunner(t)
 	ctx := context.Background()
 
@@ -159,7 +160,14 @@ func TestSocialRunnerPromotionalFilterReddit(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if res.PostsFound != 1 {
-		t.Errorf("want 1 post found (promo filtered), got %d", res.PostsFound)
+		t.Errorf("visible postsFound: want 1, got %d", res.PostsFound)
+	}
+	filtered, err := repo.ListFilteredFindings(ctx, "proj1", repository.FilteredFindingFilters{Platform: "reddit"}, 1, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filtered.Items) != 1 || filtered.Items[0].ID != "t3_promo" {
+		t.Fatalf("filtered = %#v", filtered.Items)
 	}
 }
 

@@ -29,6 +29,8 @@ type Runner struct {
 	mu   sync.Mutex
 	runs map[int64]context.CancelFunc
 
+	filterClassifier *FilterClassifier
+
 	// Overridable fetchers for testing.
 	fetchReddit  func(ctx context.Context, queryURLs []string, onProgress func(int, int)) ([]FetchedPost, error)
 	fetchBluesky func(ctx context.Context, queries []string, onProgress func(int, int)) ([]FetchedPost, error)
@@ -42,6 +44,7 @@ func NewRunner(repo *repository.Repository, ai *ai.Service) *Runner {
 		AI:   ai,
 		runs: make(map[int64]context.CancelFunc),
 	}
+	r.filterClassifier = NewFilterClassifier(repo, nil)
 	r.fetchReddit = func(ctx context.Context, queryURLs []string, onProgress func(int, int)) ([]FetchedPost, error) {
 		return FetchRedditPosts(ctx, queryURLs, onProgress)
 	}
@@ -223,21 +226,106 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 		}
 	}
 
-	// 7. Promotional filter (Reddit only).
-	filtered := newPosts
-	if platform == "reddit" {
-		filtered = make([]FetchedPost, 0, len(newPosts))
-		for _, p := range newPosts {
-			if !IsPromotional(p) {
-				filtered = append(filtered, p)
+	// 7. Partition into visible and filtered candidates.
+	visibleCandidates := make([]FetchedPost, 0, len(newPosts))
+	filteredPosts := make([]domain.Post, 0)
+	nowStr := time.Now().UTC().Format(time.RFC3339)
+	for _, p := range newPosts {
+		decision, err := r.filterClassifier.Classify(ctx, projectID, NormalizeFetchedPostForFiltering(platform, projectID, p))
+		if err != nil {
+			return Result{RunID: runID}, err
+		}
+		if decision.State == domain.FilterStateFiltered {
+			fp := domain.Post{
+				ID:                getPostID(p),
+				ProjectID:         projectID,
+				Platform:          platform,
+				Status:            "new",
+				EngagementType:    "karma",
+				FilterState:       decision.State,
+				FilterSource:      decision.Source,
+				FilterSignature:   decision.Signature,
+				FilterExplanation: decision.Explanation,
+				SourceIdentity:    decision.SourceIdentity,
+				FilteredAt:        &nowStr,
 			}
+			if decision.Reason != "" {
+				fp.FilterReason = &decision.Reason
+			}
+			fp.FilterReasons = decision.Reasons
+			if decision.Confidence != nil {
+				fp.FilterConfidence = decision.Confidence
+			}
+			if platform == "reddit" {
+				fp.Title = p.Title
+				fp.Body = p.Selftext
+				fp.Author = p.Author
+				fp.URL = "https://www.reddit.com" + p.Permalink
+				subreddit := p.Subreddit
+				if subreddit != "" {
+					fp.Subreddit = &subreddit
+				}
+				score := int64(p.Score)
+				fp.RedditScore = &score
+				numComments := int64(p.NumComments)
+				fp.NumComments = &numComments
+				if p.CreatedUTC != 0 {
+					t := time.Unix(int64(p.CreatedUTC), 0).UTC().Format(time.RFC3339)
+					fp.CreatedAt = &t
+				}
+			} else {
+				title := p.Text
+				if len(title) > 100 {
+					title = title[:100]
+				}
+				fp.Title = title
+				fp.Body = p.Text
+				fp.Author = p.AuthorHandle
+				fp.URL = p.PostURL
+				uri := p.ID
+				fp.BlueskyURI = &uri
+				cid := p.CID
+				if cid != "" {
+					fp.BlueskyCID = &cid
+				}
+				likeCount := int64(p.LikeCount)
+				fp.LikeCount = &likeCount
+				replyCount := int64(p.ReplyCount)
+				fp.ReplyCount = &replyCount
+				repostCount := int64(p.RepostCount)
+				fp.RepostCount = &repostCount
+				if p.IndexedAt != "" {
+					fp.CreatedAt = &p.IndexedAt
+				}
+			}
+			filteredPosts = append(filteredPosts, fp)
+		} else {
+			visibleCandidates = append(visibleCandidates, p)
 		}
 	}
 
-	// 8. Dedup (Reddit only).
+	// 8. Dedup (Reddit only) — applies only to visible candidates.
 	if platform == "reddit" {
-		filtered = DeduplicatePosts(filtered)
+		visibleCandidates = DeduplicatePosts(visibleCandidates)
 	}
+
+	// 8b. Persist filtered posts before scoring visible ones, and mark them seen
+	// so they are not re-classified on subsequent runs.
+	if len(filteredPosts) > 0 {
+		if _, err := r.Repo.InsertSocialPosts(ctx, filteredPosts); err != nil {
+			return Result{RunID: runID}, err
+		}
+		filteredIDs := make([]string, len(filteredPosts))
+		for i, fp := range filteredPosts {
+			filteredIDs[i] = fp.ID
+		}
+		if err := r.Repo.MarkSeen(ctx, projectID, platform, filteredIDs); err != nil {
+			return Result{RunID: runID}, err
+		}
+	}
+
+	// Use visibleCandidates as the working set from here on.
+	filtered := visibleCandidates
 
 	// 9. No new posts → complete with postsChecked, postsFound=0.
 	if len(filtered) == 0 {
