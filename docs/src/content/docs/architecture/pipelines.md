@@ -15,6 +15,8 @@ ThreadLens has social scouting pipelines and a Google scouting pipeline.
 5. Filtering and deduplication remove noise.
 6. Posts and run status are saved for review.
 
+Before visible persistence, candidates pass through the shared conservative filtering subsystem. The classifier normalizes platform source identity, checks project trust records, applies deterministic spam/bot/low-quality/AI-boilerplate rules, and fails open to visible when a decision is ambiguous or an AI filter hook is unavailable. Filtered rows remain in `posts` or `google_results` with reason metadata and are excluded from default review/report views.
+
 ## Google scouting
 
 1. Root keywords expand into search variations.
@@ -23,3 +25,5 @@ ThreadLens has social scouting pipelines and a Google scouting pipeline.
 4. Results are analyzed for relevance, intent, and opportunity.
 5. Canonical URL deduplication groups repeated results.
 6. A Google report summarizes findings, risks, opportunities, and next actions.
+
+Before visible persistence, candidates pass through the shared conservative filtering subsystem. The classifier normalizes platform source identity, checks project trust records, applies deterministic spam/bot/low-quality/AI-boilerplate rules, and fails open to visible when a decision is ambiguous or an AI filter hook is unavailable. Filtered rows remain in `posts` or `google_results` with reason metadata and are excluded from default review/report views.

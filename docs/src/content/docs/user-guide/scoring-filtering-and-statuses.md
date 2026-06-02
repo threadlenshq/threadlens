@@ -27,3 +27,11 @@ Use statuses to track review progress:
 | `commented` | Already acted on. |
 
 Keep statuses factual so reports and future reviews stay useful.
+
+## Filtering is visibility, not scoring
+
+Scout can hide spam, bot-like, low-quality-account, and likely AI-generated findings from default review queues. This filtering does not change `post_score`, `final_score`, Google relevance scores, draft fields, or review statuses.
+
+Filtered findings are retained for the self-host owner under **Filtered findings**. Use **Restore visibility** to recover only one item, or **Restore and trust…** to recover the item and create a project-scoped trust record for the displayed source or exact system-generated filter signature. Trust records are allowlist overrides; they do not boost scores.
+
+Use **Re-filter selected** from the normal post list to check selected visible posts again. Use **Re-check selected** from **Filtered findings** to apply new trust records to already-filtered rows.
