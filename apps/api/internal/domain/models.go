@@ -76,6 +76,18 @@ type Post struct {
 	DraftComment      *string    `json:"draft_comment"`
 	DraftProvider     *string    `json:"draft_provider"`
 	SignalType        *string    `json:"signal_type"`
+	FilterState       string         `json:"filter_state"`
+	FilterReason      *string        `json:"filter_reason"`
+	FilterReasons     []string       `json:"filter_reasons"`
+	FilterExplanation string         `json:"filter_explanation"`
+	FilterConfidence  *float64       `json:"filter_confidence"`
+	FilterSource      string         `json:"filter_source"`
+	FilterSignature   string         `json:"filter_signature"`
+	FilterJobID       *int64         `json:"filter_job_id"`
+	FilteredAt        *string        `json:"filtered_at"`
+	RecoveredAt       *string        `json:"recovered_at"`
+	RecoveryNote      *string        `json:"recovery_note"`
+	SourceIdentity    SourceIdentity `json:"source_identity"`
 	CreatedAt         *string    `json:"created_at"`
 	FoundAt           string     `json:"found_at"`
 	ScoutedAt         string     `json:"scouted_at"`

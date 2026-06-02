@@ -386,6 +386,35 @@ func TestPostReply_MissingEnvVars_Returns500(t *testing.T) {
 	}
 }
 
+func TestPostList_DefaultExcludesFilteredPosts(t *testing.T) {
+	router, repo := newPostRouter(t)
+	seedProject(t, repo, "pf1")
+	seedPost(t, repo, "pf1", "visible-post")
+	seedPost(t, repo, "pf1", "filtered-post")
+	_, err := repo.DB.Exec(`UPDATE posts SET filter_state = 'filtered', filter_reason = 'spam', filter_reasons_json = '["spam"]', filter_explanation = 'test', filter_source = 'rules', filtered_at = datetime('now') WHERE id = 'filtered-post'`)
+	if err != nil { t.Fatal(err) }
+
+	rr := doRequest(t, router, http.MethodGet, "/api/projects/pf1/posts?status=new", nil)
+	if rr.Code != http.StatusOK { t.Fatalf("status = %d", rr.Code) }
+	var result []map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &result); err != nil { t.Fatal(err) }
+	if len(result) != 1 || result[0]["id"] != "visible-post" { t.Fatalf("result = %#v", result) }
+}
+
+func TestPostGet_FilteredPost_IsStillReachableByID(t *testing.T) {
+	router, repo := newPostRouter(t)
+	seedProject(t, repo, "pf2")
+	seedPost(t, repo, "pf2", "filtered-id-post")
+	_, err := repo.DB.Exec(`UPDATE posts SET filter_state = 'filtered', filter_reason = 'spam', filter_reasons_json = '["spam"]', filter_explanation = 'test', filter_source = 'rules', filtered_at = datetime('now') WHERE id = 'filtered-id-post'`)
+	if err != nil { t.Fatal(err) }
+
+	rr := doRequest(t, router, http.MethodGet, "/api/projects/pf2/posts/filtered-id-post", nil)
+	if rr.Code != http.StatusOK { t.Fatalf("status = %d, want 200", rr.Code) }
+	var result map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &result); err != nil { t.Fatal(err) }
+	if result["filter_state"] != "filtered" { t.Fatalf("filter_state = %v", result["filter_state"]) }
+}
+
 func TestPostReply_Success_SetsCommentedStatus(t *testing.T) {
 	succeedReplier := services.BlueskyReplierFunc(func(_ context.Context, _, _, _, _, _ string) (json.RawMessage, error) {
 		return json.RawMessage(`{"uri":"at://did:plc:abc/app.bsky.feed.post/reply123","cid":"bafyreinewcid"}`), nil

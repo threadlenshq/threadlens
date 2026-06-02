@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -290,6 +291,8 @@ func buildPostFilterClauses(filters PostFilters) ([]string, []any) {
 	var clauses []string
 	var params []any
 
+	clauses = append(clauses, "filter_state = 'visible'")
+
 	if filters.Status != "" {
 		clauses = append(clauses, "status = ?")
 		params = append(params, filters.Status)
@@ -348,6 +351,10 @@ func scanPostRow(row postScanner) (domain.Post, error) {
 	var angle, why, karmaTopic, topCommentSignals sql.NullString
 	var draftComment, draftProvider, signalType sql.NullString
 	var createdAt sql.NullString
+	var filterReason, filterExplanation, filterSource, filterSignature, filterReasonsJSON, sourceIdentityJSON sql.NullString
+	var filterConfidence sql.NullFloat64
+	var filterJobID sql.NullInt64
+	var filteredAt, recoveredAt, recoveryNote sql.NullString
 
 	err := row.Scan(
 		&p.ID, &p.ProjectID, &p.Platform,
@@ -359,7 +366,10 @@ func scanPostRow(row postScanner) (domain.Post, error) {
 		&angle, &why, &p.EngagementType,
 		&karmaTopic, &topCommentSignals,
 		&p.Status, &draftComment, &draftProvider,
-		&signalType, &createdAt, &p.FoundAt, &p.ScoutedAt,
+		&signalType,
+		&createdAt, &p.FoundAt, &p.ScoutedAt,
+		&p.FilterState, &filterReason, &filterReasonsJSON, &filterExplanation, &filterConfidence,
+		&filterSource, &filterSignature, &filterJobID, &filteredAt, &recoveredAt, &recoveryNote, &sourceIdentityJSON,
 	)
 	if err != nil {
 		return domain.Post{}, err
@@ -415,6 +425,47 @@ func scanPostRow(row postScanner) (domain.Post, error) {
 	}
 	if createdAt.Valid {
 		p.CreatedAt = &createdAt.String
+	}
+
+	if p.FilterState == "" {
+		p.FilterState = domain.FilterStateVisible
+	}
+	if filterReason.Valid {
+		p.FilterReason = &filterReason.String
+	}
+	if filterExplanation.Valid {
+		p.FilterExplanation = filterExplanation.String
+	}
+	if filterConfidence.Valid {
+		p.FilterConfidence = &filterConfidence.Float64
+	}
+	if filterSource.Valid {
+		p.FilterSource = filterSource.String
+	} else {
+		p.FilterSource = domain.FilterSourceNone
+	}
+	if filterSignature.Valid {
+		p.FilterSignature = filterSignature.String
+	}
+	if filterJobID.Valid {
+		p.FilterJobID = &filterJobID.Int64
+	}
+	if filteredAt.Valid {
+		p.FilteredAt = &filteredAt.String
+	}
+	if recoveredAt.Valid {
+		p.RecoveredAt = &recoveredAt.String
+	}
+	if recoveryNote.Valid {
+		p.RecoveryNote = &recoveryNote.String
+	}
+	p.FilterReasons = []string{}
+	if filterReasonsJSON.Valid && json.Valid([]byte(filterReasonsJSON.String)) {
+		_ = json.Unmarshal([]byte(filterReasonsJSON.String), &p.FilterReasons)
+	}
+	p.SourceIdentity = domain.SourceIdentity{}
+	if sourceIdentityJSON.Valid && json.Valid([]byte(sourceIdentityJSON.String)) {
+		_ = json.Unmarshal([]byte(sourceIdentityJSON.String), &p.SourceIdentity)
 	}
 
 	return p, nil
@@ -507,12 +558,16 @@ func (r *Repository) InsertSocialPosts(ctx context.Context, posts []domain.Post)
 			subreddit, reddit_score, num_comments,
 			like_count, reply_count, repost_count, bluesky_uri, bluesky_cid,
 			post_score, final_score, angle, why, signal_type,
+			filter_state, filter_reason, filter_reasons_json, filter_explanation, filter_confidence,
+			filter_source, filter_signature, filter_job_id, filtered_at, recovered_at, recovery_note, source_identity_json,
 			created_at, found_at, scouted_at
 		) VALUES (
 			?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?,
 			?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?, ?, ?,
 			?, datetime('now'), datetime('now')
 		)
 	`)
@@ -529,6 +584,8 @@ func (r *Repository) InsertSocialPosts(ctx context.Context, posts []domain.Post)
 			p.Subreddit, p.RedditScore, p.NumComments,
 			p.LikeCount, p.ReplyCount, p.RepostCount, p.BlueskyURI, p.BlueskyCID,
 			p.PostScore, p.FinalScore, p.Angle, p.Why, p.SignalType,
+			coalesceString(p.FilterState, domain.FilterStateVisible), p.FilterReason, safeJSON(p.FilterReasons, []string{}), p.FilterExplanation, p.FilterConfidence,
+			coalesceString(p.FilterSource, domain.FilterSourceNone), p.FilterSignature, p.FilterJobID, p.FilteredAt, p.RecoveredAt, p.RecoveryNote, p.SourceIdentity.JSON(),
 			p.CreatedAt,
 		)
 		if err != nil {
@@ -542,4 +599,11 @@ func (r *Repository) InsertSocialPosts(ctx context.Context, posts []domain.Post)
 		return 0, err
 	}
 	return inserted, nil
+}
+
+func coalesceString(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
 }
