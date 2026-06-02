@@ -144,8 +144,42 @@ func TestFilterJobStatusField(t *testing.T) {
 	}
 }
 
-func TestPaginationJSONNames(t *testing.T) {
-	p := Pagination{Page: 1, Limit: 20, Total: 21, TotalPages: 2, HasPreviousPage: false, HasNextPage: true}
+func TestPostFilterMetadataFieldsExist(t *testing.T) {	conf := 0.9
+	jobID := int64(42)
+	filtered := "2026-06-02T00:00:00Z"
+	reason := "spam"
+	p := Post{
+		FilterState:       FilterStateVisible,
+		FilterReason:      &reason,
+		FilterReasons:     []string{FilterReasonSpam},
+		FilterExplanation: "test explanation",
+		FilterConfidence:  &conf,
+		FilterSource:      FilterSourceRules,
+		FilterSignature:   "filter:abc123",
+		FilterJobID:       &jobID,
+		FilteredAt:        &filtered,
+		RecoveredAt:       nil,
+		RecoveryNote:      nil,
+		SourceIdentity:    SourceIdentity{"reddit_author": "alice"},
+	}
+	body, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(body)
+	for _, key := range []string{
+		"\"filter_state\"", "\"filter_reason\"", "\"filter_reasons\"",
+		"\"filter_explanation\"", "\"filter_confidence\"", "\"filter_source\"",
+		"\"filter_signature\"", "\"filter_job_id\"", "\"filtered_at\"",
+		"\"recovered_at\"", "\"recovery_note\"", "\"source_identity\"",
+	} {
+		if !strings.Contains(text, key) {
+			t.Fatalf("Post json missing key %s: %s", key, text)
+		}
+	}
+}
+
+func TestPaginationJSONNames(t *testing.T) {	p := Pagination{Page: 1, Limit: 20, Total: 21, TotalPages: 2, HasPreviousPage: false, HasNextPage: true}
 	body, err := json.Marshal(p)
 	if err != nil {
 		t.Fatal(err)
