@@ -287,3 +287,95 @@ func TestGoogleReports_Results_Outreach(t *testing.T) {
 		t.Fatalf("expected 2 outreach results, got %d", len(results))
 	}
 }
+
+func TestGoogleResultsExcludeFilteredRows(t *testing.T) {
+	r, repo := newGoogleRouter(t)
+	projectID := "gp_filter_test"
+
+	// Insert project
+	_, err := repo.DB.Exec(
+		`INSERT INTO projects (id, name, mode) VALUES (?, ?, 'research')`,
+		projectID, projectID+"-name",
+	)
+	if err != nil {
+		t.Fatalf("seed project: %v", err)
+	}
+
+	// Insert scout run
+	res, err := repo.DB.Exec(
+		`INSERT INTO scout_runs (project_id, platform, status, posts_checked, posts_found, step, error, warnings)
+		 VALUES (?, 'google', 'completed', 2, 2, 'fetch', NULL, NULL)`,
+		projectID,
+	)
+	if err != nil {
+		t.Fatalf("seed scout_run: %v", err)
+	}
+	runID, _ := res.LastInsertId()
+
+	// Insert google_report
+	res, err = repo.DB.Exec(
+		`INSERT INTO google_reports (run_id, project_id, executive_summary_json, keyword_summary_json, opportunities_json, risks_json, next_actions_json)
+		 VALUES (?, ?, '{}', '[]', '[]', '[]', '[]')`,
+		runID, projectID,
+	)
+	if err != nil {
+		t.Fatalf("seed google_report: %v", err)
+	}
+	reportID, _ := res.LastInsertId()
+
+	// Insert visible result
+	_, err = repo.DB.Exec(
+		`INSERT INTO google_results
+		 (run_id, project_id, root_keyword, query, title, url, display_url, snippet,
+		  rank, result_type, domain, author, content_type, intent_type, relevance_fit,
+		  relevance_score, confidence_score, opportunity_types, keepgoing_fit_reasons,
+		  disqualifiers, summary, action_recommendation, outreach_candidate, canonical_url, content_hash,
+		  filter_state, filter_source, filter_reasons_json, source_identity_json)
+		 VALUES (?, ?, 'kw', 'q', 'Visible Title', 'http://example.com/v', 'example.com', 'snippet',
+		  1, 'organic', 'example.com', 'author', 'blog', 'informational', 'direct_fit',
+		  0.9, 0.8, '[]', '[]', '[]', 'summary', 'action', 1, 'http://example.com/v', 'hash1',
+		  'visible', 'none', '[]', '{}')`,
+		runID, projectID,
+	)
+	if err != nil {
+		t.Fatalf("seed visible google_result: %v", err)
+	}
+
+	// Insert filtered result
+	_, err = repo.DB.Exec(
+		`INSERT INTO google_results
+		 (run_id, project_id, root_keyword, query, title, url, display_url, snippet,
+		  rank, result_type, domain, author, content_type, intent_type, relevance_fit,
+		  relevance_score, confidence_score, opportunity_types, keepgoing_fit_reasons,
+		  disqualifiers, summary, action_recommendation, outreach_candidate, canonical_url, content_hash,
+		  filter_state, filter_source, filter_reasons_json, source_identity_json)
+		 VALUES (?, ?, 'kw', 'q', 'Filtered Title', 'http://example.com/f', 'example.com', 'snippet',
+		  2, 'organic', 'example.com', 'author', 'blog', 'informational', 'direct_fit',
+		  0.8, 0.7, '[]', '[]', '[]', 'summary', 'action', 1, 'http://example.com/f', 'hash2',
+		  'filtered', 'rules', '["spam"]', '{}')`,
+		runID, projectID,
+	)
+	if err != nil {
+		t.Fatalf("seed filtered google_result: %v", err)
+	}
+
+	rr := doRequest(t, r, http.MethodGet, googleReportURL(projectID, reportID, "/results?mode=seo"), nil)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body)
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	results, ok := resp["results"].([]any)
+	if !ok {
+		t.Fatalf("results should be array, got %T", resp["results"])
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 visible result, got %d", len(results))
+	}
+	first := results[0].(map[string]any)
+	if first["title"] != "Visible Title" {
+		t.Fatalf("expected title 'Visible Title', got %v", first["title"])
+	}
+}

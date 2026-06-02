@@ -56,6 +56,18 @@ type GoogleResult struct {
 	OutreachCandidate    int64           `json:"outreach_candidate"`
 	CanonicalURL         string          `json:"canonical_url"`
 	ContentHash          string          `json:"content_hash"`
+	FilterState       string                `json:"filter_state"`
+	FilterReason      *string               `json:"filter_reason"`
+	FilterReasons     []string              `json:"filter_reasons"`
+	FilterExplanation string                `json:"filter_explanation"`
+	FilterConfidence  *float64              `json:"filter_confidence"`
+	FilterSource      string                `json:"filter_source"`
+	FilterSignature   string                `json:"filter_signature"`
+	FilterJobID       *int64                `json:"filter_job_id"`
+	FilteredAt        *string               `json:"filtered_at"`
+	RecoveredAt       *string               `json:"recovered_at"`
+	RecoveryNote      *string               `json:"recovery_note"`
+	SourceIdentity    domain.SourceIdentity `json:"source_identity"`
 }
 
 const googleReportBaseQuery = `
@@ -181,7 +193,7 @@ func (r *Repository) ListGoogleResults(ctx context.Context, projectID string, ru
 		       summary, action_recommendation, outreach_candidate,
 		       canonical_url, content_hash
 		FROM google_results
-		WHERE project_id = ? AND run_id = ?
+		WHERE project_id = ? AND run_id = ? AND filter_state = 'visible'
 	`, projectID, runID)
 	if err != nil {
 		return nil, err
@@ -263,6 +275,7 @@ type GoogleRunResult struct {
 	ContentHash          string
 	MentionedProducts    []string
 	Sources              []string
+	FilterDecision       domain.FilterDecision
 }
 
 // GoogleRunKeywordSummary holds keyword summary data for persistence.
@@ -336,17 +349,40 @@ func (r *Repository) ReplaceGoogleRunData(
 	}
 
 	for _, res := range results {
+		filterState := domain.FilterStateVisible
+		filterSource := domain.FilterSourceNone
+		if res.FilterDecision.State == domain.FilterStateFiltered {
+			filterState = domain.FilterStateFiltered
+		}
+		if res.FilterDecision.Source != "" {
+			filterSource = res.FilterDecision.Source
+		}
+
+		filterReasons := res.FilterDecision.Reasons
+		if filterReasons == nil {
+			filterReasons = []string{}
+		}
+		sourceIdentityJSON := res.FilterDecision.SourceIdentity.JSON()
+
 		_, err = tx.ExecContext(ctx, `
 			INSERT INTO google_results (
 				run_id, project_id, root_keyword, query, title, url, display_url, snippet, rank, result_type,
 				domain, published_at, author, page_text, content_type, intent_type, relevance_fit, relevance_score,
 				confidence_score, opportunity_types, keepgoing_fit_reasons, disqualifiers, summary, action_recommendation,
-				outreach_candidate, canonical_url, content_hash, mentioned_products
+				outreach_candidate, canonical_url, content_hash, mentioned_products,
+				filter_state, filter_reason, filter_reasons_json, filter_explanation, filter_confidence,
+				filter_source, filter_signature,
+				filtered_at,
+				source_identity_json
 			) VALUES (
 				?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 				?, ?, ?, ?, ?, ?, ?, ?,
 				?, ?, ?, ?, ?, ?,
-				?, ?, ?, ?
+				?, ?, ?, ?,
+				?, ?, ?, ?, ?,
+				?, ?,
+				CASE WHEN ? = 'filtered' THEN datetime('now') ELSE NULL END,
+				?
 			)`,
 			runID, projectID,
 			res.RootKeyword, res.Query,
@@ -360,6 +396,10 @@ func (r *Repository) ReplaceGoogleRunData(
 			res.Summary, res.ActionRecommendation, res.OutreachCandidate,
 			res.CanonicalURL, res.ContentHash,
 			safeJSON(res.MentionedProducts, []string{}),
+			filterState, nullableString(res.FilterDecision.Reason), safeJSON(filterReasons, []string{}), res.FilterDecision.Explanation, res.FilterDecision.Confidence,
+			filterSource, res.FilterDecision.Signature,
+			filterState, // used in CASE expression for filtered_at
+			sourceIdentityJSON,
 		)
 		if err != nil {
 			return fmt.Errorf("ReplaceGoogleRunData: insert google_results: %w", err)
