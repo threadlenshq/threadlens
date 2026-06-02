@@ -57,6 +57,27 @@ func NewRunner(repo *repository.Repository, ai *ai.Service) *Runner {
 	return r
 }
 
+// googleResultFilter returns a google.ResultFilter that delegates to the
+// Runner's filter classifier with the correct finding type and platform.
+func (r *Runner) googleResultFilter() google.ResultFilter {
+	classifier := r.filterClassifier
+	return func(ctx context.Context, projectID string, input google.FilterInput) (domain.FilterDecision, error) {
+		fi := FilterInput{
+			FindingType: domain.FindingTypeGoogleResult,
+			Platform:    "google",
+			Title:       input.Title,
+			Body:        input.Snippet + "\n" + input.PageText,
+			URL:         input.URL,
+			Domain:      input.Domain,
+			SourceIdentity: domain.SourceIdentity{
+				"domain":        input.Domain,
+				"canonical_url": strings.ToLower(input.CanonicalURL),
+			},
+		}
+		return classifier.Classify(ctx, projectID, fi)
+	}
+}
+
 // Run executes a scout pipeline synchronously. If existingRunID is non-nil, the run
 // row must already exist; otherwise a new one is created.
 func (r *Runner) Run(ctx context.Context, projectID string, platform string, existingRunID *int64) (Result, error) {
@@ -92,7 +113,7 @@ func (r *Runner) Run(ctx context.Context, projectID string, platform string, exi
 			return Result{RunID: runID}, fmt.Errorf("project not found: %s", projectID)
 		}
 		provider := google.NewParallelSearchProvider()
-		gr, gerr := google.RunGoogleScoutPipeline(runCtx, r.Repo, r.AI, project, projectID, runID, provider)
+		gr, gerr := google.RunGoogleScoutPipeline(runCtx, r.Repo, r.AI, project, projectID, runID, provider, r.googleResultFilter())
 		res = Result{RunID: gr.RunID, PostsChecked: gr.PostsChecked, PostsFound: gr.PostsFound}
 		err = gerr
 	} else {
@@ -131,7 +152,7 @@ func (r *Runner) StartAsync(projectID string, platform string, runID int64) {
 				return
 			}
 			provider := google.NewParallelSearchProvider()
-			_, err = google.RunGoogleScoutPipeline(bgCtx, r.Repo, r.AI, project, projectID, runID, provider)
+			_, err = google.RunGoogleScoutPipeline(bgCtx, r.Repo, r.AI, project, projectID, runID, provider, r.googleResultFilter())
 		} else {
 			_, err = r.runSocial(bgCtx, projectID, platform, runID)
 		}

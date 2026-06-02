@@ -81,7 +81,23 @@ func countBy(items []normalizedResult, key func(normalizedResult) string) map[st
 	return counts
 }
 
-// normalizedResult is the internal per-row shape used during the pipeline,
+// FilterInput is the exported shape passed to a ResultFilter callback.
+// It contains only the fields needed to classify a Google result.
+type FilterInput struct {
+	Title        string
+	Snippet      string
+	URL          string
+	Domain       string
+	CanonicalURL string
+	PageText     string
+}
+
+// ResultFilter is a function that classifies a single Google search result.
+// Returning a filtered decision causes the result to be persisted but excluded
+// from report-visible summaries and counts.
+type ResultFilter func(ctx context.Context, projectID string, input FilterInput) (domain.FilterDecision, error)
+
+
 // mirroring the object shape from normalizeSearchResult() in runner.js.
 type normalizedResult struct {
 	RootKeyword          string
@@ -111,6 +127,7 @@ type normalizedResult struct {
 	ContentHash          string
 	Sources              []string
 	MentionedProducts    []string
+	FilterDecision       domain.FilterDecision
 }
 
 // buildNormalizedResult mirrors normalizeSearchResult() from runner.js.
@@ -371,6 +388,7 @@ func RunGoogleScoutPipeline(
 	projectID string,
 	runID int64,
 	provider SearchProvider,
+	filters ...ResultFilter,
 ) (RunResult, error) {
 	updateStep := func(label string) {
 		_ = repo.UpdateScoutStep(ctx, runID, label)
@@ -558,6 +576,50 @@ func RunGoogleScoutPipeline(
 		}
 	}
 
+	// 6b. Partition results into visible and all (for persisting filtered rows).
+	var filterFn ResultFilter
+	if len(filters) > 0 {
+		filterFn = filters[0]
+	}
+	visibleNorm := make([]normalizedResult, 0, len(dedupedNorm))
+	allNorm := make([]normalizedResult, 0, len(dedupedNorm))
+	for _, item := range dedupedNorm {
+		decision := domain.FilterDecision{
+			State:          domain.FilterStateVisible,
+			Source:         domain.FilterSourceNone,
+			Reasons:        []string{},
+			SourceIdentity: domain.SourceIdentity{"domain": item.Domain, "canonical_url": strings.ToLower(item.CanonicalURL)},
+		}
+		if filterFn != nil {
+			fi := FilterInput{
+				Title:        item.Title,
+				Snippet:      item.Snippet,
+				URL:          item.URL,
+				Domain:       item.Domain,
+				CanonicalURL: item.CanonicalURL,
+				PageText:     item.PageText,
+			}
+			var ferr error
+			decision, ferr = filterFn(ctx, projectID, fi)
+			if ferr != nil {
+				log.Printf("[google-runner] filter error for %q (project=%s): %v; treating as visible", item.URL, projectID, ferr)
+				decision = domain.FilterDecision{
+					State:          domain.FilterStateVisible,
+					Source:         domain.FilterSourceNone,
+					Reasons:        []string{},
+					Warning:        ferr.Error(),
+					SourceIdentity: domain.SourceIdentity{"domain": item.Domain, "canonical_url": strings.ToLower(item.CanonicalURL)},
+				}
+			}
+		}
+		item.FilterDecision = decision
+		allNorm = append(allNorm, item)
+		if decision.State != domain.FilterStateFiltered {
+			visibleNorm = append(visibleNorm, item)
+		}
+	}
+	dedupedNorm = visibleNorm
+
 	// 7. Build keyword summaries, domain stats, report
 	kwSummaries := buildKeywordSummaries(dedupedNorm, rootKeywords)
 	domainStats := buildDomainStats(dedupedNorm)
@@ -599,11 +661,11 @@ func RunGoogleScoutPipeline(
 		RootKeywords:     rootKeywords,
 	})
 
-	// 8. Persist
+	// 8. Persist — persist allNorm (includes filtered rows), but report/summary from dedupedNorm (visible).
 	updateStep("Persisting google results")
 
-	repoResults := make([]repository.GoogleRunResult, len(dedupedNorm))
-	for i, r := range dedupedNorm {
+	repoResults := make([]repository.GoogleRunResult, len(allNorm))
+	for i, r := range allNorm {
 		repoResults[i] = repository.GoogleRunResult{
 			RootKeyword:          r.RootKeyword,
 			Query:                r.Query,
@@ -632,6 +694,7 @@ func RunGoogleScoutPipeline(
 			ContentHash:          r.ContentHash,
 			MentionedProducts:    r.MentionedProducts,
 			Sources:              r.Sources,
+			FilterDecision:       r.FilterDecision,
 		}
 	}
 

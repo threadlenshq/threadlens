@@ -2,6 +2,7 @@ package google
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/domain"
@@ -221,6 +222,87 @@ func TestBuildKeywordSummaries(t *testing.T) {
 	kw2 := summaries[1]
 	if kw2.TotalResults != 1 {
 		t.Errorf("kw2 TotalResults: want 1, got %d", kw2.TotalResults)
+	}
+}
+
+// TestGoogleRunnerRetainsFilteredResultsButExcludesFromReportCounts verifies that
+// a spammy result is persisted as filter_state='filtered' while PostsFound counts
+// only the visible result.
+func TestGoogleRunnerRetainsFilteredResultsButExcludesFromReportCounts(t *testing.T) {
+	db := testhelpers.OpenTestDB(t)
+	repo := repository.New(db)
+	ctx := context.Background()
+
+	createProject(t, repo, "proj-filt", "Filter Test")
+	runID, err := repo.CreateScoutRun(ctx, "proj-filt", "google")
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	createGoogleQuery(t, repo, "proj-filt", "project management pain points")
+
+	rank1, rank2 := 1.0, 2.0
+	provider := &fakeProvider{results: []SearchResult{
+		{
+			Title:   "Why project management tools are frustrating",
+			URL:     "https://example.com/pm-frustration",
+			Snippet: "Users report constant context switching and notification overload.",
+			Rank:    &rank1,
+		},
+		{
+			Title:   "Unlock productivity today",
+			URL:     "https://spam.example/promo",
+			Snippet: "In today's fast-paced digital landscape, leverage cutting-edge solutions to streamline workflows.",
+			Rank:    &rank2,
+		},
+	}}
+
+	// Simple inline filter: classify the spammy result as filtered based on title.
+	spamFilter := ResultFilter(func(_ context.Context, _ string, input FilterInput) (domain.FilterDecision, error) {
+		conf := 0.88
+		if strings.Contains(strings.ToLower(input.Title), "unlock productivity") {
+			return domain.FilterDecision{
+				State:          domain.FilterStateFiltered,
+				Reason:         domain.FilterReasonAIGenerated,
+				Reasons:        []string{domain.FilterReasonAIGenerated},
+				Source:         domain.FilterSourceRules,
+				Confidence:     &conf,
+				SourceIdentity: domain.SourceIdentity{"domain": input.Domain, "canonical_url": strings.ToLower(input.CanonicalURL)},
+			}, nil
+		}
+		return domain.FilterDecision{
+			State:          domain.FilterStateVisible,
+			Source:         domain.FilterSourceNone,
+			Reasons:        []string{},
+			SourceIdentity: domain.SourceIdentity{"domain": input.Domain, "canonical_url": strings.ToLower(input.CanonicalURL)},
+		}, nil
+	})
+
+	project := makeTestProject()
+	res, err := RunGoogleScoutPipeline(ctx, repo, nil, project, "proj-filt", runID, provider, spamFilter)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// PostsFound must count visible results only.
+	if res.PostsFound != 1 {
+		t.Errorf("PostsFound: want 1 (visible only), got %d", res.PostsFound)
+	}
+
+	// google_results must contain 2 rows total, one of which is filtered.
+	var totalCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM google_results WHERE project_id = 'proj-filt'`).Scan(&totalCount); err != nil {
+		t.Fatal(err)
+	}
+	if totalCount != 2 {
+		t.Errorf("total google_results rows: want 2, got %d", totalCount)
+	}
+
+	var filteredCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM google_results WHERE project_id = 'proj-filt' AND filter_state = 'filtered'`).Scan(&filteredCount); err != nil {
+		t.Fatal(err)
+	}
+	if filteredCount != 1 {
+		t.Errorf("filtered google_results rows: want 1, got %d", filteredCount)
 	}
 }
 
