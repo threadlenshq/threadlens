@@ -123,6 +123,19 @@ export const google = {
   },
 };
 
+export const filters = {
+  findings: (pid, params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return api(`/api/projects/${pid}/filters/findings${qs ? '?' + qs : ''}`);
+  },
+  recover: (pid, body) => api(`/api/projects/${pid}/filters/findings/recover`, { method: 'POST', body }),
+  trustRecords: (pid) => api(`/api/projects/${pid}/filters/trust-records`),
+  createTrustRecord: (pid, body) => api(`/api/projects/${pid}/filters/trust-records`, { method: 'POST', body }),
+  createJob: (pid, body) => api(`/api/projects/${pid}/filters/jobs`, { method: 'POST', body }),
+  jobs: (pid) => api(`/api/projects/${pid}/filters/jobs`),
+  getJob: (pid, jobId) => api(`/api/projects/${pid}/filters/jobs/${jobId}`),
+};
+
 export const models = {
   catalog: () => api('/api/models/catalog'),
   config: () => api('/api/models/config'),
