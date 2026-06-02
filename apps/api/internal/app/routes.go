@@ -24,6 +24,7 @@ func (a *App) mountRoutes() {
 	handlers.MountProjectRoutes(a.Router, a.ProjectService)
 	handlers.MountQueryRoutes(a.Router, a.QueryService)
 	handlers.MountQueryReviewJobRoutes(a.Router, a.Repo, a.QueryService)
+	handlers.MountFilterRoutes(a.Router, a.Repo, a.FilterClassifier)
 	handlers.MountPromptRoutes(a.Router, a.PromptService)
 	handlers.MountPostRoutes(a.Router, a.PostService)
 	handlers.MountModelRoutes(a.Router, a.ModelService)
