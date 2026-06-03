@@ -343,16 +343,14 @@ func TestDMTargetGeneratorInsertErrorDoesNotStopOtherPosts(t *testing.T) {
 	}
 }
 
-// TestDMTargetGeneratorBlueskyUsesRepliesAndStableTieBreak verifies that Bluesky
-// posts source candidates from the reply fetcher (not the Reddit fetcher), that
-// the post author is included in the candidate pool, and that all candidates
-// within the cap are inserted — without asserting any particular ordering.
+// TestDMTargetGeneratorBlueskyUsesReplyFetcherAndIncludesAuthor verifies that
+// Bluesky posts source candidates from the reply fetcher (not the Reddit
+// fetcher), that the post author is included in the candidate pool, and that
+// all candidates within the cap are inserted.
 //
 // Design: 2 reply authors + 1 author = 3 candidates. All three must appear in
-// the inserted set. The test intentionally avoids asserting insertion order
-// because tie-break ordering is an implementation detail not mandated by the
-// approved spec.
-func TestDMTargetGeneratorBlueskyUsesRepliesAndStableTieBreak(t *testing.T) {
+// the inserted set.
+func TestDMTargetGeneratorBlueskyUsesReplyFetcherAndIncludesAuthor(t *testing.T) {
 	const uri = "at://did:plc:abc123/app.bsky.feed.post/xyz"
 
 	repo := &fakeDMRepo{
@@ -362,7 +360,8 @@ func TestDMTargetGeneratorBlueskyUsesRepliesAndStableTieBreak(t *testing.T) {
 			},
 		},
 	}
-	// Reddit fetcher is deliberately empty; any call to it would be a bug.
+	// Reddit fetcher is left empty; a correct implementation should not call it
+	// for Bluesky posts, so no commentAuthors are registered.
 	redditFetcher := &fakeRedditContextFetcher{}
 	blueskyFetcher := &fakeBlueskyReplyFetcher{
 		replyAuthors: map[string][]string{
