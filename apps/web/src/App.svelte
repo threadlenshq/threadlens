@@ -116,11 +116,18 @@
   let filterJobs = $state([]);
   let filterJobPollTimer = $state(null);
   const DISMISSED_FILTER_JOB_IDS_STORAGE_KEY = 'scout:dismissed-filter-job-ids';
+  const FILTER_JOB_AUTO_DISMISS_MS = 8000;
   let dismissedFilterJobIds = $state(new Set());
+  let filterJobDismissTimers = new Map();
+
+  function filterJobKey(id) {
+    if (id == null) return '';
+    return String(id);
+  }
 
   let runningFilterJobs = $derived(filterJobs.filter(j => j.status === 'running'));
-  let completedFilterJobs = $derived(filterJobs.filter(j => j.status === 'completed' && !dismissedFilterJobIds.has(j.id)));
-  let failedFilterJobs = $derived(filterJobs.filter(j => j.status === 'failed' && !dismissedFilterJobIds.has(j.id)));
+  let completedFilterJobs = $derived(filterJobs.filter(j => j.status === 'completed' && !dismissedFilterJobIds.has(filterJobKey(j.id))));
+  let failedFilterJobs = $derived(filterJobs.filter(j => j.status === 'failed' && !dismissedFilterJobIds.has(filterJobKey(j.id))));
 
   function formatFilterJobResult(result) {
     if (!result) return 'Complete';
@@ -138,7 +145,11 @@
       if (!raw) return new Set();
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return new Set();
-      return new Set(parsed.filter(id => typeof id === 'string' && id.length > 0));
+      return new Set(
+        parsed
+          .filter(id => (typeof id === 'string' && id.length > 0) || typeof id === 'number')
+          .map(id => String(id))
+      );
     } catch {
       return new Set();
     }
@@ -153,20 +164,50 @@
     }
   }
 
-  function dismissCompletedFilterJob(job) {
-    const id = job?.rawId || job?.id;
-    if (!id) return;
-    dismissedFilterJobIds.add(id);
+  function clearFilterJobDismissTimer(id) {
+    const key = filterJobKey(id);
+    const timer = filterJobDismissTimers.get(key);
+    if (timer) {
+      clearTimeout(timer);
+      filterJobDismissTimers.delete(key);
+    }
+  }
+
+  function clearAllFilterJobDismissTimers() {
+    for (const timer of filterJobDismissTimers.values()) {
+      clearTimeout(timer);
+    }
+    filterJobDismissTimers.clear();
+  }
+
+  function dismissFilterJobById(id) {
+    const key = filterJobKey(id);
+    if (!key) return;
+    dismissedFilterJobIds.add(key);
     dismissedFilterJobIds = new Set(dismissedFilterJobIds);
     persistDismissedFilterJobIds();
+    clearFilterJobDismissTimer(key);
+  }
+
+  function scheduleAutoDismissFilterJob(id) {
+    const key = filterJobKey(id);
+    if (!key || dismissedFilterJobIds.has(key)) return;
+    clearFilterJobDismissTimer(key);
+    const timer = setTimeout(() => {
+      dismissFilterJobById(key);
+      filterJobDismissTimers.delete(key);
+    }, FILTER_JOB_AUTO_DISMISS_MS);
+    filterJobDismissTimers.set(key, timer);
+  }
+
+  function dismissCompletedFilterJob(job) {
+    const id = job?.rawId || job?.id;
+    dismissFilterJobById(id);
   }
 
   function dismissFailedFilterJob(job) {
     const id = job?.rawId || job?.id;
-    if (!id) return;
-    dismissedFilterJobIds.add(id);
-    dismissedFilterJobIds = new Set(dismissedFilterJobIds);
-    persistDismissedFilterJobIds();
+    dismissFilterJobById(id);
   }
 
   async function fetchFilterJobs() {
@@ -176,9 +217,7 @@
     }
     try {
       const jobs = await filtersApi.jobs(selectedProjectId);
-      filterJobs = Array.isArray(jobs) ? jobs.filter(j =>
-        j.status === 'running' || j.status === 'completed' || j.status === 'failed'
-      ) : [];
+      filterJobs = Array.isArray(jobs) ? jobs.filter(j => j.status === 'running') : [];
       // Resume polling if any jobs are still running
       const hasRunning = filterJobs.some(j => j.status === 'running');
       if (hasRunning) {
@@ -194,10 +233,28 @@
     try {
       const jobs = await filtersApi.jobs(selectedProjectId);
       const prevRunning = filterJobs.filter(j => j.status === 'running').map(j => j.id);
-      filterJobs = Array.isArray(jobs) ? jobs.filter(j =>
-        j.status === 'running' || j.status === 'completed' || j.status === 'failed'
-      ) : [];
-      const nowCompleted = filterJobs.filter(j => j.status === 'completed' && prevRunning.includes(j.id));
+      const previouslyVisibleTerminalIds = new Set(
+        filterJobs
+          .filter(j => j.status === 'completed' || j.status === 'failed')
+          .map(j => filterJobKey(j.id))
+      );
+
+      const allJobs = Array.isArray(jobs) ? jobs : [];
+      const newlyFinished = allJobs.filter(
+        j => (j.status === 'completed' || j.status === 'failed') && prevRunning.includes(j.id)
+      );
+      const newlyFinishedIds = new Set(newlyFinished.map(j => filterJobKey(j.id)));
+
+      filterJobs = allJobs.filter(j =>
+        j.status === 'running' ||
+        ((j.status === 'completed' || j.status === 'failed') &&
+          (previouslyVisibleTerminalIds.has(filterJobKey(j.id)) || newlyFinishedIds.has(filterJobKey(j.id))))
+      );
+
+      const nowCompleted = newlyFinished.filter(j => j.status === 'completed');
+      for (const job of newlyFinished) {
+        scheduleAutoDismissFilterJob(job.id);
+      }
       if (nowCompleted.length > 0) {
         await loadPosts();
       }
@@ -454,6 +511,8 @@
       stopPoll();
       stopQueryJobPoll();
       stopFilterJobPoll();
+      clearAllFilterJobDismissTimers();
+      filterJobs = [];
       selectedProjectId = urlState.project;
       selectedPost = null;
       loadPosts().then(() => {
@@ -485,6 +544,7 @@
     stopPoll();
     stopQueryJobPoll();
     stopFilterJobPoll();
+    clearAllFilterJobDismissTimers();
     clearInterval(tickTimer);
   });
 
@@ -591,6 +651,8 @@
     stopPoll();
     stopQueryJobPoll();
     stopFilterJobPoll();
+    clearAllFilterJobDismissTimers();
+    filterJobs = [];
     failedRuns = [];
     completedRuns = [];
     selectedProjectId = id;
