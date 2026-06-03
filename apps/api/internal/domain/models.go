@@ -107,6 +107,15 @@ type DMTarget struct {
 	DMStatus      string  `json:"dm_status"`
 }
 
+type DMTargetInsert struct {
+	Username    string  `json:"username"`
+	IntentScore float64 `json:"intent_score"`
+	Signal      string  `json:"signal"`
+	Context     string  `json:"context"`
+	Approach    string  `json:"approach"`
+	DMStatus    string  `json:"dm_status"`
+}
+
 type ScoutRun struct {
 	ID           int64   `json:"id"`
 	ProjectID    string  `json:"project_id"`
