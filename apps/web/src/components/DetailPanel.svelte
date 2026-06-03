@@ -1,6 +1,4 @@
 <script>
-  import { createEventDispatcher } from 'svelte';
-
   export let post = null;
   export let generating = false;
   export let generateError = null;
@@ -8,7 +6,10 @@
   export let postReplyResult = null; // { type: 'success' | 'error', message: string }
   export let projectMode = 'marketing';
 
-  const dispatch = createEventDispatcher();
+  export let onGenerateDraft = null;
+  export let onStatusChange = null;
+  export let onDraftChange = null;
+  export let onPostReply = null;
 
   const PLATFORM_COLORS = {
     reddit: '#FF4500',
@@ -56,11 +57,11 @@
   }
 
   function generateDraft() {
-    dispatch('generateDraft', { id: post.id, platform: post.platform });
+    onGenerateDraft?.({ id: post.id, platform: post.platform });
   }
 
   function saveDraftChange() {
-    dispatch('draftChange', { id: post.id, platform: post.platform, draft_comment: draftValue });
+    onDraftChange?.({ id: post.id, platform: post.platform, draft_comment: draftValue });
   }
 
   function copyDraft() {
@@ -73,7 +74,7 @@
 
   function postReply() {
     if (!draftValue || postingReply) return;
-    dispatch('postReply', { id: post.id, platform: post.platform, text: draftValue });
+    onPostReply?.({ id: post.id, platform: post.platform, text: draftValue });
   }
 
   async function generateDmDraft(username) {
@@ -94,7 +95,7 @@
         dmDraftValues[username] = target.draft_dm;
         dmDraftValues = dmDraftValues;
       }
-      dispatch('statusChange', { id: post.id, platform: post.platform, status: post.status });
+      onStatusChange?.({ id: post.id, platform: post.platform, status: post.status });
     } catch (e) {
       dmErrors[username] = e.message;
       dmErrors = dmErrors;
@@ -141,7 +142,7 @@
   }
 
   function setStatus(status) {
-    dispatch('statusChange', { id: post.id, platform: post.platform, status });
+    onStatusChange?.({ id: post.id, platform: post.platform, status });
   }
 
   // Flat field access - Scout API returns flat structure
