@@ -415,6 +415,33 @@ func TestPostGet_FilteredPost_IsStillReachableByID(t *testing.T) {
 	if result["filter_state"] != "filtered" { t.Fatalf("filter_state = %v", result["filter_state"]) }
 }
 
+func TestPostList_DMFilter_ReturnsOnlyPostsWithTargets(t *testing.T) {
+	router, repo := newPostRouter(t)
+	seedProject(t, repo, "pdm1")
+
+	// post with a dm_target
+	seedPost(t, repo, "pdm1", "post-with-target")
+	seedDMTarget(t, repo, "post-with-target", "someuser", 8.0)
+
+	// post without any dm_target
+	seedPost(t, repo, "pdm1", "post-no-target")
+
+	rr := doRequest(t, router, http.MethodGet, "/api/projects/pdm1/posts?dm=true", nil)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200\nbody: %s", rr.Code, rr.Body.String())
+	}
+	var result []map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &result); err != nil {
+		t.Fatalf("expected array: %s", rr.Body.String())
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 post with targets, got %d", len(result))
+	}
+	if result[0]["id"] != "post-with-target" {
+		t.Fatalf("expected post-with-target, got %v", result[0]["id"])
+	}
+}
+
 func TestPostReply_Success_SetsCommentedStatus(t *testing.T) {
 	succeedReplier := services.BlueskyReplierFunc(func(_ context.Context, _, _, _, _, _ string) (json.RawMessage, error) {
 		return json.RawMessage(`{"uri":"at://did:plc:abc/app.bsky.feed.post/reply123","cid":"bafyreinewcid"}`), nil

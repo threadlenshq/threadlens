@@ -18,6 +18,7 @@ type PostFilters struct {
 	MaxScore       *float64
 	EngagementType string
 	SignalType     string
+	HasDMTargets   bool
 }
 
 // PatchPostRequest contains mutable fields for a single post patch.
@@ -253,6 +254,56 @@ func (r *Repository) GetDMTarget(ctx context.Context, postID string, username st
 	return target, err
 }
 
+// CountDMTargets returns the number of dm_target rows for the given post.
+func (r *Repository) CountDMTargets(ctx context.Context, postID string) (int, error) {
+	var count int
+	err := r.DB.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM dm_targets WHERE post_id = ?",
+		postID,
+	).Scan(&count)
+	return count, err
+}
+
+// InsertDMTargets inserts the provided targets for the given post inside a
+// transaction using INSERT OR IGNORE to avoid duplicates. Returns the number
+// of rows actually inserted.
+func (r *Repository) InsertDMTargets(ctx context.Context, postID string, targets []domain.DMTargetInsert) (int64, error) {
+	if len(targets) == 0 {
+		return 0, nil
+	}
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	stmt, err := tx.PrepareContext(ctx,
+		"INSERT INTO dm_targets (post_id, username, intent_score, signal, context, approach, dm_status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+	)
+	if err != nil {
+		_ = tx.Rollback()
+		return 0, err
+	}
+	defer stmt.Close()
+
+	var inserted int64
+	for _, t := range targets {
+		status := t.DMStatus
+		if status == "" {
+			status = "new"
+		}
+		res, err := stmt.ExecContext(ctx, postID, t.Username, t.IntentScore, t.Signal, t.Context, t.Approach, status)
+		if err != nil {
+			_ = tx.Rollback()
+			return 0, err
+		}
+		n, _ := res.RowsAffected()
+		inserted += n
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return inserted, nil
+}
+
 // listDMTargets fetches dm_targets for a post ordered by intent_score DESC.
 func (r *Repository) listDMTargets(ctx context.Context, postID string) ([]domain.DMTarget, error) {
 	rows, err := r.DB.QueryContext(ctx,
@@ -316,6 +367,9 @@ func buildPostFilterClauses(filters PostFilters) ([]string, []any) {
 	if filters.SignalType != "" {
 		clauses = append(clauses, "signal_type = ?")
 		params = append(params, filters.SignalType)
+	}
+	if filters.HasDMTargets {
+		clauses = append(clauses, "EXISTS (SELECT 1 FROM dm_targets WHERE dm_targets.post_id = posts.id)")
 	}
 
 	return clauses, params
