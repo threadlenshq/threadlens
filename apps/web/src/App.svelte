@@ -781,8 +781,11 @@
     try {
       await postsApi.update(selectedProjectId, id, { status });
       await loadPosts();
-      // If the post left the current filtered list, advance to the next one
-      if (selectedPost && selectedPost.id === id && !postsList.find(p => p.id === id)) {
+      // Always advance to the next post when skipping from the detail panel
+      if (selectedPost && selectedPost.id === id && status === 'skipped') {
+        selectNextPost(currentIndex);
+      // If the post left the current filtered list for any other reason, also advance
+      } else if (selectedPost && selectedPost.id === id && !postsList.find(p => p.id === id)) {
         selectNextPost(currentIndex);
       }
     } catch (err) {
