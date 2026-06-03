@@ -8,6 +8,8 @@
     completedJobs = [],
     failedJobs = [],
     onReview,
+    onDismissCompleted,
+    onDismissFailed,
   } = $props();
 
   let now = $state(Date.now());
@@ -57,6 +59,9 @@
         {#if onReview && !job.hideReview}
           <button class="review-btn" onclick={() => onReview?.(job)}>Review</button>
         {/if}
+        {#if job.dismissible && onDismissCompleted}
+          <button class="dismiss" onclick={() => onDismissCompleted?.(job)} title="Dismiss">&times;</button>
+        {/if}
       </div>
     {/each}
     {#each failedJobs as job (job.id)}
@@ -66,6 +71,9 @@
         <span class="step failed">{job.error || job.step || 'Job failed'}</span>
         {#if onReview && !job.hideReview}
           <button class="review-btn" onclick={() => onReview?.(job)}>Review</button>
+        {/if}
+        {#if job.dismissible && onDismissFailed}
+          <button class="dismiss" onclick={() => onDismissFailed?.(job)} title="Dismiss">&times;</button>
         {/if}
       </div>
     {/each}
@@ -191,6 +199,24 @@
   .job-row.failed .review-btn:hover {
     background: #f87171;
     color: #fff;
+  }
+
+  .dismiss {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+  }
+
+  .dismiss:hover {
+    color: #f87171;
+  }
+
+  .job-row.completed .dismiss:hover {
+    color: #4ade80;
   }
 
   .spinner {

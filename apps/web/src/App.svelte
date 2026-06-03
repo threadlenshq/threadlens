@@ -115,10 +115,12 @@
   // Filter job state
   let filterJobs = $state([]);
   let filterJobPollTimer = $state(null);
+  const DISMISSED_FILTER_JOB_IDS_STORAGE_KEY = 'scout:dismissed-filter-job-ids';
+  let dismissedFilterJobIds = $state(new Set());
 
   let runningFilterJobs = $derived(filterJobs.filter(j => j.status === 'running'));
-  let completedFilterJobs = $derived(filterJobs.filter(j => j.status === 'completed'));
-  let failedFilterJobs = $derived(filterJobs.filter(j => j.status === 'failed'));
+  let completedFilterJobs = $derived(filterJobs.filter(j => j.status === 'completed' && !dismissedFilterJobIds.has(j.id)));
+  let failedFilterJobs = $derived(filterJobs.filter(j => j.status === 'failed' && !dismissedFilterJobIds.has(j.id)));
 
   function formatFilterJobResult(result) {
     if (!result) return 'Complete';
@@ -126,8 +128,46 @@
   }
 
   let normalizedRunningFilterJobs = $derived(runningFilterJobs.map(j => ({ ...j, id: `filter-${j.id}`, label: 'Filtering', step: j.step || 'Running...' })));
-  let normalizedCompletedFilterJobs = $derived(completedFilterJobs.map(j => ({ ...j, id: `filter-${j.id}`, label: 'Filtering', step: formatFilterJobResult(j.result), hideReview: true })));
-  let normalizedFailedFilterJobs = $derived(failedFilterJobs.map(j => ({ ...j, id: `filter-${j.id}`, label: 'Filtering', step: j.error || 'Job failed', hideReview: true })));
+  let normalizedCompletedFilterJobs = $derived(completedFilterJobs.map(j => ({ ...j, rawId: j.id, id: `filter-${j.id}`, label: 'Filtering', step: formatFilterJobResult(j.result), hideReview: true, dismissible: true })));
+  let normalizedFailedFilterJobs = $derived(failedFilterJobs.map(j => ({ ...j, rawId: j.id, id: `filter-${j.id}`, label: 'Filtering', step: j.error || 'Job failed', hideReview: true, dismissible: true })));
+
+  function readDismissedFilterJobIds() {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const raw = localStorage.getItem(DISMISSED_FILTER_JOB_IDS_STORAGE_KEY);
+      if (!raw) return new Set();
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return new Set();
+      return new Set(parsed.filter(id => typeof id === 'string' && id.length > 0));
+    } catch {
+      return new Set();
+    }
+  }
+
+  function persistDismissedFilterJobIds() {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(DISMISSED_FILTER_JOB_IDS_STORAGE_KEY, JSON.stringify([...dismissedFilterJobIds]));
+    } catch {
+      // Ignore storage errors (private mode, quota, etc.)
+    }
+  }
+
+  function dismissCompletedFilterJob(job) {
+    const id = job?.rawId || job?.id;
+    if (!id) return;
+    dismissedFilterJobIds.add(id);
+    dismissedFilterJobIds = new Set(dismissedFilterJobIds);
+    persistDismissedFilterJobIds();
+  }
+
+  function dismissFailedFilterJob(job) {
+    const id = job?.rawId || job?.id;
+    if (!id) return;
+    dismissedFilterJobIds.add(id);
+    dismissedFilterJobIds = new Set(dismissedFilterJobIds);
+    persistDismissedFilterJobIds();
+  }
 
   async function fetchFilterJobs() {
     if (!selectedProjectId) {
@@ -888,6 +928,7 @@
   async function initializeApp() {
     if (appInitialized || typeof window === 'undefined') return;
     appInitialized = true;
+    dismissedFilterJobIds = readDismissedFilterJobIds();
     window.addEventListener('popstate', handlePopState);
     await checkOnboarding();
     if (onboardingError || onboardingRequiresSetup) return;
@@ -974,7 +1015,7 @@
     <OnboardingWizard status={onboardingStatus} onStatusReload={handleOnboardingComplete} />
   {:else}
   <ActiveRunBanner runs={activeRuns} {failedRuns} {completedRuns} onDismissFailed={dismissFailedRun} onDismissCompleted={dismissCompletedRun} onCancel={cancelRun} />
-  <TopbarJobBanner runningJobs={[...runningQueryJobs, ...normalizedRunningFilterJobs]} completedJobs={[...completedQueryJobs, ...normalizedCompletedFilterJobs]} failedJobs={[...failedQueryJobs, ...normalizedFailedFilterJobs]} onReview={reviewQueryJob} />
+  <TopbarJobBanner runningJobs={[...runningQueryJobs, ...normalizedRunningFilterJobs]} completedJobs={[...completedQueryJobs, ...normalizedCompletedFilterJobs]} failedJobs={[...failedQueryJobs, ...normalizedFailedFilterJobs]} onReview={reviewQueryJob} onDismissCompleted={dismissCompletedFilterJob} onDismissFailed={dismissFailedFilterJob} />
 
   {#if onboardingShowsExploration}
     <ExplorationChecklist
