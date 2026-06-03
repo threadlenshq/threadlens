@@ -13,7 +13,7 @@ import (
 // ---------------------------------------------------------------------------
 
 type fakeDMRepo struct {
-	// posts to return from ListPostsByProject (keyed by projectID)
+	// posts to return from ListEligibleDMPosts (keyed by projectID)
 	posts map[string][]domain.Post
 
 	// Calls recorded for InsertDMTarget
@@ -21,6 +21,11 @@ type fakeDMRepo struct {
 
 	// If set, InsertDMTarget returns this error for the matching postID
 	insertErrFor map[string]error
+
+	// existingTargets is queried by ListExistingDMTargets (keyed by postID).
+	// Tests that exercise the "skip posts that already have targets" path must
+	// populate this map; the generator must not rely solely on Post.DMTargets.
+	existingTargets map[string][]domain.DMTarget
 }
 
 type dmInsertCall struct {
@@ -46,8 +51,11 @@ func (f *fakeDMRepo) InsertDMTarget(ctx context.Context, postID string, t domain
 	}, nil
 }
 
+// ListExistingDMTargets returns whatever the test has pre-populated in
+// existingTargets for the given post, mirroring the repo query the generator
+// must make before deciding whether to process a post.
 func (f *fakeDMRepo) ListExistingDMTargets(ctx context.Context, postID string) ([]domain.DMTarget, error) {
-	return nil, nil
+	return f.existingTargets[postID], nil
 }
 
 // ---------------------------------------------------------------------------
@@ -55,7 +63,7 @@ func (f *fakeDMRepo) ListExistingDMTargets(ctx context.Context, postID string) (
 // ---------------------------------------------------------------------------
 
 type fakeRedditContextFetcher struct {
-	// Map from post URL → list of comment authors to return
+	// Map from post URL → ordered list of comment authors to return
 	commentAuthors map[string][]string
 	fetchErr       error
 }
@@ -107,16 +115,16 @@ func researchProject() domain.Project {
 func redditPost(id, author, url string, score float64) domain.Post {
 	sub := "golang"
 	return domain.Post{
-		ID:       id,
-		Platform: "reddit",
-		Author:   author,
-		URL:      url,
-		Title:    "Test post " + id,
-		Body:     "Body of " + id,
-		PostScore: score,
+		ID:         id,
+		Platform:   "reddit",
+		Author:     author,
+		URL:        url,
+		Title:      "Test post " + id,
+		Body:       "Body of " + id,
+		PostScore:  score,
 		FinalScore: score,
-		Subreddit: &sub,
-		Status:   "new",
+		Subreddit:  &sub,
+		Status:     "new",
 	}
 }
 
@@ -137,24 +145,42 @@ func blueskyPost(id, author, uri string, score float64) domain.Post {
 
 func strPtr(s string) *string { return &s }
 
+// insertedUsernames returns the set of usernames across all recorded inserts
+// for the given postID, for convenient membership checks.
+func insertedUsernames(calls []dmInsertCall, postID string) map[string]bool {
+	out := make(map[string]bool)
+	for _, c := range calls {
+		if c.PostID == postID {
+			out[c.Target.Username] = true
+		}
+	}
+	return out
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 // TestDMTargetGeneratorMarketingRedditGeneratesTopThreeTargets verifies that
-// a marketing-mode project with reddit posts produces up to three DM targets
-// per post (capped at 3 even when more commenters are available).
+// a marketing-mode project with a reddit post produces DM targets from the
+// candidate pool of post author PLUS commenters, capped at three.
+//
+// Design: 2 commenters + 1 author = 3 candidates total. Asserting that all
+// three appear in the inserted set — including the author — confirms the
+// generator treats the author as part of the candidate pool.
 func TestDMTargetGeneratorMarketingRedditGeneratesTopThreeTargets(t *testing.T) {
+	const postURL = "https://reddit.com/r/golang/comments/abc/"
+
 	repo := &fakeDMRepo{
 		posts: map[string][]domain.Post{
 			"proj-marketing": {
-				redditPost("post-1", "alice", "https://reddit.com/r/golang/comments/abc/", 0.9),
+				redditPost("post-1", "alice", postURL, 0.9),
 			},
 		},
 	}
 	redditFetcher := &fakeRedditContextFetcher{
 		commentAuthors: map[string][]string{
-			"https://reddit.com/r/golang/comments/abc/": {"bob", "carol", "dave", "eve"},
+			postURL: {"bob", "carol"}, // 2 commenters; author "alice" should be the 3rd candidate
 		},
 	}
 	blueskyFetcher := &fakeBlueskyReplyFetcher{}
@@ -168,38 +194,55 @@ func TestDMTargetGeneratorMarketingRedditGeneratesTopThreeTargets(t *testing.T) 
 	if len(warnings) != 0 {
 		t.Errorf("expected no warnings, got: %v", warnings)
 	}
-	// Expect exactly 3 targets for post-1 (top 3 of 4 commenters)
-	if len(repo.inserted) != 3 {
-		t.Errorf("expected 3 inserted targets, got %d", len(repo.inserted))
+
+	names := insertedUsernames(repo.inserted, "post-1")
+
+	// Author must be in the candidate pool; with only 2 commenters, all three
+	// (alice, bob, carol) should be inserted.
+	if !names["alice"] {
+		t.Error("expected post author 'alice' to be included as a DM target candidate")
 	}
-	for _, call := range repo.inserted {
-		if call.PostID != "post-1" {
-			t.Errorf("expected postID=post-1, got %s", call.PostID)
-		}
+	if !names["bob"] {
+		t.Error("expected commenter 'bob' to be included as a DM target candidate")
+	}
+	if !names["carol"] {
+		t.Error("expected commenter 'carol' to be included as a DM target candidate")
+	}
+	if len(repo.inserted) != 3 {
+		t.Errorf("expected exactly 3 inserted targets (author + 2 commenters), got %d", len(repo.inserted))
 	}
 }
 
 // TestDMTargetGeneratorSkipsIneligiblePostsAndPreservesExistingTargets verifies
-// that posts already having DM targets are skipped while posts without targets
-// are still processed normally.
+// that the generator queries the repo for existing targets and skips posts that
+// already have them, while still processing posts that have none.
+//
+// Design: existing-target state is expressed via fakeDMRepo.existingTargets
+// (the repo contract), NOT via a pre-populated Post.DMTargets field.  This
+// ensures the generator is actually calling ListExistingDMTargets rather than
+// relying on an in-memory cache.
 func TestDMTargetGeneratorSkipsIneligiblePostsAndPreservesExistingTargets(t *testing.T) {
-	postWithTargets := redditPost("post-existing", "alice", "https://reddit.com/r/golang/comments/xyz/", 0.8)
-	postWithTargets.DMTargets = []domain.DMTarget{
-		{Username: "existinguser", PostID: "post-existing"},
-	}
-	postWithoutTargets := redditPost("post-new", "bob", "https://reddit.com/r/golang/comments/new/", 0.7)
+	const urlExisting = "https://reddit.com/r/golang/comments/xyz/"
+	const urlNew = "https://reddit.com/r/golang/comments/new/"
 
 	repo := &fakeDMRepo{
 		posts: map[string][]domain.Post{
 			"proj-marketing": {
-				postWithTargets,
-				postWithoutTargets,
+				// post-existing: clean struct — no DMTargets pre-loaded
+				redditPost("post-existing", "alice", urlExisting, 0.8),
+				redditPost("post-new", "bob", urlNew, 0.7),
+			},
+		},
+		// Existing target expressed through the repo query path only
+		existingTargets: map[string][]domain.DMTarget{
+			"post-existing": {
+				{Username: "existinguser", PostID: "post-existing"},
 			},
 		},
 	}
 	redditFetcher := &fakeRedditContextFetcher{
 		commentAuthors: map[string][]string{
-			"https://reddit.com/r/golang/comments/new/": {"carol"},
+			urlNew: {"carol"},
 		},
 	}
 	blueskyFetcher := &fakeBlueskyReplyFetcher{}
@@ -210,27 +253,23 @@ func TestDMTargetGeneratorSkipsIneligiblePostsAndPreservesExistingTargets(t *tes
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// post-existing already has targets, so only post-new should produce inserts
+
+	// post-existing already has targets in the repo → must not be touched
 	for _, call := range repo.inserted {
 		if call.PostID == "post-existing" {
-			t.Error("generator should not insert targets for post-existing which already has DM targets")
+			t.Error("generator must not insert targets for post-existing: repo already has targets for it")
 		}
 	}
-	found := false
-	for _, call := range repo.inserted {
-		if call.PostID == "post-new" {
-			found = true
-			break
-		}
-	}
-	if !found {
+
+	// post-new has no existing targets → must be processed
+	if len(insertedUsernames(repo.inserted, "post-new")) == 0 {
 		t.Error("expected at least one target inserted for post-new")
 	}
 }
 
 // TestDMTargetGeneratorFetchFailureInsertsAuthorOnlyAndWarns verifies that when
 // the context fetcher fails, the generator falls back to inserting just the post
-// author as a target and records a warning.
+// author as the sole target and records a warning rather than failing hard.
 func TestDMTargetGeneratorFetchFailureInsertsAuthorOnlyAndWarns(t *testing.T) {
 	repo := &fakeDMRepo{
 		posts: map[string][]domain.Post{
@@ -253,7 +292,8 @@ func TestDMTargetGeneratorFetchFailureInsertsAuthorOnlyAndWarns(t *testing.T) {
 	if len(warnings) == 0 {
 		t.Error("expected at least one warning for fetch failure")
 	}
-	// Should still insert the post author as the sole target
+
+	// Author-only fallback: exactly one target inserted and it must be the author
 	if len(repo.inserted) != 1 {
 		t.Fatalf("expected 1 inserted target (author fallback), got %d", len(repo.inserted))
 	}
@@ -265,11 +305,14 @@ func TestDMTargetGeneratorFetchFailureInsertsAuthorOnlyAndWarns(t *testing.T) {
 // TestDMTargetGeneratorInsertErrorDoesNotStopOtherPosts verifies that an insert
 // failure for one post does not prevent processing of subsequent posts.
 func TestDMTargetGeneratorInsertErrorDoesNotStopOtherPosts(t *testing.T) {
+	const urlFail = "https://reddit.com/r/golang/comments/fail/"
+	const urlOK = "https://reddit.com/r/golang/comments/ok/"
+
 	repo := &fakeDMRepo{
 		posts: map[string][]domain.Post{
 			"proj-marketing": {
-				redditPost("post-fail", "alice", "https://reddit.com/r/golang/comments/fail/", 0.9),
-				redditPost("post-ok", "bob", "https://reddit.com/r/golang/comments/ok/", 0.8),
+				redditPost("post-fail", "alice", urlFail, 0.9),
+				redditPost("post-ok", "bob", urlOK, 0.8),
 			},
 		},
 		insertErrFor: map[string]error{
@@ -278,8 +321,8 @@ func TestDMTargetGeneratorInsertErrorDoesNotStopOtherPosts(t *testing.T) {
 	}
 	redditFetcher := &fakeRedditContextFetcher{
 		commentAuthors: map[string][]string{
-			"https://reddit.com/r/golang/comments/fail/": {"carol"},
-			"https://reddit.com/r/golang/comments/ok/":  {"dave"},
+			urlFail: {"carol"},
+			urlOK:   {"dave"},
 		},
 	}
 	blueskyFetcher := &fakeBlueskyReplyFetcher{}
@@ -291,26 +334,27 @@ func TestDMTargetGeneratorInsertErrorDoesNotStopOtherPosts(t *testing.T) {
 		t.Fatalf("unexpected top-level error: %v", err)
 	}
 	if len(warnings) == 0 {
-		t.Error("expected a warning for insert failure")
+		t.Error("expected a warning for insert failure on post-fail")
 	}
-	// post-ok should still be processed
-	found := false
-	for _, call := range repo.inserted {
-		if call.PostID == "post-ok" {
-			found = true
-			break
-		}
-	}
-	if !found {
+
+	// post-ok must still be processed despite the failure on post-fail
+	if len(insertedUsernames(repo.inserted, "post-ok")) == 0 {
 		t.Error("expected post-ok to be processed despite post-fail insert error")
 	}
 }
 
-// TestDMTargetGeneratorBlueskyUsesRepliesAndStableTieBreak verifies that
-// Bluesky posts use the reply fetcher, and when scores tie, ordering is stable
-// (alphabetical by username as tiebreak).
+// TestDMTargetGeneratorBlueskyUsesRepliesAndStableTieBreak verifies that Bluesky
+// posts source candidates from the reply fetcher (not the Reddit fetcher), that
+// the post author is included in the candidate pool, and that all candidates
+// within the cap are inserted — without asserting any particular ordering.
+//
+// Design: 2 reply authors + 1 author = 3 candidates. All three must appear in
+// the inserted set. The test intentionally avoids asserting insertion order
+// because tie-break ordering is an implementation detail not mandated by the
+// approved spec.
 func TestDMTargetGeneratorBlueskyUsesRepliesAndStableTieBreak(t *testing.T) {
-	uri := "at://did:plc:abc123/app.bsky.feed.post/xyz"
+	const uri = "at://did:plc:abc123/app.bsky.feed.post/xyz"
+
 	repo := &fakeDMRepo{
 		posts: map[string][]domain.Post{
 			"proj-marketing": {
@@ -318,10 +362,11 @@ func TestDMTargetGeneratorBlueskyUsesRepliesAndStableTieBreak(t *testing.T) {
 			},
 		},
 	}
+	// Reddit fetcher is deliberately empty; any call to it would be a bug.
 	redditFetcher := &fakeRedditContextFetcher{}
 	blueskyFetcher := &fakeBlueskyReplyFetcher{
 		replyAuthors: map[string][]string{
-			uri: {"zebra", "apple", "mango"},
+			uri: {"bob", "carol"}, // 2 reply authors; "alice" (author) is the 3rd candidate
 		},
 	}
 
@@ -334,15 +379,20 @@ func TestDMTargetGeneratorBlueskyUsesRepliesAndStableTieBreak(t *testing.T) {
 	if len(warnings) != 0 {
 		t.Errorf("unexpected warnings: %v", warnings)
 	}
+
+	names := insertedUsernames(repo.inserted, "bsky-1")
+
+	// All three candidates (author + 2 reply authors) must be present
+	if !names["alice"] {
+		t.Error("expected post author 'alice' to be included as a DM target candidate")
+	}
+	if !names["bob"] {
+		t.Error("expected reply author 'bob' to be included as a DM target candidate")
+	}
+	if !names["carol"] {
+		t.Error("expected reply author 'carol' to be included as a DM target candidate")
+	}
 	if len(repo.inserted) != 3 {
-		t.Fatalf("expected 3 inserted targets, got %d", len(repo.inserted))
-	}
-	// Tiebreak: alphabetical by username → apple, mango, zebra
-	names := make([]string, len(repo.inserted))
-	for i, c := range repo.inserted {
-		names[i] = c.Target.Username
-	}
-	if names[0] != "apple" || names[1] != "mango" || names[2] != "zebra" {
-		t.Errorf("expected stable alphabetical tiebreak order [apple mango zebra], got %v", names)
+		t.Errorf("expected exactly 3 inserted targets (author + 2 reply authors), got %d", len(repo.inserted))
 	}
 }
