@@ -422,23 +422,40 @@ func TestPostList_DMFilter_ReturnsOnlyPostsWithTargets(t *testing.T) {
 	// post with a dm_target
 	seedPost(t, repo, "pdm1", "post-with-target")
 	seedDMTarget(t, repo, "post-with-target", "someuser", 8.0)
+	_, err := repo.DB.Exec(`UPDATE posts SET filter_state = 'visible' WHERE id = 'post-with-target'`)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// post without any dm_target
 	seedPost(t, repo, "pdm1", "post-no-target")
 
-	rr := doRequest(t, router, http.MethodGet, "/api/projects/pdm1/posts?dm=true", nil)
+	// filtered post with a target should still be excluded by the visible clause
+	seedPost(t, repo, "pdm1", "post-filtered-target")
+	seedDMTarget(t, repo, "post-filtered-target", "hiddenuser", 9.0)
+	_, err = repo.DB.Exec(`UPDATE posts SET filter_state = 'filtered', filter_reason = 'spam', filter_reasons_json = '["spam"]', filter_explanation = 'test', filter_source = 'rules', filtered_at = datetime('now') WHERE id = 'post-filtered-target'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rr := doRequest(t, router, http.MethodGet, "/api/projects/pdm1/posts?dm=true&page=1&limit=20", nil)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200\nbody: %s", rr.Code, rr.Body.String())
 	}
-	var result []map[string]any
+	var result struct {
+		Items []map[string]any `json:"items"`
+	}
 	if err := json.Unmarshal(rr.Body.Bytes(), &result); err != nil {
-		t.Fatalf("expected array: %s", rr.Body.String())
+		t.Fatalf("expected paginated response: %s", rr.Body.String())
 	}
-	if len(result) != 1 {
-		t.Fatalf("expected 1 post with targets, got %d", len(result))
+	if len(result.Items) != 1 {
+		t.Fatalf("expected 1 visible post with targets, got %d", len(result.Items))
 	}
-	if result[0]["id"] != "post-with-target" {
-		t.Fatalf("expected post-with-target, got %v", result[0]["id"])
+	if result.Items[0]["id"] != "post-with-target" {
+		t.Fatalf("expected post-with-target, got %v", result.Items[0]["id"])
+	}
+	if dmTargets, ok := result.Items[0]["dm_targets"].([]any); !ok || len(dmTargets) != 1 {
+		t.Fatalf("expected attached dm_targets, got %#v", result.Items[0]["dm_targets"])
 	}
 }
 

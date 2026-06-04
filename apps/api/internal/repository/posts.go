@@ -265,8 +265,7 @@ func (r *Repository) CountDMTargets(ctx context.Context, postID string) (int, er
 }
 
 // InsertDMTargets inserts the provided targets for the given post inside a
-// transaction using INSERT OR IGNORE to avoid duplicates. Returns the number
-// of rows actually inserted.
+// transaction. Returns the number of rows actually inserted.
 func (r *Repository) InsertDMTargets(ctx context.Context, postID string, targets []domain.DMTargetInsert) (int64, error) {
 	if len(targets) == 0 {
 		return 0, nil
