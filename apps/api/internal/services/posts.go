@@ -192,7 +192,7 @@ func ParseFilters(q map[string]string) repository.PostFilters {
 			f.MaxScore = &parsed
 		}
 	}
-	if q["dm"] == "true" {
+	if strings.EqualFold(q["dm"], "true") {
 		f.HasDMTargets = true
 	}
 	return f
