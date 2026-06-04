@@ -291,6 +291,65 @@ func (t *rewriteTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	return t.inner.RoundTrip(newReq)
 }
 
+func TestFetchBlueskyReplies_MapsTopLevelReplies(t *testing.T) {
+	var badRequest string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/xrpc/app.bsky.feed.getPostThread", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("uri") != "at://did:plc:abc/app.bsky.feed.post/root" {
+			badRequest = "unexpected uri query: " + r.URL.RawQuery
+		}
+		if r.URL.Query().Get("depth") != "1" {
+			badRequest = "expected depth=1, got " + r.URL.Query().Get("depth")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"thread": map[string]any{
+				"replies": []map[string]any{
+					{
+						"post": map[string]any{
+							"author":    map[string]any{"handle": "first.bsky.social"},
+							"record":    map[string]any{"text": "I need a better tool"},
+							"likeCount": 7,
+							"indexedAt": "2026-06-01T12:00:00Z",
+						},
+					},
+					{
+						"post": map[string]any{
+							"author":    map[string]any{"handle": "second.bsky.social"},
+							"record":    map[string]any{"text": "Does anyone recommend something?"},
+							"likeCount": 2,
+							"indexedAt": "2026-06-02T12:00:00Z",
+						},
+					},
+				},
+			},
+		})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	origClient := blueskyHTTPClient
+	blueskyHTTPClient = &http.Client{Transport: &rewriteTransport{base: srv.URL, inner: http.DefaultTransport}}
+	defer func() { blueskyHTTPClient = origClient }()
+
+	replies, err := FetchBlueskyReplies(context.Background(), "at://did:plc:abc/app.bsky.feed.post/root")
+	if badRequest != "" {
+		t.Fatalf("bad request to handler: %s", badRequest)
+	}
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(replies) != 2 {
+		t.Fatalf("expected 2 replies, got %d", len(replies))
+	}
+	if replies[0].AuthorHandle != "first.bsky.social" || replies[0].Text != "I need a better tool" || replies[0].LikeCount != 7 || replies[0].IndexedAt != "2026-06-01T12:00:00Z" {
+		t.Fatalf("unexpected first reply: %#v", replies[0])
+	}
+	if replies[1].AuthorHandle != "second.bsky.social" || replies[1].Text != "Does anyone recommend something?" || replies[1].LikeCount != 2 || replies[1].IndexedAt != "2026-06-02T12:00:00Z" {
+		t.Fatalf("unexpected second reply: %#v", replies[1])
+	}
+}
+
 func TestPostBlueskyReply_SendsCorrectRequest(t *testing.T) {
 	var capturedBody map[string]interface{}
 	authedDID := "did:plc:authuser"
