@@ -30,6 +30,7 @@ type Runner struct {
 	runs map[int64]context.CancelFunc
 
 	filterClassifier *FilterClassifier
+	dmTargets        *DMTargetGenerator
 
 	// Overridable fetchers for testing.
 	fetchReddit  func(ctx context.Context, queryURLs []string, onProgress func(int, int)) ([]FetchedPost, error)
@@ -54,6 +55,11 @@ func NewRunner(repo *repository.Repository, ai *ai.Service) *Runner {
 	r.scorePosts = func(ctx context.Context, posts []ScoringPost, angles []string, rubric *string, desc *string) (ScoreResult, error) {
 		return ScorePosts(ctx, repo, ai, posts, angles, 15, rubric, desc, nil)
 	}
+	r.dmTargets = NewDMTargetGenerator(
+		repo,
+		RedditDMContextFetcherFunc(FetchRedditContext),
+		BlueskyReplyFetcherFunc(FetchBlueskyReplies),
+	)
 	return r
 }
 
@@ -508,6 +514,11 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 	}
 	postsFound := inserted
 
+	var dmWarnings []string
+	if r.dmTargets != nil {
+		dmWarnings = r.dmTargets.Generate(ctx, project, platform, postsToInsert)
+	}
+
 	// 16. Build warnings text.
 	var warnings []string
 	if scoreResult.Stats.FailedBatches > 0 {
@@ -536,6 +547,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 		warnings = append(warnings,
 			fmt.Sprintf("%d/%d posts had no matching score returned", unmatchedCount, len(filtered)))
 	}
+	warnings = append(warnings, dmWarnings...)
 	var warningsText *string
 	if len(warnings) > 0 {
 		s := strings.Join(warnings, "\n")

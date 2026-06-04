@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -516,4 +517,75 @@ func containsSubstring(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+func TestSocialRunnerGeneratesDMTargetsAfterSuccessfulMarketingRun(t *testing.T) {
+	runner, repo := newTestRunner(t)
+	ctx := context.Background()
+	mkProject(t, repo, "dmrun", "marketing")
+	mkQuery(t, repo, "dmrun", "reddit", "https://reddit.com/q", "pain", true)
+
+	runner.fetchReddit = func(_ context.Context, _ []string, _ func(int, int)) ([]FetchedPost, error) {
+		return []FetchedPost{{
+			ID: "t3_dm", Title: "Need tool", Selftext: "I am frustrated and need a tool", Author: "author", Permalink: "/r/x/comments/dm", URL: "https://www.reddit.com/r/x/comments/dm", Score: 12, NumComments: 3,
+		}}, nil
+	}
+	runner.scorePosts = fakeScorer(map[string]ScoredPost{"t3_dm": scored("t3_dm", 8)})
+	runner.dmTargets = NewDMTargetGenerator(repo, fakeRedditContextFetcher{contexts: map[string]RedditContext{
+		"https://www.reddit.com/r/x/comments/dm": {TopComments: []RedditComment{{Author: "alice", Body: "Can someone recommend a tool?", Score: 4}, {Author: "bob", Body: "I need this too", Score: 3}}},
+	}}, nil)
+
+	runID, _ := repo.CreateScoutRun(ctx, "dmrun", "reddit")
+	res, err := runner.Run(ctx, "dmrun", "reddit", &runID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.PostsChecked != 1 || res.PostsFound != 1 {
+		t.Fatalf("run counts changed by DM generation: checked=%d found=%d", res.PostsChecked, res.PostsFound)
+	}
+	post, err := repo.GetPost(ctx, "dmrun", "t3_dm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(post.DMTargets) != 3 {
+		t.Fatalf("expected 3 generated targets, got %#v", post.DMTargets)
+	}
+	run, _ := repo.GetScoutRun(ctx, "dmrun", runID)
+	if run.Status != "completed" {
+		t.Fatalf("run status = %s, want completed", run.Status)
+	}
+	if run.Warnings != nil && containsStr(*run.Warnings, "DM targets") {
+		t.Fatalf("did not expect DM warnings, got %q", *run.Warnings)
+	}
+}
+
+func TestSocialRunnerDMTargetWarningsDoNotFailRun(t *testing.T) {
+	runner, repo := newTestRunner(t)
+	ctx := context.Background()
+	mkProject(t, repo, "dmwarn", "marketing")
+	mkQuery(t, repo, "dmwarn", "reddit", "https://reddit.com/q", "pain", true)
+
+	runner.fetchReddit = func(_ context.Context, _ []string, _ func(int, int)) ([]FetchedPost, error) {
+		return []FetchedPost{{ID: "t3_warn", Title: "Need tool", Selftext: "I need help", Author: "author", Permalink: "/r/x/comments/warn", URL: "https://www.reddit.com/r/x/comments/warn"}}, nil
+	}
+	runner.scorePosts = fakeScorer(map[string]ScoredPost{"t3_warn": scored("t3_warn", 8)})
+	runner.dmTargets = NewDMTargetGenerator(repo, fakeRedditContextFetcher{errors: map[string]error{
+		"https://www.reddit.com/r/x/comments/warn": errors.New("context timeout"),
+	}}, nil)
+
+	runID, _ := repo.CreateScoutRun(ctx, "dmwarn", "reddit")
+	res, err := runner.Run(ctx, "dmwarn", "reddit", &runID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.PostsFound != 1 {
+		t.Fatalf("postsFound = %d, want 1", res.PostsFound)
+	}
+	run, _ := repo.GetScoutRun(ctx, "dmwarn", runID)
+	if run.Status != "completed" {
+		t.Fatalf("run status = %s, want completed", run.Status)
+	}
+	if run.Warnings == nil || !containsStr(*run.Warnings, "DM targets: t3_warn reddit context fetch failed: context timeout") {
+		t.Fatalf("expected DM warning, got %v", run.Warnings)
+	}
 }
