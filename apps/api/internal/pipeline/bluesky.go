@@ -164,6 +164,54 @@ func PostBlueskyReply(ctx context.Context, handle, appPassword, text, parentURI,
 	return json.RawMessage(body), nil
 }
 
+// FetchBlueskyReplies fetches the top-level replies for a single Bluesky post.
+// It calls app.bsky.feed.getPostThread with depth=1 and maps each reply into
+// a BlueskyReply. No authentication is required for public threads.
+func FetchBlueskyReplies(ctx context.Context, postURI string) ([]BlueskyReply, error) {
+	reqURL := blueskyBaseURL + "/xrpc/app.bsky.feed.getPostThread?uri=" +
+		url.QueryEscape(postURI) + "&depth=1"
+
+	body, err := blueskyFetchWithRetry(ctx, http.MethodGet, reqURL, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("fetch thread: %w", err)
+	}
+
+	var result struct {
+		Thread struct {
+			Replies []struct {
+				Post struct {
+					Author struct {
+						Handle string `json:"handle"`
+					} `json:"author"`
+					Record struct {
+						Text string `json:"text"`
+					} `json:"record"`
+					LikeCount int    `json:"likeCount"`
+					IndexedAt string `json:"indexedAt"`
+				} `json:"post"`
+			} `json:"replies"`
+		} `json:"thread"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("parse thread response: %w", err)
+	}
+
+	replies := make([]BlueskyReply, 0, len(result.Thread.Replies))
+	for _, r := range result.Thread.Replies {
+		// Skip blocked/deleted/not-found reply stubs that carry no author.
+		if r.Post.Author.Handle == "" {
+			continue
+		}
+		replies = append(replies, BlueskyReply{
+			AuthorHandle: r.Post.Author.Handle,
+			Text:         r.Post.Record.Text,
+			LikeCount:    r.Post.LikeCount,
+			IndexedAt:    r.Post.IndexedAt,
+		})
+	}
+	return replies, nil
+}
+
 // FetchBlueskyPosts fetches posts from an array of search query strings.
 // It deduplicates across queries by post URI.
 // Mirrors fetchBlueskyPosts() from apps/api/server/pipeline/bluesky.js.
