@@ -279,6 +279,20 @@ func TestSocialRunnerCancellationBeforeStorage(t *testing.T) {
 	if res.PostsFound != 0 {
 		t.Errorf("expected 0 posts found after cancellation, got %d", res.PostsFound)
 	}
+
+	run, err := repo.GetScoutRun(context.Background(), "proj1", runID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if run.Status != "failed" {
+		t.Fatalf("expected failed status after cancellation, got %q", run.Status)
+	}
+	if run.Error == nil {
+		t.Fatal("expected non-nil run error after cancellation")
+	}
+	if *run.Error != "Cancelled" && *run.Error != context.Canceled.Error() {
+		t.Fatalf("expected cancellation error, got %q", *run.Error)
+	}
 }
 
 // SocialRunnerRedditInsertFields: verifies post row fields match Express column mapping.

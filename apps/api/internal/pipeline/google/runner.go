@@ -7,11 +7,22 @@ import (
 	"math"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/ai"
 	"github.com/kyle/scout/open-core/apps/api/internal/domain"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
 )
+
+const failRunTimeout = 5 * time.Second
+
+func failRun(repo *repository.Repository, runID int64, message string) {
+	failCtx, cancel := context.WithTimeout(context.Background(), failRunTimeout)
+	defer cancel()
+	if err := repo.FailScoutRun(failCtx, runID, message); err != nil {
+		log.Printf("google runner: failed to mark run %d as failed: %v", runID, err)
+	}
+}
 
 // RunResult is the outcome of a Google scout run.
 type RunResult struct {
@@ -460,7 +471,7 @@ func RunGoogleScoutPipeline(
 
 	for i, kw := range rootOrder {
 		if ctx.Err() != nil {
-			_ = repo.FailScoutRun(ctx, runID, "Cancelled")
+			failRun(repo, runID, "Cancelled")
 			return RunResult{RunID: runID}, nil
 		}
 		kwQueries := queriesByRoot[kw]
@@ -481,7 +492,7 @@ func RunGoogleScoutPipeline(
 	var analyzed []normalizedResult
 	for i, item := range searchedResults {
 		if ctx.Err() != nil {
-			_ = repo.FailScoutRun(ctx, runID, "Cancelled")
+			failRun(repo, runID, "Cancelled")
 			return RunResult{RunID: runID}, nil
 		}
 		updateStep(fmt.Sprintf("Analyzing google results (%d/%d)", i+1, len(searchedResults)))

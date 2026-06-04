@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ import (
 )
 
 const pipelineTimeout = 15 * time.Minute
+const failRunTimeout = 5 * time.Second
 
 // Result is the outcome of a scout run.
 type Result struct {
@@ -61,6 +63,14 @@ func NewRunner(repo *repository.Repository, ai *ai.Service) *Runner {
 		BlueskyReplyFetcherFunc(FetchBlueskyReplies),
 	)
 	return r
+}
+
+func (r *Runner) failRun(runID int64, message string) {
+	failCtx, cancel := context.WithTimeout(context.Background(), failRunTimeout)
+	defer cancel()
+	if err := r.Repo.FailScoutRun(failCtx, runID, message); err != nil {
+		log.Printf("runner: failed to mark run %d as failed: %v", runID, err)
+	}
 }
 
 // googleResultFilter returns a google.ResultFilter that delegates to the
@@ -115,7 +125,7 @@ func (r *Runner) Run(ctx context.Context, projectID string, platform string, exi
 	if platform == "google" {
 		project, projErr := r.Repo.GetProject(runCtx, projectID)
 		if projErr != nil {
-			_ = r.Repo.FailScoutRun(ctx, runID, projErr.Error())
+			r.failRun(runID, projErr.Error())
 			return Result{RunID: runID}, fmt.Errorf("project not found: %s", projectID)
 		}
 		provider := google.NewParallelSearchProvider()
@@ -126,7 +136,7 @@ func (r *Runner) Run(ctx context.Context, projectID string, platform string, exi
 		res, err = r.runSocial(runCtx, projectID, platform, runID)
 	}
 	if err != nil {
-		_ = r.Repo.FailScoutRun(ctx, runID, err.Error())
+		r.failRun(runID, err.Error())
 		return Result{RunID: runID}, err
 	}
 	return res, nil
@@ -154,7 +164,7 @@ func (r *Runner) StartAsync(projectID string, platform string, runID int64) {
 		if platform == "google" {
 			project, projErr := r.Repo.GetProject(bgCtx, projectID)
 			if projErr != nil {
-				_ = r.Repo.FailScoutRun(bgCtx, runID, projErr.Error())
+				r.failRun(runID, projErr.Error())
 				return
 			}
 			provider := google.NewParallelSearchProvider()
@@ -163,7 +173,7 @@ func (r *Runner) StartAsync(projectID string, platform string, runID int64) {
 			_, err = r.runSocial(bgCtx, projectID, platform, runID)
 		}
 		if err != nil {
-			_ = r.Repo.FailScoutRun(bgCtx, runID, err.Error())
+			r.failRun(runID, err.Error())
 		}
 	}()
 }
@@ -437,7 +447,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 
 	// 14. Check cancellation before storage.
 	if ctx.Err() != nil {
-		_ = r.Repo.FailScoutRun(ctx, runID, "Cancelled")
+		r.failRun(runID, "Cancelled")
 		return Result{RunID: runID, PostsChecked: postsChecked, PostsFound: 0}, nil
 	}
 
@@ -556,7 +566,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 
 	// 17. Check cancellation again before completing.
 	if ctx.Err() != nil {
-		_ = r.Repo.FailScoutRun(ctx, runID, "Cancelled")
+		r.failRun(runID, "Cancelled")
 		return Result{RunID: runID, PostsChecked: postsChecked, PostsFound: 0}, nil
 	}
 
