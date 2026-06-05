@@ -15,7 +15,7 @@ import (
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
 )
 
-const pipelineTimeout = 15 * time.Minute
+const pipelineTimeout = 30 * time.Minute
 const failRunTimeout = 5 * time.Second
 
 // Result is the outcome of a scout run.
