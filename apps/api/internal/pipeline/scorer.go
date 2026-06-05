@@ -7,6 +7,7 @@ import (
 	"log"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/ai"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
@@ -220,8 +221,14 @@ func ScorePosts(
 	}
 
 	// Retry failed batches once, sequentially.
+	// Use a context independent of the pipeline deadline so that deadline
+	// expiry during the first pass doesn't cascade-cancel all retries.
+	// Each retry gets a generous per-batch timeout of its own.
+	const retryBatchTimeout = 3 * time.Minute
 	for _, fb := range failedBatches {
-		scores, err := scoreBatch(fb.batch)
+		retryCtx, retryCancel := context.WithTimeout(context.Background(), retryBatchTimeout)
+		scores, err := scoreBatch(retryCtx, fb.batch)
+		retryCancel()
 		if err != nil {
 			log.Printf("scorer: batch %d/%d failed after retry - %s", fb.batchIdx+1, len(batches), err.Error())
 			errors = append(errors, fmt.Sprintf("Batch %d: %s", fb.batchIdx+1, err.Error()))
