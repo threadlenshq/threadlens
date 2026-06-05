@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -71,6 +72,17 @@ func (r *Runner) failRun(runID int64, message string) {
 	if err := r.Repo.FailScoutRun(failCtx, runID, message); err != nil {
 		log.Printf("runner: failed to mark run %d as failed: %v", runID, err)
 	}
+}
+
+// ctxErrMessage returns a human-readable failure reason for a cancelled/timed-out
+// context. It distinguishes between a pipeline timeout (DeadlineExceeded) and an
+// explicit user-initiated cancel (Canceled) so the two cases are not both surfaced
+// as "Cancelled" in the UI.
+func ctxErrMessage(ctx context.Context) string {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return fmt.Sprintf("Pipeline timed out after %s", pipelineTimeout)
+	}
+	return "Cancelled"
 }
 
 // googleResultFilter returns a google.ResultFilter that delegates to the
@@ -450,7 +462,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 
 	// 14. Check cancellation before storage.
 	if ctx.Err() != nil {
-		r.failRun(runID, "Cancelled")
+		r.failRun(runID, ctxErrMessage(ctx))
 		return Result{RunID: runID, PostsChecked: postsChecked, PostsFound: 0}, nil
 	}
 
@@ -569,7 +581,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 
 	// 17. Check cancellation again before completing.
 	if ctx.Err() != nil {
-		r.failRun(runID, "Cancelled")
+		r.failRun(runID, ctxErrMessage(ctx))
 		return Result{RunID: runID, PostsChecked: postsChecked, PostsFound: 0}, nil
 	}
 

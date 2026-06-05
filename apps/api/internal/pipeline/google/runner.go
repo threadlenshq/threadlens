@@ -2,6 +2,7 @@ package google
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -22,6 +23,15 @@ func failRun(repo *repository.Repository, runID int64, message string) {
 	if err := repo.FailScoutRun(failCtx, runID, message); err != nil {
 		log.Printf("google runner: failed to mark run %d as failed: %v", runID, err)
 	}
+}
+
+// ctxErrMessage returns a human-readable failure reason for a cancelled/timed-out
+// context, distinguishing pipeline timeout from explicit user cancellation.
+func ctxErrMessage(ctx context.Context) string {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return "Pipeline timed out"
+	}
+	return "Cancelled"
 }
 
 // RunResult is the outcome of a Google scout run.
@@ -471,7 +481,7 @@ func RunGoogleScoutPipeline(
 
 	for i, kw := range rootOrder {
 		if ctx.Err() != nil {
-			failRun(repo, runID, "Cancelled")
+			failRun(repo, runID, ctxErrMessage(ctx))
 			return RunResult{RunID: runID}, nil
 		}
 		kwQueries := queriesByRoot[kw]
@@ -492,7 +502,7 @@ func RunGoogleScoutPipeline(
 	var analyzed []normalizedResult
 	for i, item := range searchedResults {
 		if ctx.Err() != nil {
-			failRun(repo, runID, "Cancelled")
+			failRun(repo, runID, ctxErrMessage(ctx))
 			return RunResult{RunID: runID}, nil
 		}
 		updateStep(fmt.Sprintf("Analyzing google results (%d/%d)", i+1, len(searchedResults)))
