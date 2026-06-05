@@ -618,7 +618,7 @@
     try {
       const params = {};
       if (filterPlatform !== 'all') params.platform = filterPlatform;
-      if (filterStatus !== 'all') params.status = filterStatus;
+      if (filterStatus !== 'all' && !filterDm) params.status = filterStatus;
       if (filterDm) params.dm = 'true';
       if (filterScore === 'lt3') {
         params.max_score = '3';
