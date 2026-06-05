@@ -37,7 +37,7 @@ type Runner struct {
 	// Overridable fetchers for testing.
 	fetchReddit  func(ctx context.Context, queryURLs []string, onProgress func(int, int)) ([]FetchedPost, error)
 	fetchBluesky func(ctx context.Context, queries []string, onProgress func(int, int)) ([]FetchedPost, error)
-	scorePosts   func(ctx context.Context, posts []ScoringPost, angles []string, rubric *string, desc *string) (ScoreResult, error)
+	scorePosts   func(ctx context.Context, posts []ScoringPost, angles []string, rubric *string, desc *string, onProgress func(int, int)) (ScoreResult, error)
 }
 
 // NewRunner creates a new Runner.
@@ -54,8 +54,8 @@ func NewRunner(repo *repository.Repository, ai *ai.Service) *Runner {
 	r.fetchBluesky = func(ctx context.Context, queries []string, onProgress func(int, int)) ([]FetchedPost, error) {
 		return FetchBlueskyPosts(ctx, queries, onProgress)
 	}
-	r.scorePosts = func(ctx context.Context, posts []ScoringPost, angles []string, rubric *string, desc *string) (ScoreResult, error) {
-		return ScorePosts(ctx, repo, ai, posts, angles, 15, rubric, desc, nil)
+	r.scorePosts = func(ctx context.Context, posts []ScoringPost, angles []string, rubric *string, desc *string, onProgress func(int, int)) (ScoreResult, error) {
+		return ScorePosts(ctx, repo, ai, posts, angles, 15, rubric, desc, onProgress)
 	}
 	r.dmTargets = NewDMTargetGenerator(
 		repo,
@@ -394,7 +394,8 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 	}
 
 	// 12. Normalize posts for scorer.
-	_ = r.Repo.UpdateScoutStep(ctx, runID, fmt.Sprintf("Scoring %d posts", len(filtered)))
+	totalToScore := len(filtered)
+	_ = r.Repo.UpdateScoutStep(ctx, runID, fmt.Sprintf("Scoring 0/%d posts", totalToScore))
 	scoringPosts := make([]ScoringPost, len(filtered))
 	for i, p := range filtered {
 		if platform == "reddit" {
@@ -421,7 +422,9 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 		}
 	}
 
-	scoreResult, err := r.scorePosts(ctx, scoringPosts, painAngles, scoringRubric, project.Description)
+	scoreResult, err := r.scorePosts(ctx, scoringPosts, painAngles, scoringRubric, project.Description, func(scored, total int) {
+		_ = r.Repo.UpdateScoutStep(ctx, runID, fmt.Sprintf("Scoring %d/%d posts", scored, total))
+	})
 	if err != nil {
 		return Result{RunID: runID}, err
 	}

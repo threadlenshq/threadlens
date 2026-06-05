@@ -43,8 +43,8 @@ func mkQuery(t *testing.T, repo *repository.Repository, projectID, platform, que
 	return q
 }
 
-func fakeScorer(scores map[string]ScoredPost) func(context.Context, []ScoringPost, []string, *string, *string) (ScoreResult, error) {
-	return func(_ context.Context, posts []ScoringPost, _ []string, _ *string, _ *string) (ScoreResult, error) {
+func fakeScorer(scores map[string]ScoredPost) func(context.Context, []ScoringPost, []string, *string, *string, func(int, int)) (ScoreResult, error) {
+	return func(_ context.Context, posts []ScoringPost, _ []string, _ *string, _ *string, _ func(int, int)) (ScoreResult, error) {
 		var out []ScoredPost
 		for _, p := range posts {
 			if s, ok := scores[p.ID]; ok {
@@ -218,7 +218,7 @@ func TestSocialRunnerWarningsText(t *testing.T) {
 			{ID: "t3_x", Title: "X", Author: "u1", Permalink: "/r/x/1", URL: "https://www.reddit.com/r/x/1"},
 		}, nil
 	}
-	runner.scorePosts = func(_ context.Context, posts []ScoringPost, _ []string, _ *string, _ *string) (ScoreResult, error) {
+	runner.scorePosts = func(_ context.Context, posts []ScoringPost, _ []string, _ *string, _ *string, _ func(int, int)) (ScoreResult, error) {
 		return ScoreResult{
 			Scores: []ScoredPost{scored("t3_x", 5)},
 			Stats: ScoreStats{
@@ -262,7 +262,7 @@ func TestSocialRunnerCancellationBeforeStorage(t *testing.T) {
 			{ID: "t3_x", Title: "X", Author: "u1", Permalink: "/r/x/1", URL: "https://www.reddit.com/r/x/1"},
 		}, nil
 	}
-	runner.scorePosts = func(innerCtx context.Context, posts []ScoringPost, _ []string, _ *string, _ *string) (ScoreResult, error) {
+	runner.scorePosts = func(innerCtx context.Context, posts []ScoringPost, _ []string, _ *string, _ *string, _ func(int, int)) (ScoreResult, error) {
 		// Cancel before we return - simulates cancellation between scoring and storage.
 		cancel()
 		return ScoreResult{
@@ -486,7 +486,7 @@ func TestSocialRunnerAllBatchesFailed(t *testing.T) {
 			{ID: "t3_x", Title: "X", Author: "u1", Permalink: "/r/x/1", URL: "https://www.reddit.com/r/x/1"},
 		}, nil
 	}
-	runner.scorePosts = func(_ context.Context, _ []ScoringPost, _ []string, _ *string, _ *string) (ScoreResult, error) {
+	runner.scorePosts = func(_ context.Context, _ []ScoringPost, _ []string, _ *string, _ *string, _ func(int, int)) (ScoreResult, error) {
 		return ScoreResult{
 			Scores: nil,
 			Stats: ScoreStats{

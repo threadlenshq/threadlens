@@ -124,7 +124,7 @@ func ScorePosts(
 
 	const concurrency = 10
 
-	scoreBatch := func(batch []ScoringPost) ([]ScoredPost, error) {
+	scoreBatch := func(batchCtx context.Context, batch []ScoringPost) ([]ScoredPost, error) {
 		type postData struct {
 			ID          string `json:"id"`
 			Title       string `json:"title"`
@@ -155,7 +155,7 @@ func ScorePosts(
 		}
 		userMessage := "Score these posts:\n" + string(raw)
 
-		response, _, err := aiSvc.GenerateForTask(ctx, "post_scoring", systemPrompt, userMessage)
+		response, _, err := aiSvc.GenerateForTask(batchCtx, "post_scoring", systemPrompt, userMessage)
 		if err != nil {
 			return nil, fmt.Errorf("ai: %w", err)
 		}
@@ -199,7 +199,7 @@ func ScorePosts(
 		results := make(chan batchResult, len(chunk))
 		for i, batch := range chunk {
 			go func(idx int, b []ScoringPost) {
-				scores, err := scoreBatch(b)
+				scores, err := scoreBatch(ctx, b)
 				results <- batchResult{idx: start + idx, scores: scores, err: err}
 			}(i, batch)
 		}
