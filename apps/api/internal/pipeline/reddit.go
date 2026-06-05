@@ -302,7 +302,7 @@ func redditFetchWithRetry(ctx context.Context, fetchURL string) ([]byte, error) 
 	return nil, fmt.Errorf("Reddit fetch failed after retries: %s", fetchURL)
 }
 
-// Kept for tests / FetchRedditContext which uses its own client directly.
+// redditHTTPClient is kept for use in tests.
 var redditHTTPClient = &http.Client{Timeout: 15 * time.Second}
 
 // FetchRedditPosts fetches posts from an array of search query URLs.
@@ -400,30 +400,9 @@ func FetchRedditContext(ctx context.Context, postURL string) (RedditContext, err
 		jsonURL = "https://www.reddit.com" + trimmed + ".json?limit=5&depth=1&sort=top"
 	}
 
-	client, err := redditClient(ctx)
+	body, err := redditFetchWithRetry(ctx, jsonURL)
 	if err != nil {
-		return RedditContext{}, fmt.Errorf("reddit context: session: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, jsonURL, nil)
-	if err != nil {
-		return RedditContext{}, fmt.Errorf("reddit context: build request: %w", err)
-	}
-	redditSetBrowserHeaders(req)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return RedditContext{}, fmt.Errorf("reddit context: fetch: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return RedditContext{}, fmt.Errorf("reddit context: unexpected status %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return RedditContext{}, fmt.Errorf("reddit context: read body: %w", err)
+		return RedditContext{}, fmt.Errorf("reddit context: %w", err)
 	}
 
 	// Reddit returns a 2-element JSON array: [postListing, commentListing].
