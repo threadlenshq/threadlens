@@ -1,5 +1,62 @@
 # Changelog
 
+## 0.7.0 - 2026-06-07
+
+Tag: `threadlens-v0.7.0`
+
+### Features
+
+- feat(pipeline): surface scoring progress in scout step (`9e6340b`)
+- feat: run dm target generation after social storage (`50182ab`)
+- feat(pipeline): implement FetchBlueskyReplies for Bluesky thread reply fetching (`65557f5`)
+- feat: parse dm posts filter (`66c0145`)
+- feat: add HasDMTargets filter, CountDMTargets, InsertDMTargets to post repository (`7bf8d2b`)
+- feat: add deterministic dm target generator (`7d29a01`)
+- feat(pipeline): implement deterministic DM target generator (`8517d20`)
+- feat(domain): add DMTargetInsert struct for repository insertion (`fcc1085`)
+- feat(detail-panel): auto-advance to next post after skip (`0baddc4`)
+- feat: add dismiss to completed/failed filter job banners (`7db1ccf`)
+- feat: wire filtered findings workflow (`3cbeb7c`)
+- feat: add filtered findings owner tab (`6da65d4`)
+- feat: add filter recovery modal (`0023485`)
+- feat: add filtering frontend api labels (`478cad8`)
+- feat: expose owner filtering endpoints (`6af31a3`)
+- feat: filter google findings before reports (`5367ccd`)
+- feat: retain filtered social candidates (`b87f0a8`)
+- feat: hide filtered google results by default (`5f6bdbf`)
+- feat: add filtering repository helpers (trust records, filtered findings, recovery, filter jobs) (`a9164d1`)
+- feat: hide filtered social posts by default (`645c987`)
+- feat: add conservative filter classifier (`cc853df`)
+- feat: persist filter state schema (`c8526e7`)
+- feat(domain): add shared filtering contract types and constants (`8b59bfa`)
+
+### Fixes
+
+- fix(pipeline): distinguish pipeline timeout from user cancel (`b39c9cd`)
+- fix(pipeline): isolate scorer retries from pipeline deadline (`5baafca`)
+- fix(web): suppress status filter when dm=true (`b1330ba`)
+- fix(pipeline): mark failed/cancelled runs even when context is dead (`1250d37`)
+- fix(filter-jobs): show filter banners as ephemeral state — only on transition, auto-dismiss after 8s (`d61dabc`)
+- fix(detail-panel): migrate from createEventDispatcher to Svelte 5 callback props (`93ad3d9`)
+- fix(ui): enable bulk select checkbox and actions for all project modes (`522d11a`)
+
+### Documentation
+
+- docs: explain filtering visibility model (`c0e4a78`)
+
+### Maintenance
+
+- chore(pipeline): extend scout run timeout to 30m (`4778755`)
+- refactor(reddit): use shared fetch helper in FetchRedditContext (`077ada9`)
+- test: cover dm-only posts api param (`c049486`)
+- test: cover bluesky reply candidate fetcher (`f287272`)
+- test: cover dm-only post filter (`cc157cc`)
+- test(pipeline): fix readability issues in DMTargetGenerator tests (`156de1e`)
+- test(pipeline): fix DMTargetGenerator tests for spec alignment (`d2f5ec0`)
+- test(pipeline): add failing DMTargetGenerator unit tests (`c1ab6f6`)
+- test(domain): add post filter metadata and google model field coverage tests (`a351d2c`)
+- refactor: remove stale apps/web source, consolidate to open-core (`3784801`)
+
 ## 0.6.0 - 2026-05-30
 
 Tag: `threadlens-v0.6.0`
