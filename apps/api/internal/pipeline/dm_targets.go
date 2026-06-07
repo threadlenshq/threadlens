@@ -114,7 +114,7 @@ func usernameLooksAutomated(username string) bool {
 }
 
 func looksLikePromotionalSpam(text string) bool {
-	return containsAny(text, []string{"referral link farming", "promo code"}) ||
+	return containsAny(text, []string{"referral link farming", "promo code", "dm me for paid promotion", "paid promotion"}) ||
 		(containsAny(text, []string{"crypto", "airdrop", "giveaway"}) && containsAny(text, []string{"claim now", "referral", "free tokens", "limited time"}))
 }
 

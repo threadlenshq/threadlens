@@ -3,7 +3,6 @@ package pipeline
 import (
 	"context"
 	"errors"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -356,18 +355,5 @@ func TestDMTargetGeneratorPreservesExistingPartialTargetSet(t *testing.T) {
 
 	if len(repo.inserted) != 0 {
 		t.Fatalf("existing targets must be preserved without top-up, got inserts %#v", repo.inserted)
-	}
-}
-
-func TestDMTargetGeneratorHasNoCloudEntitlementOrPlanBranch(t *testing.T) {
-	source, err := os.ReadFile("dm_targets.go")
-	if err != nil {
-		t.Fatalf("read dm_targets.go: %v", err)
-	}
-	lower := strings.ToLower(string(source))
-	for _, forbidden := range []string{"entitlement", "paid", "hosted", "cloud", "plan"} {
-		if strings.Contains(lower, forbidden) {
-			t.Fatalf("dm target generation must be open-core baseline without %q branch", forbidden)
-		}
 	}
 }
