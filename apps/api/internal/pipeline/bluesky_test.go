@@ -351,13 +351,14 @@ func TestFetchBlueskyReplies_MapsTopLevelReplies(t *testing.T) {
 }
 
 func TestFetchBlueskyReplies_MapsTopLevelRepliesAndSkipsDeletedStubs(t *testing.T) {
+	var badRequest string
 	mux := http.NewServeMux()
 	mux.HandleFunc("/xrpc/app.bsky.feed.getPostThread", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("uri") != "at://did:plc:abc/app.bsky.feed.post/root" {
-			t.Fatalf("unexpected uri query: %q", r.URL.Query().Get("uri"))
+			badRequest = "unexpected uri query: " + r.URL.RawQuery
 		}
 		if r.URL.Query().Get("depth") != "1" {
-			t.Fatalf("depth = %q, want 1", r.URL.Query().Get("depth"))
+			badRequest = "depth = " + r.URL.Query().Get("depth") + ", want 1"
 		}
 		json.NewEncoder(w).Encode(map[string]any{"thread": map[string]any{"replies": []any{
 			map[string]any{"post": map[string]any{"author": map[string]any{"handle": "first.bsky.social"}, "record": map[string]any{"text": "I need a tool for this"}, "likeCount": 4, "indexedAt": "2026-06-01T10:00:00Z"}},
@@ -373,6 +374,9 @@ func TestFetchBlueskyReplies_MapsTopLevelRepliesAndSkipsDeletedStubs(t *testing.
 
 	replies, err := FetchBlueskyReplies(context.Background(), "at://did:plc:abc/app.bsky.feed.post/root")
 
+	if badRequest != "" {
+		t.Fatalf("bad request to handler: %s", badRequest)
+	}
 	if err != nil {
 		t.Fatalf("FetchBlueskyReplies: %v", err)
 	}
@@ -381,6 +385,9 @@ func TestFetchBlueskyReplies_MapsTopLevelRepliesAndSkipsDeletedStubs(t *testing.
 	}
 	if replies[0].AuthorHandle != "first.bsky.social" || replies[0].Text != "I need a tool for this" || replies[0].LikeCount != 4 || replies[0].IndexedAt != "2026-06-01T10:00:00Z" {
 		t.Fatalf("unexpected first reply: %#v", replies[0])
+	}
+	if replies[1].AuthorHandle != "second.bsky.social" || replies[1].Text != "Can someone recommend an app?" || replies[1].LikeCount != 2 || replies[1].IndexedAt != "2026-06-01T11:00:00Z" {
+		t.Fatalf("unexpected second reply: %#v", replies[1])
 	}
 }
 
