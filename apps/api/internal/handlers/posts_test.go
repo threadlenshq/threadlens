@@ -392,13 +392,21 @@ func TestPostList_DefaultExcludesFilteredPosts(t *testing.T) {
 	seedPost(t, repo, "pf1", "visible-post")
 	seedPost(t, repo, "pf1", "filtered-post")
 	_, err := repo.DB.Exec(`UPDATE posts SET filter_state = 'filtered', filter_reason = 'spam', filter_reasons_json = '["spam"]', filter_explanation = 'test', filter_source = 'rules', filtered_at = datetime('now') WHERE id = 'filtered-post'`)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	rr := doRequest(t, router, http.MethodGet, "/api/projects/pf1/posts?status=new", nil)
-	if rr.Code != http.StatusOK { t.Fatalf("status = %d", rr.Code) }
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d", rr.Code)
+	}
 	var result []map[string]any
-	if err := json.Unmarshal(rr.Body.Bytes(), &result); err != nil { t.Fatal(err) }
-	if len(result) != 1 || result[0]["id"] != "visible-post" { t.Fatalf("result = %#v", result) }
+	if err := json.Unmarshal(rr.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result) != 1 || result[0]["id"] != "visible-post" {
+		t.Fatalf("result = %#v", result)
+	}
 }
 
 func TestPostGet_FilteredPost_IsStillReachableByID(t *testing.T) {
@@ -406,13 +414,21 @@ func TestPostGet_FilteredPost_IsStillReachableByID(t *testing.T) {
 	seedProject(t, repo, "pf2")
 	seedPost(t, repo, "pf2", "filtered-id-post")
 	_, err := repo.DB.Exec(`UPDATE posts SET filter_state = 'filtered', filter_reason = 'spam', filter_reasons_json = '["spam"]', filter_explanation = 'test', filter_source = 'rules', filtered_at = datetime('now') WHERE id = 'filtered-id-post'`)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	rr := doRequest(t, router, http.MethodGet, "/api/projects/pf2/posts/filtered-id-post", nil)
-	if rr.Code != http.StatusOK { t.Fatalf("status = %d, want 200", rr.Code) }
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
 	var result map[string]any
-	if err := json.Unmarshal(rr.Body.Bytes(), &result); err != nil { t.Fatal(err) }
-	if result["filter_state"] != "filtered" { t.Fatalf("filter_state = %v", result["filter_state"]) }
+	if err := json.Unmarshal(rr.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result["filter_state"] != "filtered" {
+		t.Fatalf("filter_state = %v", result["filter_state"])
+	}
 }
 
 func TestPostList_DMFilter_ReturnsOnlyPostsWithTargets(t *testing.T) {
@@ -456,6 +472,40 @@ func TestPostList_DMFilter_ReturnsOnlyPostsWithTargets(t *testing.T) {
 	}
 	if dmTargets, ok := result.Items[0]["dm_targets"].([]any); !ok || len(dmTargets) != 1 {
 		t.Fatalf("expected attached dm_targets, got %#v", result.Items[0]["dm_targets"])
+	}
+}
+
+func TestPostList_DMFilter_ReturnsOnlyVisiblePostsWithTargets(t *testing.T) {
+	router, repo := newPostRouter(t)
+	seedProject(t, repo, "dmfilter")
+	seedPost(t, repo, "dmfilter", "with-target")
+	seedPost(t, repo, "dmfilter", "without-target")
+	seedPost(t, repo, "dmfilter", "filtered-with-target")
+	seedDMTarget(t, repo, "with-target", "targetuser", 8.5)
+	seedDMTarget(t, repo, "filtered-with-target", "hiddenuser", 9.5)
+	_, err := repo.DB.Exec(`UPDATE posts SET filter_state = 'filtered', filter_reason = 'spam', filter_reasons_json = '["spam"]', filter_explanation = 'test', filter_source = 'rules', filtered_at = datetime('now') WHERE id = 'filtered-with-target'`)
+	if err != nil {
+		t.Fatalf("mark filtered post: %v", err)
+	}
+
+	rr := doRequest(t, router, http.MethodGet, "/api/projects/dmfilter/posts?status=new&dm=true", nil)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", rr.Code, rr.Body.String())
+	}
+	var result []map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode result: %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected exactly one visible post with DM targets, got %#v", result)
+	}
+	if result[0]["id"] != "with-target" {
+		t.Fatalf("expected with-target, got %#v", result[0])
+	}
+	targets, ok := result[0]["dm_targets"].([]any)
+	if !ok || len(targets) != 1 {
+		t.Fatalf("expected one attached dm target, got %#v", result[0]["dm_targets"])
 	}
 }
 
