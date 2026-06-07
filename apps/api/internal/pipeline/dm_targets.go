@@ -77,7 +77,7 @@ func (DMCandidateFilter) Evaluate(profile DMCandidateProfile) DMCandidateFilterR
 
 	penalty := 0.0
 	reasons := []string{}
-	if profile.ProfileCreatedAt != nil && time.Since(*profile.ProfileCreatedAt) <= 48*time.Hour && !containsIntentLanguage(text) {
+	if profile.ProfileCreatedAt != nil && time.Since(*profile.ProfileCreatedAt) >= 0 && time.Since(*profile.ProfileCreatedAt) <= 48*time.Hour && !containsIntentLanguage(text) {
 		penalty += dmStrongPenalty
 		reasons = append(reasons, "very new account without intent language")
 	}
