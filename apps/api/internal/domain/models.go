@@ -49,33 +49,33 @@ type Prompt struct {
 }
 
 type Post struct {
-	ID                string     `json:"id"`
-	ProjectID         string     `json:"project_id"`
-	Platform          string     `json:"platform"`
-	Title             string     `json:"title"`
-	Body              string     `json:"body"`
-	Author            string     `json:"author"`
-	URL               string     `json:"url"`
-	Subreddit         *string    `json:"subreddit"`
-	RedditScore       *int64     `json:"reddit_score"`
-	NumComments       *int64     `json:"num_comments"`
-	LikeCount         *int64     `json:"like_count"`
-	ReplyCount        *int64     `json:"reply_count"`
-	RepostCount       *int64     `json:"repost_count"`
-	BlueskyURI        *string    `json:"bluesky_uri"`
-	BlueskyCID        *string    `json:"bluesky_cid"`
-	PostScore         float64    `json:"post_score"`
-	CommentScore      *float64   `json:"comment_score"`
-	FinalScore        float64    `json:"final_score"`
-	Angle             *string    `json:"angle"`
-	Why               string     `json:"why"`
-	EngagementType    string     `json:"engagement_type"`
-	KarmaTopic        *string    `json:"karma_topic"`
-	TopCommentSignals *string    `json:"top_comment_signals"`
-	Status            string     `json:"status"`
-	DraftComment      *string    `json:"draft_comment"`
-	DraftProvider     *string    `json:"draft_provider"`
-	SignalType        *string    `json:"signal_type"`
+	ID                string         `json:"id"`
+	ProjectID         string         `json:"project_id"`
+	Platform          string         `json:"platform"`
+	Title             string         `json:"title"`
+	Body              string         `json:"body"`
+	Author            string         `json:"author"`
+	URL               string         `json:"url"`
+	Subreddit         *string        `json:"subreddit"`
+	RedditScore       *int64         `json:"reddit_score"`
+	NumComments       *int64         `json:"num_comments"`
+	LikeCount         *int64         `json:"like_count"`
+	ReplyCount        *int64         `json:"reply_count"`
+	RepostCount       *int64         `json:"repost_count"`
+	BlueskyURI        *string        `json:"bluesky_uri"`
+	BlueskyCID        *string        `json:"bluesky_cid"`
+	PostScore         float64        `json:"post_score"`
+	CommentScore      *float64       `json:"comment_score"`
+	FinalScore        float64        `json:"final_score"`
+	Angle             *string        `json:"angle"`
+	Why               string         `json:"why"`
+	EngagementType    string         `json:"engagement_type"`
+	KarmaTopic        *string        `json:"karma_topic"`
+	TopCommentSignals *string        `json:"top_comment_signals"`
+	Status            string         `json:"status"`
+	DraftComment      *string        `json:"draft_comment"`
+	DraftProvider     *string        `json:"draft_provider"`
+	SignalType        *string        `json:"signal_type"`
 	FilterState       string         `json:"filter_state"`
 	FilterReason      *string        `json:"filter_reason"`
 	FilterReasons     []string       `json:"filter_reasons"`
@@ -88,10 +88,10 @@ type Post struct {
 	RecoveredAt       *string        `json:"recovered_at"`
 	RecoveryNote      *string        `json:"recovery_note"`
 	SourceIdentity    SourceIdentity `json:"source_identity"`
-	CreatedAt         *string    `json:"created_at"`
-	FoundAt           string     `json:"found_at"`
-	ScoutedAt         string     `json:"scouted_at"`
-	DMTargets         []DMTarget `json:"dm_targets,omitempty"`
+	CreatedAt         *string        `json:"created_at"`
+	FoundAt           string         `json:"found_at"`
+	ScoutedAt         string         `json:"scouted_at"`
+	DMTargets         []DMTarget     `json:"dm_targets,omitempty"`
 }
 
 type DMTarget struct {
