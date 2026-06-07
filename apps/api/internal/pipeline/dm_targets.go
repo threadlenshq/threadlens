@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -16,6 +17,142 @@ const (
 	dmCandidateLimit  = 5
 	dmSignalMaxLength = 180
 )
+
+type DMCandidateOutcome string
+
+const (
+	DMCandidateExclude  DMCandidateOutcome = "exclude"
+	DMCandidatePenalize DMCandidateOutcome = "penalize"
+	DMCandidateAllow    DMCandidateOutcome = "allow"
+
+	dmStrongPenalty   = 2.0
+	dmModeratePenalty = 1.0
+)
+
+// DMCandidateProfile contains only candidate signals already available in the
+// open-core scout flow or bounded comment and reply fetchers. Missing optional
+// metadata is neutral and must not create a bot, spam, or quality penalty.
+type DMCandidateProfile struct {
+	Platform         string
+	Username         string
+	DisplayName      string
+	Bio              string
+	Text             string
+	Engagement       int
+	CreatedAt        string
+	ProfileCreatedAt *time.Time
+	SourcePriority   int
+}
+
+type DMCandidateFilterResult struct {
+	Outcome DMCandidateOutcome
+	Penalty float64
+	Reason  string
+}
+
+type DMCandidateFilter struct{}
+
+func (DMCandidateFilter) Evaluate(profile DMCandidateProfile) DMCandidateFilterResult {
+	username := normalizeDMUsername(profile.Username)
+	text := strings.TrimSpace(profile.Text)
+	if username == "" {
+		return DMCandidateFilterResult{Outcome: DMCandidateExclude, Reason: "empty username"}
+	}
+	if username == "[deleted]" || username == "deleted" || username == "[removed]" || username == "removed" {
+		return DMCandidateFilterResult{Outcome: DMCandidateExclude, Reason: "deleted or removed identity"}
+	}
+	if text == "" {
+		return DMCandidateFilterResult{Outcome: DMCandidateExclude, Reason: "empty candidate text"}
+	}
+	if usernameLooksAutomated(username) {
+		return DMCandidateFilterResult{Outcome: DMCandidateExclude, Reason: "automation username"}
+	}
+	combined := strings.ToLower(strings.Join([]string{text, profile.DisplayName, profile.Bio}, "\n"))
+	if containsAny(combined, []string{"i am a bot", "automated bot", "auto-generated", "rss feed", "mirror bot", "this account posts automatically"}) {
+		return DMCandidateFilterResult{Outcome: DMCandidateExclude, Reason: "automation self-identification"}
+	}
+	if looksLikePromotionalSpam(combined) {
+		return DMCandidateFilterResult{Outcome: DMCandidateExclude, Reason: "promotional spam"}
+	}
+
+	penalty := 0.0
+	reasons := []string{}
+	if profile.ProfileCreatedAt != nil && time.Since(*profile.ProfileCreatedAt) <= 48*time.Hour && !containsIntentLanguage(text) {
+		penalty += dmStrongPenalty
+		reasons = append(reasons, "very new account without intent language")
+	}
+	profileText := strings.ToLower(strings.TrimSpace(profile.DisplayName + "\n" + profile.Bio))
+	if profileText != "" && containsAny(profileText, []string{"automated", "promo", "promotion", "airdrop", "giveaway"}) {
+		penalty += dmModeratePenalty
+		reasons = append(reasons, "low-confidence profile signal")
+	}
+	if mostlyRepeatedLinksHashtagsMentions(text) {
+		penalty += dmModeratePenalty
+		reasons = append(reasons, "boilerplate link or tag-heavy text")
+	}
+	if penalty > 0 {
+		return DMCandidateFilterResult{Outcome: DMCandidatePenalize, Penalty: penalty, Reason: strings.Join(reasons, "; ")}
+	}
+	return DMCandidateFilterResult{Outcome: DMCandidateAllow}
+}
+
+var nonAlnumRE = regexp.MustCompile(`[^a-z0-9]+`)
+
+func usernameLooksAutomated(username string) bool {
+	lower := strings.ToLower(username)
+	compact := nonAlnumRE.ReplaceAllString(lower, "")
+	punctNormalized := nonAlnumRE.ReplaceAllString(lower, "_")
+	if strings.Contains(lower, "automoderator") || strings.Contains(compact, "automoderator") {
+		return true
+	}
+	for _, token := range []string{"autoposter", "auto_poster", "rssfeed", "rss_feed", "newsbot", "supportbot", "replybot"} {
+		if strings.Contains(lower, token) || strings.Contains(compact, strings.ReplaceAll(token, "_", "")) {
+			return true
+		}
+	}
+	return strings.HasSuffix(lower, "bot") || strings.HasSuffix(punctNormalized, "_bot") || strings.Contains(punctNormalized, "bot_")
+}
+
+func looksLikePromotionalSpam(text string) bool {
+	return containsAny(text, []string{"referral link farming", "promo code", "dm me for paid promotion", "paid promotion"}) ||
+		(containsAny(text, []string{"crypto", "airdrop", "giveaway"}) && containsAny(text, []string{"claim now", "referral", "free tokens", "limited time"}))
+}
+
+func containsIntentLanguage(text string) bool {
+	lower := strings.ToLower(text)
+	return containsAny(lower, []string{"i need", "i'm struggling", "i am struggling", "i want", "i'm looking", "i am looking", "can someone", "does anyone", "recommend", "any suggestions", "tool", "workflow", "problem"})
+}
+
+func mostlyRepeatedLinksHashtagsMentions(text string) bool {
+	fields := strings.Fields(text)
+	if len(fields) < 4 {
+		return false
+	}
+	special := 0
+	substantive := 0
+	seenLinks := map[string]int{}
+	for _, field := range fields {
+		lower := strings.ToLower(strings.Trim(field, ".,;:!?()[]{}\"'"))
+		if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+			special++
+			seenLinks[lower]++
+			continue
+		}
+		if strings.HasPrefix(lower, "#") || strings.HasPrefix(lower, "@") {
+			special++
+			continue
+		}
+		if len(lower) >= 3 {
+			substantive++
+		}
+	}
+	for _, count := range seenLinks {
+		if count >= 2 && substantive > 0 {
+			return true
+		}
+	}
+	return substantive > 0 && float64(special)/float64(special+substantive) >= 0.6
+}
 
 // DMTargetRepository is the persistence surface needed by DMTargetGenerator.
 type DMTargetRepository interface {
