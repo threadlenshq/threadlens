@@ -204,12 +204,9 @@ func NewDMTargetGenerator(repo DMTargetRepository, reddit RedditDMContextFetcher
 }
 
 type dmCandidate struct {
-	username       string
-	text           string
-	engagement     int
-	createdAt      string
-	sourcePriority int
-	intentScore    float64
+	profile     DMCandidateProfile
+	filter      DMCandidateFilterResult
+	intentScore float64
 }
 
 // Generate creates DM targets for eligible posts and returns non-fatal warning lines.
@@ -264,13 +261,14 @@ func dmPostEligible(post domain.Post) bool {
 
 func (g *DMTargetGenerator) buildCandidates(ctx context.Context, platform string, post domain.Post) ([]dmCandidate, []string) {
 	candidates := []dmCandidate{
-		{
-			username:       post.Author,
-			text:           strings.TrimSpace(post.Title + "\n" + post.Body),
-			engagement:     postEngagement(post),
-			createdAt:      stringPtrValue(post.CreatedAt),
-			sourcePriority: 0,
-		},
+		{profile: DMCandidateProfile{
+			Platform:       platform,
+			Username:       post.Author,
+			Text:           strings.TrimSpace(post.Title + "\n" + post.Body),
+			Engagement:     postEngagement(post),
+			CreatedAt:      stringPtrValue(post.CreatedAt),
+			SourcePriority: 0,
+		}},
 	}
 	var warnings []string
 
@@ -288,13 +286,17 @@ func (g *DMTargetGenerator) buildCandidates(ctx context.Context, platform string
 			if i >= dmCandidateLimit {
 				break
 			}
-			candidates = append(candidates, dmCandidate{username: comment.Author, text: comment.Body, engagement: comment.Score, sourcePriority: 1})
+			candidates = append(candidates, dmCandidate{profile: DMCandidateProfile{Platform: platform, Username: comment.Author, Text: comment.Body, Engagement: comment.Score, SourcePriority: 1}})
 		}
 	case "bluesky":
 		if g.bluesky == nil {
 			return candidates, warnings
 		}
-		replies, err := g.bluesky.FetchBlueskyReplies(ctx, post.ID)
+		postURI := post.ID
+		if post.BlueskyURI != nil && strings.TrimSpace(*post.BlueskyURI) != "" {
+			postURI = *post.BlueskyURI
+		}
+		replies, err := g.bluesky.FetchBlueskyReplies(ctx, postURI)
 		if err != nil {
 			warnings = append(warnings, fmt.Sprintf("DM targets: %s bluesky replies fetch failed: %s", post.ID, err.Error()))
 			return candidates, warnings
@@ -303,27 +305,29 @@ func (g *DMTargetGenerator) buildCandidates(ctx context.Context, platform string
 			if i >= dmCandidateLimit {
 				break
 			}
-			candidates = append(candidates, dmCandidate{username: reply.AuthorHandle, text: reply.Text, engagement: reply.LikeCount, createdAt: reply.IndexedAt, sourcePriority: 1})
+			candidates = append(candidates, dmCandidate{profile: DMCandidateProfile{Platform: platform, Username: reply.AuthorHandle, Text: reply.Text, Engagement: reply.LikeCount, CreatedAt: reply.IndexedAt, SourcePriority: 1}})
 		}
 	}
 	return candidates, warnings
 }
 
 func targetsFromCandidates(post domain.Post, candidates []dmCandidate) []domain.DMTargetInsert {
+	filter := DMCandidateFilter{}
 	bestByUser := map[string]dmCandidate{}
 	for _, candidate := range candidates {
-		candidate.username = cleanUsername(candidate.username)
-		candidate.text = strings.TrimSpace(candidate.text)
-		if !validDMCandidate(candidate) {
+		candidate.profile.Username = cleanUsername(candidate.profile.Username)
+		candidate.profile.Text = strings.TrimSpace(candidate.profile.Text)
+		candidate.filter = filter.Evaluate(candidate.profile)
+		if candidate.filter.Outcome == DMCandidateExclude {
 			continue
 		}
 		base := post.FinalScore
-		if candidate.sourcePriority > 0 {
+		if candidate.profile.SourcePriority > 0 {
 			base = post.FinalScore - 1
 		}
-		candidate.intentScore = scoreDMCandidate(base, candidate.text, candidate.engagement, candidate.createdAt)
-		key := normalizeDMUsername(candidate.username)
-		if existing, ok := bestByUser[key]; !ok || candidate.intentScore > existing.intentScore {
+		candidate.intentScore = scoreDMCandidate(base, candidate.profile, candidate.filter.Penalty)
+		key := normalizeDMUsername(candidate.profile.Username)
+		if existing, ok := bestByUser[key]; !ok || candidate.intentScore > existing.intentScore || (candidate.intentScore == existing.intentScore && candidate.profile.SourcePriority < existing.profile.SourcePriority) {
 			bestByUser[key] = candidate
 		}
 	}
@@ -336,10 +340,10 @@ func targetsFromCandidates(post domain.Post, candidates []dmCandidate) []domain.
 		if ranked[i].intentScore != ranked[j].intentScore {
 			return ranked[i].intentScore > ranked[j].intentScore
 		}
-		if ranked[i].sourcePriority != ranked[j].sourcePriority {
-			return ranked[i].sourcePriority < ranked[j].sourcePriority
+		if ranked[i].profile.SourcePriority != ranked[j].profile.SourcePriority {
+			return ranked[i].profile.SourcePriority < ranked[j].profile.SourcePriority
 		}
-		return strings.ToLower(ranked[i].username) < strings.ToLower(ranked[j].username)
+		return strings.ToLower(ranked[i].profile.Username) < strings.ToLower(ranked[j].profile.Username)
 	})
 
 	limit := dmTargetLimit
@@ -349,10 +353,10 @@ func targetsFromCandidates(post domain.Post, candidates []dmCandidate) []domain.
 	targets := make([]domain.DMTargetInsert, 0, limit)
 	for _, candidate := range ranked[:limit] {
 		targets = append(targets, domain.DMTargetInsert{
-			Username:    candidate.username,
+			Username:    candidate.profile.Username,
 			IntentScore: candidate.intentScore,
-			Signal:      truncateDMText(candidate.text, dmSignalMaxLength),
-			Context:     fmt.Sprintf("%s showed relevant pain or buying intent around this %s discussion.", candidate.username, post.Platform),
+			Signal:      truncateDMText(candidate.profile.Text, dmSignalMaxLength),
+			Context:     fmt.Sprintf("%s showed relevant pain or buying intent around this %s discussion.", candidate.profile.Username, post.Platform),
 			Approach:    "Open with the specific pain they described and ask whether solving that workflow is still a priority.",
 			DMStatus:    "new",
 		})
@@ -360,20 +364,9 @@ func targetsFromCandidates(post domain.Post, candidates []dmCandidate) []domain.
 	return targets
 }
 
-func validDMCandidate(candidate dmCandidate) bool {
-	username := normalizeDMUsername(candidate.username)
-	if username == "" || username == "[deleted]" || username == "deleted" || username == "[removed]" || username == "removed" {
-		return false
-	}
-	if strings.Contains(username, "automoderator") || strings.HasSuffix(username, "bot") {
-		return false
-	}
-	return strings.TrimSpace(candidate.text) != ""
-}
-
-func scoreDMCandidate(base float64, text string, engagement int, createdAt string) float64 {
+func scoreDMCandidate(base float64, profile DMCandidateProfile, penalty float64) float64 {
 	score := clampDMScore(base)
-	lower := strings.ToLower(text)
+	lower := strings.ToLower(profile.Text)
 	if containsAny(lower, []string{"i need", "i'm struggling", "i am struggling", "i hate", "i can't", "i cannot", "my problem"}) {
 		score += 0.5
 	}
@@ -386,34 +379,11 @@ func scoreDMCandidate(base float64, text string, engagement int, createdAt strin
 	if containsAny(lower, []string{"frustrated", "annoying", "pain", "broken", "waste of time", "workaround"}) {
 		score += 0.5
 	}
-	if engagement > 0 {
-		score += math.Min(0.5, float64(engagement)/20.0)
+	if profile.Engagement > 0 {
+		score += math.Min(0.5, float64(profile.Engagement)/20.0)
 	}
-	if bonus := recencyBonus(createdAt); bonus > 0 {
-		score += bonus
-	}
+	score -= penalty
 	return clampDMScore(score)
-}
-
-func recencyBonus(createdAt string) float64 {
-	if strings.TrimSpace(createdAt) == "" {
-		return 0
-	}
-	parsed, err := time.Parse(time.RFC3339, createdAt)
-	if err != nil {
-		return 0
-	}
-	age := time.Since(parsed)
-	if age < 0 {
-		age = 0
-	}
-	if age <= 7*24*time.Hour {
-		return 0.25
-	}
-	if age <= 30*24*time.Hour {
-		return 0.1
-	}
-	return 0
 }
 
 func postEngagement(post domain.Post) int {
