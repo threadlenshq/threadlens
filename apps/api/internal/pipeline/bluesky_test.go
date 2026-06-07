@@ -350,6 +350,40 @@ func TestFetchBlueskyReplies_MapsTopLevelReplies(t *testing.T) {
 	}
 }
 
+func TestFetchBlueskyReplies_MapsTopLevelRepliesAndSkipsDeletedStubs(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/xrpc/app.bsky.feed.getPostThread", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("uri") != "at://did:plc:abc/app.bsky.feed.post/root" {
+			t.Fatalf("unexpected uri query: %q", r.URL.Query().Get("uri"))
+		}
+		if r.URL.Query().Get("depth") != "1" {
+			t.Fatalf("depth = %q, want 1", r.URL.Query().Get("depth"))
+		}
+		json.NewEncoder(w).Encode(map[string]any{"thread": map[string]any{"replies": []any{
+			map[string]any{"post": map[string]any{"author": map[string]any{"handle": "first.bsky.social"}, "record": map[string]any{"text": "I need a tool for this"}, "likeCount": 4, "indexedAt": "2026-06-01T10:00:00Z"}},
+			map[string]any{"post": map[string]any{"author": map[string]any{"handle": ""}, "record": map[string]any{"text": "deleted"}}},
+			map[string]any{"post": map[string]any{"author": map[string]any{"handle": "second.bsky.social"}, "record": map[string]any{"text": "Can someone recommend an app?"}, "likeCount": 2, "indexedAt": "2026-06-01T11:00:00Z"}},
+		}}})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	origClient := blueskyHTTPClient
+	blueskyHTTPClient = &http.Client{Transport: &rewriteTransport{base: srv.URL, inner: http.DefaultTransport}}
+	defer func() { blueskyHTTPClient = origClient }()
+
+	replies, err := FetchBlueskyReplies(context.Background(), "at://did:plc:abc/app.bsky.feed.post/root")
+
+	if err != nil {
+		t.Fatalf("FetchBlueskyReplies: %v", err)
+	}
+	if len(replies) != 2 {
+		t.Fatalf("expected 2 non-deleted replies, got %#v", replies)
+	}
+	if replies[0].AuthorHandle != "first.bsky.social" || replies[0].Text != "I need a tool for this" || replies[0].LikeCount != 4 || replies[0].IndexedAt != "2026-06-01T10:00:00Z" {
+		t.Fatalf("unexpected first reply: %#v", replies[0])
+	}
+}
+
 func TestPostBlueskyReply_SendsCorrectRequest(t *testing.T) {
 	var capturedBody map[string]interface{}
 	authedDID := "did:plc:authuser"
