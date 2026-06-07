@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/domain"
 )
@@ -248,5 +249,76 @@ func TestDMTargetGeneratorBlueskyUsesRepliesAndStableTieBreak(t *testing.T) {
 	}
 	if targets[1].Username != "alpha.bsky.social" || targets[2].Username != "zeta.bsky.social" {
 		t.Fatalf("reply tie should sort by username, got %#v", targets)
+	}
+}
+
+func TestDMCandidateFilterHardExcludesClearBotsAutomationAndSpam(t *testing.T) {
+	filter := DMCandidateFilter{}
+	cases := []DMCandidateProfile{
+		{Platform: "reddit", Username: "[deleted]", Text: "I need help"},
+		{Platform: "reddit", Username: "AutoModerator", Text: "I need help"},
+		{Platform: "bluesky", Username: "updates-bot", Text: "I need help"},
+		{Platform: "bluesky", Username: "rss_feed_daily", Text: "I need help"},
+		{Platform: "reddit", Username: "human", Text: "I am a bot that mirrors posts automatically"},
+		{Platform: "reddit", Username: "human", Text: "Crypto airdrop giveaway referral link claim now"},
+		{Platform: "reddit", Username: "human", DisplayName: "Mirror Bot", Text: "I need help"},
+	}
+
+	for _, tc := range cases {
+		result := filter.Evaluate(tc)
+		if result.Outcome != DMCandidateExclude {
+			t.Fatalf("Evaluate(%#v) outcome = %q, want %q", tc, result.Outcome, DMCandidateExclude)
+		}
+	}
+}
+
+func TestDMCandidateFilterDoesNotExcludeGenericBusinessTopics(t *testing.T) {
+	filter := DMCandidateFilter{}
+	profile := DMCandidateProfile{
+		Platform:    "bluesky",
+		Username:    "founder.bsky.social",
+		DisplayName: "Startup Automation Consultant",
+		Bio:         "I write about marketing software and crypto payment tooling.",
+		Text:        "I need a better workflow for tracking replies from prospects.",
+	}
+
+	result := filter.Evaluate(profile)
+
+	if result.Outcome == DMCandidateExclude {
+		t.Fatalf("generic business terms must not exclude candidate: %#v", result)
+	}
+}
+
+func TestDMCandidateFilterMissingMetadataIsNeutral(t *testing.T) {
+	filter := DMCandidateFilter{}
+	profile := DMCandidateProfile{Platform: "reddit", Username: "real_user", Text: "I need a better tool for this workflow"}
+
+	result := filter.Evaluate(profile)
+
+	if result.Outcome != DMCandidateAllow {
+		t.Fatalf("missing display name, bio, age, timestamps, and engagement should be neutral, got %#v", result)
+	}
+	if result.Penalty != 0 {
+		t.Fatalf("missing metadata penalty = %v, want 0", result.Penalty)
+	}
+}
+
+func TestDMCandidateFilterSoftPenaltiesRequireReliableSignals(t *testing.T) {
+	filter := DMCandidateFilter{}
+	newAccountAt := time.Now().UTC().Add(-12 * time.Hour)
+	cases := []DMCandidateProfile{
+		{Platform: "bluesky", Username: "newuser.bsky.social", Text: "Interesting update", ProfileCreatedAt: &newAccountAt},
+		{Platform: "reddit", Username: "promo_person", DisplayName: "Promo Writer", Text: "I need a tool for organizing outreach"},
+		{Platform: "reddit", Username: "link_person", Text: "This is useful https://a.example https://b.example #sales @team"},
+	}
+
+	for _, tc := range cases {
+		result := filter.Evaluate(tc)
+		if result.Outcome != DMCandidatePenalize {
+			t.Fatalf("Evaluate(%#v) outcome = %q, want %q", tc, result.Outcome, DMCandidatePenalize)
+		}
+		if result.Penalty <= 0 {
+			t.Fatalf("Evaluate(%#v) penalty = %v, want positive", tc, result.Penalty)
+		}
 	}
 }
