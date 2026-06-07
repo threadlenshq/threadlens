@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -319,6 +320,54 @@ func TestDMCandidateFilterSoftPenaltiesRequireReliableSignals(t *testing.T) {
 		}
 		if result.Penalty <= 0 {
 			t.Fatalf("Evaluate(%#v) penalty = %v, want positive", tc, result.Penalty)
+		}
+	}
+}
+
+func TestDMTargetGeneratorInsertsFewerThanThreeWhenOnlyValidCandidatesExist(t *testing.T) {
+	repo := newFakeDMRepo()
+	post := redditPost("t3_two", 7)
+	fetcher := fakeRedditContextFetcher{contexts: map[string]RedditContext{
+		post.URL: {TopComments: []RedditComment{{Author: "helper", Body: "I need this too", Score: 2}, {Author: "automoderator", Body: "removed", Score: 100}}},
+	}}
+	generator := NewDMTargetGenerator(repo, fetcher, nil)
+
+	warnings := generator.Generate(context.Background(), marketingProject(), "reddit", []domain.Post{post})
+
+	if len(warnings) != 0 {
+		t.Fatalf("expected no warnings, got %v", warnings)
+	}
+	targets := repo.inserted[post.ID]
+	if len(targets) != 2 {
+		t.Fatalf("expected author plus one valid commenter, got %#v", targets)
+	}
+}
+
+func TestDMTargetGeneratorPreservesExistingPartialTargetSet(t *testing.T) {
+	repo := newFakeDMRepo()
+	repo.existing["t3_partial"] = 2
+	post := redditPost("t3_partial", 9)
+	fetcher := fakeRedditContextFetcher{contexts: map[string]RedditContext{
+		post.URL: {TopComments: []RedditComment{{Author: "a", Body: "I need this", Score: 2}, {Author: "b", Body: "I want this", Score: 2}, {Author: "c", Body: "I need this too", Score: 2}}},
+	}}
+	generator := NewDMTargetGenerator(repo, fetcher, nil)
+
+	generator.Generate(context.Background(), marketingProject(), "reddit", []domain.Post{post})
+
+	if len(repo.inserted) != 0 {
+		t.Fatalf("existing targets must be preserved without top-up, got inserts %#v", repo.inserted)
+	}
+}
+
+func TestDMTargetGeneratorHasNoCloudEntitlementOrPlanBranch(t *testing.T) {
+	source, err := os.ReadFile("dm_targets.go")
+	if err != nil {
+		t.Fatalf("read dm_targets.go: %v", err)
+	}
+	lower := strings.ToLower(string(source))
+	for _, forbidden := range []string{"entitlement", "paid", "hosted", "cloud", "plan"} {
+		if strings.Contains(lower, forbidden) {
+			t.Fatalf("dm target generation must be open-core baseline without %q branch", forbidden)
 		}
 	}
 }
