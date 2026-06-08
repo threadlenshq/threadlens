@@ -118,7 +118,7 @@ write_config() {
   "type": "http-localhost",
   "url": "${HOST_URL}",
   "tokenFile": "${TOKEN_FILE}",
-  "runtimes": ["copilot", "claude-cli"]
+  "runtimes": ["copilot", "claude-cli", "opencode"]
 }
 EOF
   log "Wrote $CONFIG_FILE"
