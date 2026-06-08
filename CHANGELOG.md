@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.8.0 - 2026-06-08
+
+Tag: `threadlens-v0.8.0`
+
+### Features
+
+- feat: fetch bluesky replies for dm targets (`cd13e27`)
+- feat: support dm target post filtering (`163ea3f`)
+- feat: apply dm candidate filter to ranking (`7efe28e`)
+- feat: add deterministic dm candidate filter (`de407a0`)
+
+### Fixes
+
+- fix(web): include projectId in DM draft API URLs (`e3ed67d`)
+- fix(pipeline): authenticate bluesky getPostThread to avoid 401 on restricted posts (`caaf8f2`)
+- fix(ai-bridge): restart broken daemons at boot and retry transient failures (`16bad83`)
+- fix: use safe handler assertion pattern and add second reply check in bluesky reply test (`2390b7c`)
+- fix(test): restore paid-promotion spam filter and remove brittle source-scan guardrail (`cee1b1f`)
+- fix: guard against future-dated ProfileCreatedAt in dm candidate filter (`2aaf87e`)
+
+### Maintenance
+
+- test: validate dm target generation workflow (`d59843a`)
+- test: cover dm target generation preservation rules (`c3e73c5`)
+- test: cover deterministic dm candidate filter (`99fa521`)
+
 ## 0.7.0 - 2026-06-07
 
 Tag: `threadlens-v0.7.0`
