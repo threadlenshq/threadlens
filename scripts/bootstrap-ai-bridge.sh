@@ -21,6 +21,11 @@ TOKEN_DIR="${XDG_CONFIG}/scout"
 TOKEN_FILE="${TOKEN_DIR}/ai-bridge.token"
 CONFIG_FILE="${TOKEN_DIR}/ai-bridge.json"
 
+# XDG state directory for PID tracking
+XDG_STATE="${XDG_STATE_HOME:-${HOME}/.local/state}"
+STATE_DIR="${XDG_STATE}/scout"
+PID_FILE="${STATE_DIR}/ai-bridge.pid"
+
 ENV_FILE="${ROOT_DIR}/.env"
 ENV_EXAMPLE="${ROOT_DIR}/.env.example"
 
@@ -167,6 +172,23 @@ bridge_has_available_runtime() {
   return 1
 }
 
+write_pid() { printf '%s\n' "$1" > "$PID_FILE"; }
+read_pid() { [[ -f "$PID_FILE" ]] && cat "$PID_FILE" || echo ''; }
+pid_alive() { local p; p="$(read_pid)"; [[ -n "$p" ]] && kill -0 "$p" 2>/dev/null; }
+
+kill_bridge_on_port() {
+  local port_pid
+  if command -v lsof >/dev/null 2>&1; then
+    port_pid="$(lsof -ti ":${BRIDGE_PORT}" 2>/dev/null || true)"
+  elif command -v fuser >/dev/null 2>&1; then
+    port_pid="$(fuser "${BRIDGE_PORT}/tcp" 2>/dev/null || true)"
+  fi
+  if [[ -n "$port_pid" ]]; then
+    kill $port_pid 2>/dev/null || true
+    sleep 1
+  fi
+}
+
 build_binary() {
   local bin_dir="${ROOT_DIR}/bin"
   mkdir -p "$bin_dir"
@@ -186,9 +208,34 @@ start_daemon() {
   local token
   token="$(cat "$TOKEN_FILE" 2>/dev/null || echo '')"
 
-  if health_ok; then
-    log "AI bridge already running at ${HOST_URL}"
+  # Bridge is fully healthy: responding AND has at least one working runtime.
+  if bridge_has_available_runtime; then
+    log "AI bridge already running at ${HOST_URL} with available runtimes"
     return 0
+  fi
+
+  # Bridge responds to health but has no working runtimes — process is alive but
+  # broken (e.g. CLI auth expired after a restart).  Kill and restart it.
+  if health_ok; then
+    log "Bridge running but no available runtimes; restarting..."
+    local managed_pid
+    managed_pid="$(read_pid)"
+    if [[ -n "$managed_pid" ]] && kill -0 "$managed_pid" 2>/dev/null; then
+      kill "$managed_pid" 2>/dev/null || true
+      sleep 1
+    fi
+    if health_ok; then
+      kill_bridge_on_port
+    fi
+  fi
+
+  # Stale PID file (process dead but port might be used by something else).
+  if pid_alive && ! health_ok; then
+    log "Stale bridge PID found; cleaning up..."
+    local old_pid
+    old_pid="$(read_pid)"
+    kill "$old_pid" 2>/dev/null || true
+    sleep 1
   fi
 
   # Try to build if binary not present
@@ -201,11 +248,15 @@ start_daemon() {
     return 0
   fi
 
+  mkdir -p "$STATE_DIR"
+
   SCOUT_AI_BRIDGE_BIND="127.0.0.1:${BRIDGE_PORT}" \
   SCOUT_AI_BRIDGE_TOKEN="$token" \
     "$binary" &>/dev/null &
-  disown $! 2>/dev/null || true
-  log "Started scout-ai-bridge (pid $!)"
+  local daemon_pid=$!
+  disown $daemon_pid 2>/dev/null || true
+  write_pid "$daemon_pid"
+  log "Started scout-ai-bridge (pid $daemon_pid)"
 
   # Best-effort health check (up to 5 seconds)
   local i=0

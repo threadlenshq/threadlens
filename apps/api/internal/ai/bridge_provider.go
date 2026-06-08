@@ -109,6 +109,7 @@ func (p *BridgeProvider) Generate(ctx context.Context, model string, systemPromp
 // sending the explicit provider tag (e.g. "copilot", "claude-cli") in the request body.
 // Returns a trimmed non-empty text response, or an error.
 // Failures are transient — the bridge is not marked as permanently unavailable.
+// One automatic retry is attempted for connection-level errors.
 func (p *BridgeProvider) GenerateWithProvider(ctx context.Context, provider string, model string, systemPrompt string, userMessage string, timeout time.Duration) (string, error) {
 	state, err := p.stateFn()
 	if err != nil {
@@ -118,16 +119,70 @@ func (p *BridgeProvider) GenerateWithProvider(ctx context.Context, provider stri
 		return "", fmt.Errorf("bridge: not available (enabled=%v, detected=%v)", state.Enabled, state.Detected)
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
+	const maxAttempts = 2
+	const retryDelay = 500 * time.Millisecond
 
-	// Health check.
-	if err := p.checkHealth(timeoutCtx, state, provider); err != nil {
-		return "", fmt.Errorf("bridge: health check failed: %w", err)
+	var lastErr error
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+		result, err := p.tryGenerate(timeoutCtx, state, provider, model, systemPrompt, userMessage, timeout)
+		cancel()
+
+		if err == nil {
+			return result, nil
+		}
+
+		lastErr = err
+
+		// Only retry connection errors (health check or HTTP transport failures).
+		// Don't retry auth failures, unknown providers, or empty responses —
+		// those won't fix themselves.
+		if !isRetriable(err) {
+			break
+		}
+
+		// Check parent context before sleeping.
+		if ctx.Err() != nil {
+			break
+		}
+
+		timer := time.NewTimer(retryDelay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			break
+		case <-timer.C:
+		}
 	}
 
-	// Generation.
-	return p.callGenerate(timeoutCtx, state, provider, model, systemPrompt, userMessage, timeout)
+	return "", lastErr
+}
+
+// tryGenerate performs a single health-check + generate cycle against the bridge.
+func (p *BridgeProvider) tryGenerate(ctx context.Context, state BridgeState, provider, model, systemPrompt, userMessage string, timeout time.Duration) (string, error) {
+	if err := p.checkHealth(ctx, state, provider); err != nil {
+		return "", fmt.Errorf("bridge: health check failed: %w", err)
+	}
+	return p.callGenerate(ctx, state, provider, model, systemPrompt, userMessage, timeout)
+}
+
+// isRetriable reports whether a bridge error is worth retrying.
+// Connection errors and transient HTTP-level failures are retriable;
+// auth errors, unknown providers, and empty responses are not.
+func isRetriable(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	// Don't retry errors that won't self-correct.
+	if strings.Contains(msg, "unavailable for provider") ||
+		strings.Contains(msg, "unknown runtime") ||
+		strings.Contains(msg, "empty response") ||
+		strings.Contains(msg, "not authenticated") ||
+		strings.Contains(msg, "unauthorized") {
+		return false
+	}
+	return true
 }
 
 // checkHealth calls GET /v1/health with bearer auth and returns an error if unhealthy.

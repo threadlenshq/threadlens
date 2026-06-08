@@ -188,19 +188,29 @@ func TestBridgeProvider_HealthCheckFailDoesNotPermanentlyDisable(t *testing.T) {
 
 	p := newBridgeProviderForTest(BridgeState{Enabled: true, Detected: true, URL: srv.URL, Token: "tok"})
 
-	// First call: health check fails → error
-	_, err1 := p.Generate(context.Background(), "model", "sys", "msg", 5*time.Second)
-	if err1 == nil {
-		t.Fatal("expected error on first call when health fails")
-	}
-
-	// Second call: health check succeeds → should work (bridge not permanently disabled)
-	result, err2 := p.Generate(context.Background(), "model", "sys", "msg", 5*time.Second)
-	if err2 != nil {
-		t.Fatalf("expected second call to succeed, got: %v", err2)
+	// First call: health check fails on first attempt, but the retry salvages it.
+	result, err1 := p.Generate(context.Background(), "model", "sys", "msg", 5*time.Second)
+	if err1 != nil {
+		t.Fatalf("expected retry to salvage first call after health check transient failure, got: %v", err1)
 	}
 	if result != "ok-result" {
 		t.Errorf("expected 'ok-result', got %q", result)
+	}
+
+	// Verify the retry was attempted: the server should have received at least
+	// the failing health check (call 1) + the retry health check (call 2) + the
+	// generate call = 3 calls.
+	if callCount < 3 {
+		t.Errorf("expected at least 3 server calls (health fail + retry health + generate), got %d", callCount)
+	}
+
+	// Second call: health check succeeds immediately → should work.
+	result2, err2 := p.Generate(context.Background(), "model", "sys", "msg", 5*time.Second)
+	if err2 != nil {
+		t.Fatalf("expected second call to succeed, got: %v", err2)
+	}
+	if result2 != "ok-result" {
+		t.Errorf("expected 'ok-result', got %q", result2)
 	}
 }
 
