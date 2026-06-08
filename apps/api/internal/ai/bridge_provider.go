@@ -14,7 +14,7 @@ import (
 // isBridgeCompatible reports whether a catalog provider tag routes through the bridge.
 // Bridge-compatible providers are "copilot" and "claude-cli".
 func isBridgeCompatible(providerTag string) bool {
-	return providerTag == "copilot" || providerTag == "claude-cli"
+	return providerTag == "copilot" || providerTag == "claude-cli" || providerTag == "opencode" || providerTag == "opencode-go"
 }
 
 // BridgeProvider implements Provider using the localhost HTTP bridge.
