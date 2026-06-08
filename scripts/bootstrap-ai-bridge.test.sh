@@ -56,6 +56,7 @@ test_creates_env_config_and_token() {
   assert_not_has_setting "$dir/open-core/.env" 'SCOUT_AI_BRIDGE_HOST_TOKEN_FILE'
   assert_contains "$dir/xdg/scout/ai-bridge.json" '"type": "http-localhost"'
   assert_contains "$dir/xdg/scout/ai-bridge.json" '"tokenFile":'
+  assert_contains "$dir/xdg/scout/ai-bridge.json" '"opencode"'
 }
 
 test_preserves_valid_token() {
@@ -102,7 +103,7 @@ test_healthy_bridge_writes_bridge_variables() {
 
   cat > "$dir/bin/curl" <<EOF
 #!/usr/bin/env bash
-printf '%s\n' '{"ok":true,"runtimes":[{"id":"copilot","available":true,"message":"ok"}]}'
+printf '%s\n' '{"ok":true,"runtimes":[{"id":"copilot","available":true,"message":"ok"},{"id":"opencode","available":true,"message":"ok"}]}'
 EOF
   chmod +x "$dir/bin/curl"
 
@@ -117,6 +118,7 @@ EOF
   assert_has_setting "$dir/open-core/.env" 'SCOUT_AI_BRIDGE_MODE'
   assert_has_setting "$dir/open-core/.env" 'SCOUT_AI_BRIDGE_URL'
   assert_has_setting "$dir/open-core/.env" 'SCOUT_AI_BRIDGE_TOKEN_FILE'
+  assert_contains "$dir/xdg/scout/ai-bridge.json" '"opencode"'
 }
 
 test_unsupported_os_returns_success() {
