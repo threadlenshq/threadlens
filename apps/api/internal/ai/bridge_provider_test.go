@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/kyle/scout/open-core/apps/api/internal/usage"
 )
 
 // ---------------------------------------------------------------------------
@@ -570,5 +572,101 @@ func TestGenerateForTask_NonBridgeModelNotRouted(t *testing.T) {
 	}
 	if bridgeCalled {
 		t.Error("bridge must not be called for sdk:* models")
+	}
+}
+
+func TestIsBridgeCompatible_Opencode(t *testing.T) {
+	if !isBridgeCompatible("opencode") {
+		t.Fatal("expected opencode to be bridge-compatible")
+	}
+	if !isBridgeCompatible("opencode-go") {
+		t.Fatal("expected opencode-go to be bridge-compatible")
+	}
+	if !isBridgeCompatible("copilot") {
+		t.Fatal("expected copilot to be bridge-compatible")
+	}
+	if !isBridgeCompatible("claude-cli") {
+		t.Fatal("expected claude-cli to be bridge-compatible")
+	}
+	if isBridgeCompatible("sdk") {
+		t.Fatal("expected sdk to NOT be bridge-compatible")
+	}
+	if isBridgeCompatible("gemini") {
+		t.Fatal("expected gemini to NOT be bridge-compatible")
+	}
+}
+
+func TestBridgeProvider_OpencodeGoSendsOpencodeProvider(t *testing.T) {
+	// Verify that when the catalog tag is opencode-go, the bridge request body
+	// uses provider:"opencode" (the collapsed runtime ID).
+	var capturedProvider string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/health" {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"ok":       true,
+				"runtimes": []string{"copilot", "claude-cli", "opencode"},
+			})
+			return
+		}
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if p, ok := body["provider"].(string); ok {
+			capturedProvider = p
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"text": "opencode-result"})
+	}))
+	defer srv.Close()
+
+	realBridge := newBridgeProviderForTest(BridgeState{Enabled: true, Detected: true, URL: srv.URL, Token: "tok"})
+	opencode := &fakeProvider{name: "opencode", available: true, result: "direct-result"}
+	svc := &Service{
+		repo: fakeSettingsGetter{values: map[string]string{
+			"model.post_scoring": `{"modelId":"opencode-go:deepseek-v4-flash"}`,
+		}},
+		bridge:    realBridge,
+		providers: []Provider{opencode},
+		meter:     usage.NoopMeter{},
+	}
+
+	result, usedID, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "opencode-result" {
+		t.Fatalf("result = %q, want opencode-result", result)
+	}
+	if usedID != "opencode-go:deepseek-v4-flash" {
+		t.Fatalf("usedID = %q, want opencode-go:deepseek-v4-flash", usedID)
+	}
+	if capturedProvider != "opencode" {
+		t.Fatalf("bridge received provider = %q, want opencode (collapsed from opencode-go)", capturedProvider)
+	}
+}
+
+func TestBridgeProvider_HealthAcceptsOpencodeRuntime(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/health":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"ok": true,
+				"runtimes": []map[string]any{
+					{"id": "copilot", "available": true, "message": "ok"},
+					{"id": "claude-cli", "available": true, "message": "ok"},
+					{"id": "opencode", "available": true, "message": "ok"},
+				},
+			})
+		case "/v1/generate":
+			_ = json.NewEncoder(w).Encode(map[string]any{"text": "opencode-health-ok"})
+		}
+	}))
+	defer srv.Close()
+
+	p := newBridgeProviderForTest(BridgeState{Enabled: true, Detected: true, URL: srv.URL, Token: "tok"})
+	text, err := p.GenerateWithProvider(context.Background(), "opencode", "big-pickle", "sys", "msg", 5*time.Second)
+	if err != nil {
+		t.Fatalf("expected success with opencode in health runtimes, got: %v", err)
+	}
+	if text != "opencode-health-ok" {
+		t.Fatalf("result = %q, want opencode-health-ok", text)
 	}
 }
