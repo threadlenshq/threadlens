@@ -1323,6 +1323,7 @@
             {postingReply}
             {postReplyResult}
             {projectMode}
+            {selectedProjectId}
             onGenerateDraft={handleGenerateDraft}
             onStatusChange={handleStatusChange}
             onDraftChange={handleDraftChange}

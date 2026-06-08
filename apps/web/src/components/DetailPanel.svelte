@@ -5,6 +5,7 @@
   export let postingReply = false;
   export let postReplyResult = null; // { type: 'success' | 'error', message: string }
   export let projectMode = 'marketing';
+  export let selectedProjectId = null;
 
   export let onGenerateDraft = null;
   export let onStatusChange = null;
@@ -84,7 +85,7 @@
     dmErrors = dmErrors;
     try {
       const res = await fetch(
-        `/api/posts/${post.platform}/${encodeURIComponent(post.id)}/dm/${encodeURIComponent(username)}/generate-draft`,
+        `/api/projects/${selectedProjectId}/posts/${encodeURIComponent(post.id)}/dm/${encodeURIComponent(username)}/generate-draft`,
         { method: 'POST' }
       );
       const data = await res.json();
@@ -108,7 +109,7 @@
   async function saveDmDraft(username) {
     try {
       await fetch(
-        `/api/posts/${post.platform}/${encodeURIComponent(post.id)}/dm/${encodeURIComponent(username)}`,
+        `/api/projects/${selectedProjectId}/posts/${encodeURIComponent(post.id)}/dm/${encodeURIComponent(username)}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
