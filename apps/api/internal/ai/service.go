@@ -22,6 +22,7 @@ type SettingsGetter interface {
 // fallbackOrder is the provider:model IDs tried in sequence by GenerateAuto and GenerateForTask.
 var fallbackOrder = []string{
 	"copilot:gpt-5-mini",
+	"opencode-go:deepseek-v4-flash",
 	"claude-cli:haiku",
 	"sdk:haiku",
 	"gemini:2.5-flash",
@@ -33,6 +34,7 @@ func defaultProviders() []Provider {
 	return []Provider{
 		NewCLIProvider("copilot"),
 		NewCLIProvider("claude"),
+		NewOpencodeProvider(),
 		&AnthropicProvider{},
 		&GeminiProvider{},
 	}
@@ -43,7 +45,7 @@ func defaultProviders() []Provider {
 // behaviour from the Express ai.js module.
 type Service struct {
 	repo      SettingsGetter
-	providers []Provider // ordered: copilot, claude-cli, sdk, gemini
+	providers []Provider // ordered: copilot, claude, opencode, sdk, gemini
 	bridge    *BridgeProvider
 	meter     usage.Meter
 
@@ -105,6 +107,10 @@ func (s *Service) providerFor(providerTag string) Provider {
 	if providerTag == "claude-cli" {
 		binaryName = "claude"
 	}
+	// opencode-go catalog tag maps to the single OpencodeProvider (Name() == "opencode").
+	if providerTag == "opencode-go" {
+		binaryName = "opencode"
+	}
 	for _, p := range s.providers {
 		if p.Name() == binaryName {
 			return p
@@ -122,7 +128,13 @@ func (s *Service) providerFor(providerTag string) Provider {
 func (s *Service) invokeModelWithBridge(ctx context.Context, m *ModelEntry, systemPrompt, userMessage string, timeout time.Duration) (string, error) {
 	if isBridgeCompatible(m.Provider) {
 		if bp := s.bridgeProvider(); bp != nil {
-			result, err := bp.GenerateWithProvider(ctx, m.Provider, m.Model, systemPrompt, userMessage, timeout)
+			// Collapse opencode-go to opencode for bridge dispatch: the bridge
+			// has a single "opencode" runtime that handles both free and Go models.
+			bridgeProvider := m.Provider
+			if bridgeProvider == "opencode-go" {
+				bridgeProvider = "opencode"
+			}
+			result, err := bp.GenerateWithProvider(ctx, bridgeProvider, m.Model, systemPrompt, userMessage, timeout)
 			if err == nil {
 				return result, nil
 			}
@@ -287,6 +299,8 @@ func autoModelForProvider(p Provider) string {
 	switch p.Name() {
 	case "copilot":
 		return "copilot:gpt-5-mini"
+	case "opencode":
+		return "opencode-go:deepseek-v4-flash"
 	case "claude":
 		return "claude-cli:haiku"
 	case "sdk":
