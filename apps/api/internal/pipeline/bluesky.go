@@ -166,12 +166,26 @@ func PostBlueskyReply(ctx context.Context, handle, appPassword, text, parentURI,
 
 // FetchBlueskyReplies fetches the top-level replies for a single Bluesky post.
 // It calls app.bsky.feed.getPostThread with depth=1 and maps each reply into
-// a BlueskyReply. No authentication is required for public threads.
+// a BlueskyReply. Authenticates using BLUESKY_HANDLE and BLUESKY_APP_PASSWORD
+// to avoid 401 on posts whose authors restrict visibility of their content to
+// logged-out sessions.
 func FetchBlueskyReplies(ctx context.Context, postURI string) ([]BlueskyReply, error) {
+	handle := os.Getenv("BLUESKY_HANDLE")
+	appPassword := os.Getenv("BLUESKY_APP_PASSWORD")
+	if handle == "" || appPassword == "" {
+		return nil, fmt.Errorf("fetch thread: missing BLUESKY_HANDLE or BLUESKY_APP_PASSWORD")
+	}
+
+	sess, err := blueskyAuthenticate(ctx, handle, appPassword)
+	if err != nil {
+		return nil, fmt.Errorf("fetch thread: %w", err)
+	}
+	authHeaders := map[string]string{"Authorization": "Bearer " + sess.AccessJwt}
+
 	reqURL := blueskyBaseURL + "/xrpc/app.bsky.feed.getPostThread?uri=" +
 		url.QueryEscape(postURI) + "&depth=1"
 
-	body, err := blueskyFetchWithRetry(ctx, http.MethodGet, reqURL, nil, nil)
+	body, err := blueskyFetchWithRetry(ctx, http.MethodGet, reqURL, authHeaders, nil)
 	if err != nil {
 		return nil, fmt.Errorf("fetch thread: %w", err)
 	}

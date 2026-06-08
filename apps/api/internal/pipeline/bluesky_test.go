@@ -292,8 +292,15 @@ func (t *rewriteTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func TestFetchBlueskyReplies_MapsTopLevelReplies(t *testing.T) {
+	t.Setenv("BLUESKY_HANDLE", "h")
+	t.Setenv("BLUESKY_APP_PASSWORD", "p")
+
 	var badRequest string
 	mux := http.NewServeMux()
+	mux.HandleFunc("/xrpc/com.atproto.server.createSession", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"accessJwt": "test-jwt-token", "did": "did:plc:testdid"})
+	})
 	mux.HandleFunc("/xrpc/app.bsky.feed.getPostThread", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("uri") != "at://did:plc:abc/app.bsky.feed.post/root" {
 			badRequest = "unexpected uri query: " + r.URL.RawQuery
@@ -351,8 +358,15 @@ func TestFetchBlueskyReplies_MapsTopLevelReplies(t *testing.T) {
 }
 
 func TestFetchBlueskyReplies_MapsTopLevelRepliesAndSkipsDeletedStubs(t *testing.T) {
+	t.Setenv("BLUESKY_HANDLE", "h")
+	t.Setenv("BLUESKY_APP_PASSWORD", "p")
+
 	var badRequest string
 	mux := http.NewServeMux()
+	mux.HandleFunc("/xrpc/com.atproto.server.createSession", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"accessJwt": "test-jwt-token", "did": "did:plc:testdid"})
+	})
 	mux.HandleFunc("/xrpc/app.bsky.feed.getPostThread", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("uri") != "at://did:plc:abc/app.bsky.feed.post/root" {
 			badRequest = "unexpected uri query: " + r.URL.RawQuery
