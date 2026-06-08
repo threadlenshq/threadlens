@@ -34,6 +34,22 @@ var ModelCatalog = []ModelEntry{
 	{ID: "claude-cli:opus", Provider: "claude-cli", Model: "opus", Label: "Claude Opus (CLI)", Tier: "reasoning", Cost: "token-billed"},
 	{ID: "sdk:haiku", Provider: "sdk", Model: "claude-haiku-4-5-20251001", Label: "Claude Haiku (SDK)", Tier: "low", Cost: "token-billed"},
 	{ID: "gemini:2.5-flash", Provider: "gemini", Model: "gemini-2.5-flash", Label: "Gemini 2.5 Flash", Tier: "low", Cost: "token-billed"},
+	{ID: "opencode:big-pickle", Provider: "opencode", Model: "big-pickle", Label: "Big Pickle (opencode)", Tier: "low", Cost: "free (0x)"},
+	{ID: "opencode:deepseek-v4-flash-free", Provider: "opencode", Model: "deepseek-v4-flash-free", Label: "DeepSeek V4 Flash Free (opencode)", Tier: "low", Cost: "free (0x)"},
+	{ID: "opencode-go:deepseek-v4-flash", Provider: "opencode-go", Model: "deepseek-v4-flash", Label: "DeepSeek V4 Flash (opencode Go)", Tier: "low", Cost: "subscription"},
+	{ID: "opencode-go:mimo-v2.5", Provider: "opencode-go", Model: "mimo-v2.5", Label: "Mimo v2.5 (opencode Go)", Tier: "low", Cost: "subscription"},
+	{ID: "opencode-go:minimax-m2.5", Provider: "opencode-go", Model: "minimax-m2.5", Label: "MiniMax M2.5 (opencode Go)", Tier: "low", Cost: "subscription"},
+	{ID: "opencode-go:glm-5", Provider: "opencode-go", Model: "glm-5", Label: "GLM-5 (opencode Go)", Tier: "low", Cost: "subscription"},
+	{ID: "opencode-go:glm-5.1", Provider: "opencode-go", Model: "glm-5.1", Label: "GLM-5.1 (opencode Go)", Tier: "low", Cost: "subscription"},
+	{ID: "opencode-go:mimo-v2.5-pro", Provider: "opencode-go", Model: "mimo-v2.5-pro", Label: "Mimo v2.5 Pro (opencode Go)", Tier: "medium", Cost: "subscription"},
+	{ID: "opencode-go:minimax-m2.7", Provider: "opencode-go", Model: "minimax-m2.7", Label: "MiniMax M2.7 (opencode Go)", Tier: "medium", Cost: "subscription"},
+	{ID: "opencode-go:qwen3.6-plus", Provider: "opencode-go", Model: "qwen3.6-plus", Label: "Qwen 3.6 Plus (opencode Go)", Tier: "medium", Cost: "subscription"},
+	{ID: "opencode-go:deepseek-v4-pro", Provider: "opencode-go", Model: "deepseek-v4-pro", Label: "DeepSeek V4 Pro (opencode Go)", Tier: "high", Cost: "subscription"},
+	{ID: "opencode-go:minimax-m3", Provider: "opencode-go", Model: "minimax-m3", Label: "MiniMax M3 (opencode Go)", Tier: "high", Cost: "subscription"},
+	{ID: "opencode-go:qwen3.7-plus", Provider: "opencode-go", Model: "qwen3.7-plus", Label: "Qwen 3.7 Plus (opencode Go)", Tier: "high", Cost: "subscription"},
+	{ID: "opencode-go:qwen3.7-max", Provider: "opencode-go", Model: "qwen3.7-max", Label: "Qwen 3.7 Max (opencode Go)", Tier: "high", Cost: "subscription"},
+	{ID: "opencode-go:kimi-k2.5", Provider: "opencode-go", Model: "kimi-k2.5", Label: "Kimi K2.5 (opencode Go)", Tier: "reasoning", Cost: "subscription"},
+	{ID: "opencode-go:kimi-k2.6", Provider: "opencode-go", Model: "kimi-k2.6", Label: "Kimi K2.6 (opencode Go)", Tier: "reasoning", Cost: "subscription"},
 }
 
 // Tasks is the full list of configurable tasks, mirroring catalog.js TASKS.
