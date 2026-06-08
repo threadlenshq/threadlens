@@ -210,6 +210,7 @@ func TestGenerateForTask_UnknownTask(t *testing.T) {
 func TestFallbackOrderExactCatalogModelIDs(t *testing.T) {
 	want := []string{
 		"copilot:gpt-5-mini",
+		"opencode-go:deepseek-v4-flash",
 		"claude-cli:haiku",
 		"sdk:haiku",
 		"gemini:2.5-flash",
@@ -316,19 +317,88 @@ func TestGenerateForTask_GeminiPrimaryNeverUsesBridge(t *testing.T) {
 	}
 }
 
+func TestGenerateForTask_OpencodeGoFallbackWhenCopilotFails(t *testing.T) {
+	copilot := &fakeProvider{name: "copilot", available: true, err: errors.New("copilot down")}
+	opencode := &fakeProvider{name: "opencode", available: true, result: "opencode-fallback"}
+	claude := &fakeProvider{name: "claude", available: true, result: "claude-result"}
+	sdk := &fakeProvider{name: "sdk", available: true, result: "sdk-result"}
+	gemini := &fakeProvider{name: "gemini", available: true, result: "gemini-result"}
+
+	svc := newTestService([]Provider{copilot, opencode, claude, sdk, gemini})
+	result, usedID, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "opencode-fallback" {
+		t.Errorf("expected 'opencode-fallback', got %q", result)
+	}
+	if usedID != "opencode-go:deepseek-v4-flash" {
+		t.Errorf("expected usedID='opencode-go:deepseek-v4-flash', got %q", usedID)
+	}
+}
+
+func TestGenerateForTask_OpencodeGoPrimaryUsesBridge(t *testing.T) {
+	// opencode-go is bridge-compatible, so the bridge should be tried first.
+	bridgeCalled := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		bridgeCalled = true
+		if r.URL.Path == "/v1/health" {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"ok":       true,
+				"runtimes": []string{"copilot", "claude-cli", "opencode"},
+			})
+			return
+		}
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		// Verify the bridge receives "opencode" (not "opencode-go") as the provider.
+		if p, ok := body["provider"].(string); ok && p != "opencode" {
+			t.Fatalf("bridge received provider = %q, want opencode", p)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"text": "bridge-result"})
+	}))
+	defer srv.Close()
+	realBridge := newBridgeProviderForTest(BridgeState{Enabled: true, Detected: true, URL: srv.URL, Token: "tok"})
+
+	opencode := &fakeProvider{name: "opencode", available: true, result: "opencode-direct"}
+	svc := &Service{
+		repo: fakeSettingsGetter{values: map[string]string{
+			"model.post_scoring": `{"modelId":"opencode-go:deepseek-v4-flash"}`,
+		}},
+		providers: []Provider{opencode},
+		bridge:    realBridge,
+		meter:     usage.NoopMeter{},
+	}
+
+	result, usedID, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "bridge-result" {
+		t.Fatalf("result = %q, want bridge-result (opencode-go is bridge-compatible)", result)
+	}
+	if usedID != "opencode-go:deepseek-v4-flash" {
+		t.Fatalf("usedID = %q, want opencode-go:deepseek-v4-flash", usedID)
+	}
+	if !bridgeCalled {
+		t.Fatal("bridge should be called for opencode-go primary")
+	}
+}
+
 func TestGenerateForTask_AllProvidersFailErrorOmitsBridgeStartupAdviceAndSecrets(t *testing.T) {
 	copilot := &fakeProvider{name: "copilot", available: true, err: errors.New("copilot token /tmp/secret-token unavailable")}
+	opencode := &fakeProvider{name: "opencode", available: true, err: errors.New("opencode not authenticated")}
 	claude := &fakeProvider{name: "claude", available: true, err: errors.New("claude credentials missing")}
 	sdk := &fakeProvider{name: "sdk", available: true, err: errors.New("ANTHROPIC_API_KEY missing")}
 	gemini := &fakeProvider{name: "gemini", available: true, err: errors.New("GEMINI_API_KEY missing")}
-	svc := newTestService([]Provider{copilot, claude, sdk, gemini})
+	svc := newTestService([]Provider{copilot, opencode, claude, sdk, gemini})
 
 	_, _, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg")
 	if err == nil {
 		t.Fatal("expected all providers failure")
 	}
 	errText := err.Error()
-	for _, required := range []string{"post_scoring", "copilot:gpt-5-mini", "claude-cli:haiku", "sdk:haiku", "gemini:2.5-flash"} {
+	for _, required := range []string{"post_scoring", "copilot:gpt-5-mini", "opencode-go:deepseek-v4-flash", "claude-cli:haiku", "sdk:haiku", "gemini:2.5-flash"} {
 		if !strings.Contains(errText, required) {
 			t.Fatalf("error %q missing %q", errText, required)
 		}
