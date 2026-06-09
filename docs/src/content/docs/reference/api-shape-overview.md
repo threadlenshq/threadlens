@@ -19,4 +19,4 @@ The active backend is the Go API in `apps/api`. Detailed generated API reference
 
 ## Compatibility goal
 
-The Go API preserves Express response shapes where the frontend already depends on them. Handlers stay thin, services own orchestration, and repositories own SQLite access.
+The Go API uses response shapes the frontend expects. Handlers stay thin, services own orchestration, and repositories own SQLite access.
