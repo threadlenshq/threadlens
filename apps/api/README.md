@@ -1,6 +1,6 @@
 # open-core/apps/api — Scout Go Backend
 
-This directory contains the Go backend for Scout. It is the active open-core API. The legacy Express backend has been moved to `apps/legacy-express` and is parked.
+This directory contains the Go backend for Scout. It is the active open-core API.
 
 📖 **Architecture docs:** [docs.threadlens.dev/architecture/go-api/](https://docs.threadlens.dev/architecture/go-api/)
 
@@ -16,13 +16,12 @@ The Go server listens on `PORT` or `4749` by default and uses repo-root `scout.d
 
 ```bash
 pnpm run test:go
-pnpm run test:api-contract
 ```
 
 ## Architecture
 
-- Chi handlers stay thin and preserve Express response shapes.
+- Chi handlers stay thin.
 - Services hold validation, orchestration, and response shaping.
 - SQLite repositories own SQL and transactions.
 - Pipelines run in process and use `context.Context` for cancellation.
-- AI providers use the same fallback order as Express: Copilot CLI, Claude CLI, Anthropic SDK-compatible HTTP call, Gemini-compatible HTTP call.
+- AI providers: OpencodeProvider (in-process), OpencodeRuntime (bridge), Copilot CLI, Claude CLI, Anthropic SDK, Gemini SDK. Fallback order: `copilot:gpt-5-mini` → `opencode-go:deepseek-v4-flash` → `claude-cli:haiku` → `sdk:haiku` → `gemini:2.5-flash`.

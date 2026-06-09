@@ -95,6 +95,32 @@ For full setup details see the [Claude Code documentation](https://docs.anthropi
 
 No `.env` change is needed. ThreadLens detects `claude-cli` availability through the local AI bridge if running in Docker, or directly if running outside Docker.
 
+## Opencode CLI
+
+`opencode` and `opencode-go` providers — no environment variable required. Availability is detected at runtime by binary presence.
+
+The free-tier `opencode` provider unlocks two models (`big-pickle` and `deepseek-v4-flash-free`) that run without a subscription. The subscription-backed `opencode-go` provider unlocks fourteen additional models including `deepseek-v4-pro`, `minimax-m3`, `kimi-k2.6`, and more. See the Models view in the web app for the full catalog.
+
+1. Download and install Opencode from [opencode.ai](https://opencode.ai) or via your package manager.
+2. Authenticate by running:
+
+   ```bash
+   opencode login
+   ```
+
+   Follow the authentication flow that opens in your browser.
+
+3. Verify the CLI is available and authenticated:
+
+   ```bash
+   opencode --version
+   opencode run --model opencode/big-pickle "ping" --format json
+   ```
+
+   A successful NDJSON response confirms both installation and authentication.
+
+No `.env` change is needed. ThreadLens detects `opencode` and `opencode-go` availability through the local AI bridge if running in Docker, or directly if running outside Docker.
+
 ## Bluesky credentials
 
 `BLUESKY_HANDLE` and `BLUESKY_APP_PASSWORD` — both required to enable Bluesky scouting.

@@ -9,7 +9,7 @@ ThreadLens uses AI providers for scoring, analysis, query assistance, clustering
 
 Configure provider keys in the repository root `.env`. Keep the existing runtime variable names such as `ANTHROPIC_API_KEY` and `GEMINI_API_KEY`.
 
-For a first Docker-based run, start with one explicit provider key. `ANTHROPIC_API_KEY` is the recommended first documented path, and `GEMINI_API_KEY` is another supported key-backed path. Copilot CLI and Claude CLI are also supported advanced fallback paths when the CLI is installed and authenticated in the same runtime environment as ThreadLens. A host CLI bridge is an additional optional fallback path available when ThreadLens runs in Docker or a self-hosted runtime and the host has an authenticated CLI; see the bridge guidance below.
+For a first Docker-based run, start with one explicit provider key. `ANTHROPIC_API_KEY` is the recommended first documented path, and `GEMINI_API_KEY` is another supported key-backed path. Copilot CLI, Claude CLI, and Opencode CLI are also supported advanced fallback paths when the CLI is installed and authenticated in the same runtime environment as ThreadLens. A host CLI bridge is an additional optional fallback path available when ThreadLens runs in Docker or a self-hosted runtime and the host has an authenticated CLI; see the bridge guidance below.
 
 For step-by-step instructions on obtaining each credential, see [Credential Setup](/reference/credential-setup/).
 
@@ -33,15 +33,16 @@ The Models view is the source of truth for per-task model selection. ThreadLens 
 For each task, ThreadLens tries the selected or default catalog model first, then the preserved fallback order below, skipping duplicate model IDs:
 
 1. `copilot:gpt-5-mini`
-2. `claude-cli:haiku`
-3. `sdk:haiku`
-4. `gemini:2.5-flash`
+2. `opencode-go:deepseek-v4-flash`
+3. `claude-cli:haiku`
+4. `sdk:haiku`
+5. `gemini:2.5-flash`
 
-The returned model ID and usage metering remain the catalog model ID that succeeded. If `copilot` or `claude-cli` succeeds through the local bridge, the used model ID is still the catalog model ID, not a bridge model.
+The returned model ID and usage metering remain the catalog model ID that succeeded. If `copilot`, `claude-cli`, or `opencode`/`opencode-go` succeeds through the local bridge, the used model ID is still the catalog model ID, not a bridge model.
 
 ## Optional local host CLI bridge
 
-The host CLI bridge is an optional local transport for `copilot` and `claude-cli` catalog models. It lets local Docker development reuse AI CLI sessions authenticated on the host machine without mounting host credential directories into the container.
+The host CLI bridge is an optional local transport for `copilot`, `claude-cli`, `opencode`, and `opencode-go` catalog models. It lets local Docker development reuse AI CLI sessions authenticated on the host machine without mounting host credential directories into the container.
 
 For most local Docker users, no manual bridge command is required. `pnpm run docker:dev` best-effort bootstraps the bridge automatically and only enables it when the host bridge is healthy and exposes at least one available runtime.
 

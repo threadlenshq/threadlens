@@ -3,7 +3,7 @@ title: Local AI Bridge
 description: Use the optional local host CLI bridge for Docker development and advanced self-hosted CLI reuse.
 ---
 
-The local AI bridge is an optional helper that lets the Dockerized or self-hosted API reuse Copilot CLI and Claude CLI sessions that are already authenticated on the host machine. It is not required for normal Docker startup, and it is not part of the production baseline.
+The local AI bridge is an optional helper that lets the Dockerized or self-hosted API reuse Copilot CLI, Claude CLI, and Opencode CLI sessions that are already authenticated on the host machine. It is not required for normal Docker startup, and it is not part of the production baseline.
 
 ## Normal Docker behavior
 
@@ -51,10 +51,10 @@ pnpm run bridge:stop
 
 - macOS or Linux
 - `go` installed if `bin/scout-ai-bridge` has not been built yet
-- `copilot` and/or `claude` installed on the host if you want CLI-backed models through the bridge
+- `copilot`, `claude`, and/or `opencode` installed on the host if you want CLI-backed models through the bridge
 - at least one of those CLIs authenticated on the host
 
-For installation and authentication steps, see [Credential Setup — GitHub Copilot CLI](/reference/credential-setup/#github-copilot-cli) and [Credential Setup — Claude CLI](/reference/credential-setup/#claude-cli).
+For installation and authentication steps, see [Credential Setup — GitHub Copilot CLI](/reference/credential-setup/#github-copilot-cli), [Credential Setup — Claude CLI](/reference/credential-setup/#claude-cli), and [Credential Setup — Opencode CLI](/reference/credential-setup/#opencode-cli).
 
 ## Health expectations
 
@@ -66,6 +66,11 @@ When healthy, `pnpm run bridge:health` returns JSON like:
   "runtimes": [
     {
       "id": "copilot",
+      "available": true,
+      "message": "ok"
+    },
+    {
+      "id": "opencode",
       "available": true,
       "message": "ok"
     }

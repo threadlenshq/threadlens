@@ -11,19 +11,21 @@ The core provider runtime runs inside the Go API process environment:
 
 1. Copilot CLI when installed and authenticated in that environment.
 2. Claude CLI when installed and authenticated in that environment.
-3. Anthropic SDK calls when `ANTHROPIC_API_KEY` is configured.
-4. Gemini SDK calls when `GEMINI_API_KEY` is configured.
+3. Opencode CLI when installed and authenticated in that environment.
+4. Anthropic SDK calls when `ANTHROPIC_API_KEY` is configured.
+5. Gemini SDK calls when `GEMINI_API_KEY` is configured.
 
-The optional external runtime is the local host CLI bridge. It can satisfy `copilot` and `claude-cli` catalog model requests before direct CLI is attempted, but only when bridge policy and config allow it. `sdk` and `gemini` models never route through the bridge. The bridge is optional for self-hosted deployments as well as local Docker development.
+The optional external runtime is the local host CLI bridge. It can satisfy `copilot`, `claude-cli`, `opencode`, and `opencode-go` catalog model requests before direct CLI is attempted, but only when bridge policy and config allow it. `sdk` and `gemini` models never route through the bridge. The bridge is optional for self-hosted deployments as well as local Docker development.
 
 ## Fallback order
 
 Task-aware calls use the model selected in the Models view first, then this exact fallback order with duplicates skipped:
 
 1. `copilot:gpt-5-mini`
-2. `claude-cli:haiku`
-3. `sdk:haiku`
-4. `gemini:2.5-flash`
+2. `opencode-go:deepseek-v4-flash`
+3. `claude-cli:haiku`
+4. `sdk:haiku`
+5. `gemini:2.5-flash`
 
 ## Production and local development
 

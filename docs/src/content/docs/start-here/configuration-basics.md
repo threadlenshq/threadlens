@@ -33,7 +33,8 @@ For a first useful scout, configure at least one AI provider path before expecti
 | `GEMINI_API_KEY` | Alternative AI provider key | Enables the Gemini-compatible provider path when configured. [How&nbsp;to&nbsp;get&nbsp;→](/reference/credential-setup/#gemini-api-key) |
 | Copilot CLI | Supported advanced fallback path | Works only when the Copilot CLI is installed and authenticated in the same runtime environment as ThreadLens. [Setup&nbsp;guide&nbsp;→](/reference/credential-setup/#github-copilot-cli) |
 | Claude CLI | Supported advanced fallback path | Works only when the Claude CLI is installed and authenticated in the same runtime environment as ThreadLens. [Setup&nbsp;guide&nbsp;→](/reference/credential-setup/#claude-cli) |
-| Host CLI bridge | Optional advanced fallback path | Routes AI calls from Docker or a self-hosted runtime to a host-authenticated CLI runtime over a loopback HTTP service. See the bridge guidance below. |
+| Opencode CLI | Supported advanced fallback path | Works only when the Opencode CLI is installed and authenticated in the same runtime environment as ThreadLens. Free tier (`opencode`) and subscription (`opencode-go`) models are available. [Setup&nbsp;guide&nbsp;→](/reference/credential-setup/#opencode-cli) |
+| Host CLI bridge | Optional advanced fallback path | Routes AI calls from Docker or a self-hosted runtime to a host-authenticated CLI runtime over a loopback HTTP service. Supports Copilot, Claude, and Opencode CLIs. See the bridge guidance below. |
 
 For first-run Docker docs, prefer an explicit provider key because CLI availability and authentication can vary by host and container setup. The CLI-backed paths are supported runtime paths, but this page intentionally does not provide Docker mount, install, or authentication walkthroughs.
 
