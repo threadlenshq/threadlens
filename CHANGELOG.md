@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.9.0 - 2026-06-09
+
+Tag: `threadlens-v0.9.0`
+
+### Features
+
+- feat(bootstrap): add opencode to bridge runtimes array in ai-bridge.json (`c5f7dec`)
+- feat(bridge): register OpencodeRuntime in scout-ai-bridge daemon (`58f4a03`)
+- feat(ai): extend isBridgeCompatible for opencode and opencode-go provider tags (`0d197ad`)
+- feat(ai): wire OpencodeProvider into service with fallback chain and bridge translation (`b757258`)
+- feat(ai): add 16 opencode and opencode-go catalog entries (`16f7541`)
+- feat(ai): add OpencodeProvider direct in-process wrapper with NDJSON parsing (`aa28842`)
+- feat(bridge): add OpencodeRuntime with NDJSON parser and prefix translation (`4508564`)
+
+### Fixes
+
+- fix(ai): cap scorer batch execution with 3-minute context timeout (`63547cb`)
+
+### Documentation
+
+- docs(open-core): document opencode provider from PR #12 (`f87340c`)
+
+### Maintenance
+
+- chore: remove legacy Express API and all references (`444de18`)
+- test(ai): add bridge provider tests for opencode compatibility and tag translation (`61fd96a`)
+- test(ai): update fallback order test and add opencode-go routing tests (`9202875`)
+- test(bootstrap): assert opencode in ai-bridge.json runtimes array (`75b6b29`)
+- test(ai): add OpencodeProvider unit tests for name, availability, NDJSON parsing, prefix translation (`6ef5227`)
+- test(bridge): add OpencodeRuntime unit tests for detect, generate, NDJSON parsing, prefix translation (`830d451`)
+
 ## 0.8.0 - 2026-06-08
 
 Tag: `threadlens-v0.8.0`
