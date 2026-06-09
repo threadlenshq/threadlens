@@ -124,6 +124,7 @@ func ScorePosts(
 	}
 
 	const concurrency = 10
+	const batchTimeout = 3 * time.Minute
 
 	scoreBatch := func(batchCtx context.Context, batch []ScoringPost) ([]ScoredPost, error) {
 		type postData struct {
@@ -200,7 +201,9 @@ func ScorePosts(
 		results := make(chan batchResult, len(chunk))
 		for i, batch := range chunk {
 			go func(idx int, b []ScoringPost) {
-				scores, err := scoreBatch(ctx, b)
+				batchCtx, batchCancel := context.WithTimeout(ctx, batchTimeout)
+				defer batchCancel()
+				scores, err := scoreBatch(batchCtx, b)
 				results <- batchResult{idx: start + idx, scores: scores, err: err}
 			}(i, batch)
 		}
