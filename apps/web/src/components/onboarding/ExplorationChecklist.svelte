@@ -1,5 +1,5 @@
 <script>
-  import { onboarding as onboardingApi } from '../../lib/api.js';
+  import { onboarding as onboardingApi, queries } from '../../lib/api.js';
 
   let {
     open = false,
@@ -19,6 +19,17 @@
   let starterPlatform = $state('reddit');
   let busy = $state(false);
   let error = $state('');
+
+  let starterDescription = $state('');
+
+  // Seeding state
+  let seeding = $state(false);
+  let suggestions = $state([]);
+  let cardEdits = $state({});
+  let selected = $state(new Set());
+  let seedError = $state('');
+  let seedBusy = $state(false);
+  let createdProjectId = $state('');
 
   async function completeItem(item) {
     await mutateExploration({ item, state: 'completed', selectedProjectId });
@@ -64,14 +75,87 @@
         projectName: starterProjectName.trim(),
         query: starterQuery.trim(),
         platform: starterPlatform,
+        description: starterDescription.trim(),
       });
+      createdProjectId = result.project.id;
       await onProjectReady(result.project.id);
       await onStatusReload();
+      // Transition to seeding panel
+      seeding = true;
+      await loadSuggestions();
     } catch (e) {
       error = e.message || 'Failed to create starter project.';
     } finally {
       busy = false;
     }
+  }
+
+  async function loadSuggestions() {
+    seedError = '';
+    seedBusy = true;
+    try {
+      const refinement = starterDescription.trim() || 'starter';
+      const resp = await queries.suggest(createdProjectId, { refinement });
+      suggestions = (resp.suggestions || []).map((s, i) => ({ ...s, _id: i }));
+      cardEdits = {};
+      selected = new Set(suggestions.map((s) => s._id));
+      for (const s of suggestions) {
+        cardEdits[s._id] = { platform: s.platform, query_url: s.query_url, angle: s.angle };
+      }
+    } catch (e) {
+      seedError = e.message || 'Failed to load AI suggestions.';
+      suggestions = [];
+      cardEdits = {};
+      selected = new Set();
+    } finally {
+      seedBusy = false;
+    }
+  }
+
+  function toggleCard(id) {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    selected = next;
+  }
+
+  async function createSelectedQueries() {
+    seedBusy = true;
+    seedError = '';
+    let created = 0;
+    let failed = 0;
+    for (const s of suggestions) {
+      if (!selected.has(s._id)) continue;
+      const edit = cardEdits[s._id] || s;
+      try {
+        await queries.create(createdProjectId, {
+          platform: edit.platform,
+          query_url: edit.query_url,
+          angle: edit.angle || '',
+        });
+        created++;
+        // Uncheck successfully created queries so retry only submits failures.
+        selected.delete(s._id);
+      } catch (e) {
+        console.error('Failed to create query', s._id, e);
+        failed++;
+      }
+    }
+    if (failed > 0) {
+      seedError = `Created ${created} of ${created + failed} queries. ${failed} failed.`;
+      // Keep the panel open so the user can see the error and retry/skip.
+      seedBusy = false;
+      await onStatusReload();
+      return;
+    }
+    seeding = false;
+    seedBusy = false;
+    await onStatusReload();
+  }
+
+  async function skipSeeding() {
+    seeding = false;
+    await onStatusReload();
   }
 
   function navigateForItem(item) {
@@ -154,6 +238,10 @@
           <input bind:value={starterProjectId} placeholder="E.g., ai-note-taking" />
         </label>
         <label class="full-width">
+          <span>What problems are you researching?</span>
+          <textarea bind:value={starterDescription} placeholder="E.g., teams waste hours rewriting meeting notes into project plans" rows="2"></textarea>
+        </label>
+        <label class="full-width">
           <span>Starter query</span>
           <input bind:value={starterQuery} placeholder="E.g., meeting notes too time consuming" />
         </label>
@@ -171,6 +259,81 @@
         Create project and first query
       </button>
     </div>
+
+    {#if seeding}
+      <div class="seeding-panel">
+        <div class="seeding-header">
+          <h3>Choose your starter queries</h3>
+          <p>AI suggested these based on your description. Edit, uncheck, or skip.</p>
+        </div>
+
+        {#if seedBusy && suggestions.length === 0}
+          <div class="seeding-loading" role="status">
+            <span class="spinner"></span> Generating suggestions…
+          </div>
+        {:else if suggestions.length === 0 && !seedBusy}
+          <div class="seeding-empty">
+            <p>{seedError || "We couldn't think of any starter queries for this topic — try writing one manually."}</p>
+          </div>
+        {:else}
+          <div class="suggestion-cards">
+            {#each suggestions as s}
+              <div class="suggestion-card" class:is-unchecked={!selected.has(s._id)}>
+                <label class="card-check">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(s._id)}
+                    onchange={() => toggleCard(s._id)}
+                    aria-label="Select query: {cardEdits[s._id]?.query_url || s.query_url}"
+                  />
+                </label>
+                <div class="card-fields">
+                  <label>
+                    <span>Query</span>
+                    <input
+                      bind:value={cardEdits[s._id].query_url}
+                      placeholder="Search query or URL pattern"
+                    />
+                  </label>
+                  <label>
+                    <span>Angle</span>
+                    <input
+                      bind:value={cardEdits[s._id].angle}
+                      placeholder="Pain-point angle"
+                    />
+                  </label>
+                  <label>
+                    <span>Platform</span>
+                    <select bind:value={cardEdits[s._id].platform}>
+                      <option value="reddit">Reddit</option>
+                      <option value="google">Google</option>
+                      <option value="bluesky">Bluesky</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            {/each}
+          </div>
+
+          {#if seedError}
+            <p class="seed-error">{seedError}</p>
+          {/if}
+
+          <div class="seeding-actions">
+            <button
+              class="primary-btn"
+              disabled={seedBusy || selected.size === 0}
+              onclick={createSelectedQueries}
+            >
+              {seedBusy ? 'Creating…' : `Create ${selected.size} selected ${selected.size === 1 ? 'query' : 'queries'}`}
+            </button>
+            <button class="ghost-btn" onclick={skipSeeding} disabled={seedBusy}>
+              Skip, I'll add queries manually
+            </button>
+          </div>
+        {/if}
+      </div>
+    {/if}
 
     {#if error}<p class="checklist-error">{error}</p>{/if}
 
@@ -532,5 +695,182 @@
     border-radius: 3px;
     padding: 1px 4px;
     color: #a0a0c8;
+  }
+
+  textarea {
+    background: #0b0b0e;
+    border: 1px solid #2d2d3f;
+    color: #e2e2e8;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 48px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  textarea:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  }
+
+  textarea::placeholder {
+    color: #4b5563;
+  }
+
+  .seeding-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: linear-gradient(145deg, #181822 0%, #13131a 100%);
+    border: 1px solid #2d2d3f;
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .seeding-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #a855f7, #6366f1);
+  }
+
+  .seeding-header h3 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+  }
+
+  .seeding-header p {
+    margin: 0;
+    font-size: 13px;
+    color: #a0a0b8;
+    line-height: 1.4;
+  }
+
+  .seeding-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #a0a0b8;
+    font-size: 13px;
+    padding: 16px 0;
+  }
+
+  .seeding-loading .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid #3a3a5a;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: seed-spin 0.6s linear infinite;
+  }
+
+  @keyframes seed-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .seeding-empty p {
+    color: #a0a0b8;
+    font-size: 13px;
+    margin: 0;
+    padding: 12px;
+    background: #0b0b0e;
+    border: 1px solid #2d2d3f;
+    border-radius: 8px;
+  }
+
+  .suggestion-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .suggestion-card {
+    display: flex;
+    gap: 10px;
+    background: #0b0b0e;
+    border: 1px solid #2d2d3f;
+    border-radius: 8px;
+    padding: 12px;
+    transition: opacity 0.15s ease;
+  }
+
+  .suggestion-card.is-unchecked {
+    opacity: 0.45;
+  }
+
+  .card-check {
+    display: flex;
+    align-items: flex-start;
+    padding-top: 2px;
+    flex-shrink: 0;
+  }
+
+  .card-check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #6366f1;
+    cursor: pointer;
+  }
+
+  .card-fields {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .card-fields label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .card-fields span {
+    font-size: 11px;
+    font-weight: 500;
+    color: #8f8faf;
+  }
+
+  .card-fields input,
+  .card-fields select {
+    background: #14141b;
+    border: 1px solid #2d2d3f;
+    color: #e2e2e8;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .card-fields input:focus,
+  .card-fields select:focus {
+    outline: none;
+    border-color: #6366f1;
+  }
+
+  .seeding-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .seed-error {
+    color: #f87171;
+    margin: 0;
+    font-size: 12px;
+    background: rgba(248, 113, 113, 0.1);
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(248, 113, 113, 0.2);
   }
 </style>
