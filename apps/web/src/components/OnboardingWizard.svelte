@@ -1,5 +1,6 @@
 <script>
   import { onboarding as onboardingApi } from '../lib/api.js';
+  import { untrack } from 'svelte';
 
   let { status, onStatusReload = async () => {} } = $props();
   let currentStep = $state(status?.currentRequiredStep || 'welcome');
@@ -7,6 +8,8 @@
   let providerSecret = $state('');
   let saving = $state(false);
   let error = $state('');
+  let testState = $state('idle'); // 'idle' | 'testing' | 'connected' | 'failed'
+  let testError = $state('');
 
   const stepOrder = ['welcome', 'ai_provider', 'app_database', 'review'];
   const providerSecretKeys = { anthropic: 'ANTHROPIC_API_KEY', gemini: 'GEMINI_API_KEY' };
@@ -85,6 +88,35 @@
       saving = false;
     }
   }
+
+  async function testConnection() {
+    if (testState === 'testing') return;
+    testState = 'testing';
+    testError = '';
+    try {
+      const key = providerSecret.trim();
+      const result = await onboardingApi.testAI({ provider: aiProvider, key });
+      if (result.connected) {
+        testState = 'connected';
+      } else {
+        testState = 'failed';
+        testError = result.error || 'Connection failed.';
+      }
+    } catch (e) {
+      testState = 'failed';
+      testError = e.message || 'Test request failed.';
+    }
+  }
+
+  // Clear test result when the secret or provider changes.
+  $effect(() => {
+    providerSecret;
+    aiProvider;
+    untrack(() => {
+      testState = 'idle';
+      testError = '';
+    });
+  });
 </script>
 
 {#if !status?.completed}
@@ -155,6 +187,52 @@
           autocomplete="off"
         />
         <p class="field-hint">This key will be written to the configured env file and not stored in onboarding state.</p>
+        <div class="test-connection-row">
+          <button
+            data-testid="test-connection"
+            class="test-btn"
+            disabled={testState === 'testing' || !providerSecret.trim()}
+            onclick={testConnection}
+            aria-label="Test AI provider connection"
+          >
+            {#if testState === 'testing'}
+              <span class="spinner"></span> Testing connection…
+            {:else if testState === 'connected'}
+              ✓ Connected
+            {:else}
+              Test Connection
+            {/if}
+          </button>
+          {#if testState === 'connected'}
+            <span class="test-success">Connected to {aiProvider}</span>
+          {:else if testState === 'failed'}
+            <span class="test-failure">{testError} — you can still continue and try again after saving.</span>
+          {/if}
+        </div>
+      {/if}
+      {#if !requiresSecret && ['anthropic', 'gemini'].includes(aiProvider)}
+        <div class="test-connection-row">
+          <button
+            data-testid="test-connection"
+            class="test-btn"
+            disabled={testState === 'testing'}
+            onclick={testConnection}
+            aria-label="Test AI provider connection"
+          >
+            {#if testState === 'testing'}
+              <span class="spinner"></span> Testing connection…
+            {:else if testState === 'connected'}
+              ✓ Connected
+            {:else}
+              Test Connection
+            {/if}
+          </button>
+          {#if testState === 'connected'}
+            <span class="test-success">Connected to {aiProvider}</span>
+          {:else if testState === 'failed'}
+            <span class="test-failure">{testError} — you can still continue and try again after saving.</span>
+          {/if}
+        </div>
       {/if}
     </section>
     <div class="wizard-actions">
@@ -462,5 +540,59 @@
     font-size: 13px;
     color: #a8a8ba;
     text-align: center;
+  }
+
+  .test-connection-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .test-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid #3a3a5a;
+    background: transparent;
+    color: #c4c4d4;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .test-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  .test-btn:not(:disabled):hover {
+    border-color: #7c6af5;
+    color: #e2e2e8;
+  }
+
+  .test-success {
+    font-size: 12px;
+    color: #4ade80;
+  }
+
+  .test-failure {
+    font-size: 12px;
+    color: #f87171;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #3a3a5a;
+    border-top-color: #7c6af5;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 </style>
