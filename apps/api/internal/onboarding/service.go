@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -144,6 +145,27 @@ func (s *Service) saveProgress(ctx context.Context, p Progress) error {
 		return fmt.Errorf("onboarding: saveProgress set: %w", err)
 	}
 	return nil
+}
+
+// applyProviderKeysToProcessEnv calls os.Setenv for AI provider keys found in
+// values, so the running process can use them immediately without a restart.
+// Empty values are skipped to avoid overwriting an already-loaded key with a
+// blank. Non-AI keys are silently ignored.
+func applyProviderKeysToProcessEnv(values map[string]string) {
+	aiKeys := map[string]bool{
+		"ANTHROPIC_API_KEY": true,
+		"GEMINI_API_KEY":    true,
+	}
+	for k, v := range values {
+		if !aiKeys[k] {
+			continue
+		}
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			continue
+		}
+		os.Setenv(k, trimmed)
+	}
 }
 
 // normalizeProgress fills in any missing fields with sensible defaults so that
@@ -478,6 +500,9 @@ func (s *Service) Save(ctx context.Context, values map[string]string) error {
 		if _, err := configfile.UpdateFile(s.cfg.EnvFilePath, values, nil); err != nil {
 			return fmt.Errorf("onboarding: writing env file: %w", err)
 		}
+		// Hot-activate AI provider keys in the running process so they are
+		// available immediately without a container restart.
+		applyProviderKeysToProcessEnv(values)
 	}
 
 	// Update v1 progress first — marks required setup complete and transitions
@@ -504,7 +529,6 @@ func (s *Service) Save(ctx context.Context, values map[string]string) error {
 	p.RequiredSetup.CompletedSteps = make([]RequiredStep, len(RequiredSteps))
 	copy(p.RequiredSetup.CompletedSteps, RequiredSteps)
 	p.RequiredSetup.CurrentStep = RequiredStepReview
-	p.RequiredSetup.RestartRequired = s.cfg.DockerMode && len(values) > 0
 	p.Exploration.Status = ExplorationStatusActive
 	// Copy non-secret provider selection into progress context so GetStatus
 	// can report the chosen provider without re-reading the env file.
