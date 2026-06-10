@@ -329,16 +329,19 @@ func (s *Service) GenerateWithOpus(ctx context.Context, systemPrompt string, use
 //	**bold** → bold, __bold__ → bold, *italic* → italic, _italic_ → italic,
 //	`code` → code, em dash (U+2014) → ", "
 func StripMarkdown(text string) string {
+	text = reSkillNoise.ReplaceAllString(text, "")
 	text = reBold.ReplaceAllString(text, "$1")
 	text = reBoldUnder.ReplaceAllString(text, "$1")
 	text = reItalic.ReplaceAllString(text, "$1")
 	text = reItalicUnder.ReplaceAllString(text, "$1")
 	text = reCode.ReplaceAllString(text, "$1")
 	text = strings.ReplaceAll(text, "\u2014", ", ")
+	text = strings.TrimSpace(text)
 	return text
 }
 
 var (
+	reSkillNoise  = regexp.MustCompile(`●\s*skill\([^)]*\)\s*`)
 	reBold        = regexp.MustCompile(`\*\*(.+?)\*\*`)
 	reBoldUnder   = regexp.MustCompile(`__(.+?)__`)
 	reItalic      = regexp.MustCompile(`\*(.+?)\*`)
