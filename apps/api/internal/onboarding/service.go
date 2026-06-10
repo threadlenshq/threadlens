@@ -215,7 +215,7 @@ func (s *Service) GetStatus(ctx context.Context) (Status, error) {
 			Phase:       PhaseDisabled,
 			EnvFilePath: s.cfg.EnvFilePath,
 			Steps:       buildStepViews(NewProgress()),
-			Items:       buildItemViews(NewProgress()),
+			Items:       s.buildItemViews(NewProgress()),
 		}, nil
 	}
 
@@ -244,7 +244,7 @@ func (s *Service) statusFromProgress(p Progress) Status {
 		CurrentRequiredStep:    p.RequiredSetup.CurrentStep,
 		CurrentExplorationItem: p.Exploration.CurrentItem,
 		Steps:                  buildStepViews(p),
-		Items:                  buildItemViews(p),
+		Items:                  s.buildItemViews(p),
 		Capabilities:           buildCapabilities(),
 		AppDatabase:            buildAppDatabaseStatus(s.cfg),
 		Context:                p.Context,
@@ -271,14 +271,28 @@ func buildStepViews(p Progress) []StepView {
 }
 
 // buildItemViews produces the ordered display list of exploration items.
-func buildItemViews(p Progress) []ItemView {
+// For ExplorationItemStarterQuery, it populates SeededQueryCount from the
+// project repository. If the count cannot be loaded, it defaults to 0.
+func (s *Service) buildItemViews(p Progress) []ItemView {
+	seededCount := 0
+	if p.Context.StarterProjectID != "" && s.projectRepo != nil {
+		queries, err := s.projectRepo.ListAllQueries(context.Background(), p.Context.StarterProjectID)
+		if err == nil {
+			seededCount = len(queries)
+		}
+	}
 	views := make([]ItemView, 0, len(ExplorationItems))
 	for _, id := range ExplorationItems {
 		state := p.Exploration.Items[id]
+		count := 0
+		if id == ExplorationItemStarterQuery {
+			count = seededCount
+		}
 		views = append(views, ItemView{
-			ID:    id,
-			Label: itemLabel(id),
-			State: state,
+			ID:               id,
+			Label:            itemLabel(id),
+			State:            state,
+			SeededQueryCount: count,
 		})
 	}
 	return views

@@ -126,9 +126,10 @@ type StepView struct {
 
 // ItemView is a display-ready view of an exploration item.
 type ItemView struct {
-	ID    ExplorationItem `json:"id"`
-	Label string          `json:"label"`
-	State ItemState       `json:"state"`
+	ID               ExplorationItem `json:"id"`
+	Label            string          `json:"label"`
+	State            ItemState       `json:"state"`
+	SeededQueryCount int             `json:"seededQueryCount"`
 }
 
 // Capabilities describes what providers and sources are available.

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/domain"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
@@ -16,6 +17,7 @@ type StarterProjectRequest struct {
 	ProjectName string `json:"projectName"`
 	Query       string `json:"query"`
 	Platform    string `json:"platform"`
+	Description string `json:"description"`
 }
 
 // StarterProjectResult carries output from CreateStarterProject.
@@ -58,6 +60,21 @@ func createStarterProject(ctx context.Context, s *Service, req StarterProjectReq
 	project, createdProject, err := getOrCreateProject(ctx, s.projectRepo, req.ProjectID, req.ProjectName)
 	if err != nil {
 		return StarterProjectResult{}, fmt.Errorf("onboarding: get or create project: %w", err)
+	}
+
+	// Persist description if provided (non-empty after trim).
+	desc := strings.TrimSpace(req.Description)
+	if desc != "" {
+		if utf8.RuneCountInString(desc) > 1000 {
+			runes := []rune(desc)
+			desc = string(runes[:1000])
+		}
+		patched, patchErr := s.projectRepo.PatchProject(ctx, project.ID, map[string]any{"description": desc})
+		if patchErr != nil {
+			return StarterProjectResult{}, fmt.Errorf("onboarding: patch project description: %w", patchErr)
+		}
+		project.Description = patched.Description
+		project.UpdatedAt = patched.UpdatedAt
 	}
 
 	// Create or reuse the query.
