@@ -21,6 +21,7 @@ func MountRoutes(r chi.Router, svc ServiceIface) {
 	r.Post("/api/onboarding/required-step", handleRequiredStep(svc))
 	r.Post("/api/onboarding/exploration", handleUpdateExploration(svc))
 	r.Post("/api/onboarding/starter-project", handleCreateStarterProject(svc))
+	r.Post("/api/onboarding/test-ai", handleTestAI())
 }
 
 // ── GET /api/onboarding/status ────────────────────────────────────────────────

@@ -158,4 +158,5 @@ export const onboarding = {
   exploration: (body) => api('/api/onboarding/exploration', { method: 'POST', body }),
   starterProject: (body) => api('/api/onboarding/starter-project', { method: 'POST', body }),
   reset: (mode = 'progress') => api('/api/onboarding/reset', { method: 'POST', body: { mode } }),
+  testAI: (body) => api('/api/onboarding/test-ai', { method: 'POST', body }),
 };
