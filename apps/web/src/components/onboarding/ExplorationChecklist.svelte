@@ -11,6 +11,7 @@
     onClose = () => {},
     googleLocked = false,
     onGoogleLocked = () => {},
+    lastScoutZeroScored = false,
   } = $props();
 
   let starterProjectId = $state('ai-note-taking');
@@ -21,6 +22,10 @@
   let error = $state('');
 
   let starterDescription = $state('');
+
+  let seededQueryCount = $derived(
+    status?.items?.find(i => i.id === 'starter_query')?.seededQueryCount ?? 0
+  );
 
   // Seeding state
   let seeding = $state(false);
@@ -188,6 +193,15 @@
     </button>
   </header>
 
+  {#if status?.items?.length > 0}
+    {@const completedCount = status.items.filter(i => i.state === 'completed' || i.state === 'skipped').length}
+    {@const totalCount = status.items.length}
+    <div class="progress-bar-container">
+      <progress value={completedCount} max={totalCount} aria-label="Onboarding progress: {completedCount} of {totalCount} items complete"></progress>
+      <span class="progress-label">{completedCount} of {totalCount} items complete</span>
+    </div>
+  {/if}
+
   <div class="drawer-body">
     <p class="intro-text">Follow the shortest path to first value: create one project, add one narrow query, run one scout manually, then inspect the strongest findings before expanding.</p>
 
@@ -211,7 +225,21 @@
           </button>
           
           <button class="task-label" onclick={() => navigateForItem(item.id)} title="Show me">
-            {item.label}
+            {#if item.id === 'first_scout' && item.state === 'pending'}
+              {#if seededQueryCount === 0}
+                Run your first scout (add a query first)
+              {:else if seededQueryCount === 1}
+                Run your first scout
+              {:else}
+                Run your first scout ({seededQueryCount} queries ready — go!)
+              {/if}
+            {:else if item.id === 'starter_query' && item.state === 'completed' && item.seededQueryCount > 1}
+              Add a starter query ({item.seededQueryCount} queries added)
+            {:else if item.id === 'starter_query' && item.state === 'completed' && item.seededQueryCount === 1}
+              Add a starter query (1 query added)
+            {:else}
+              {item.label}
+            {/if}
           </button>
 
           {#if item.state === 'pending'}
@@ -222,6 +250,13 @@
         </li>
       {/each}
     </ul>
+
+    {#if lastScoutZeroScored}
+      <div class="post-scout-guidance">
+        <p>No posts scored in your last scout — try widening the angle on one of your queries.</p>
+        <button class="ghost-btn" onclick={() => onNavigate('posts')}>Edit queries</button>
+      </div>
+    {/if}
 
     <div class="starter-card">
       <div class="card-header">
@@ -872,5 +907,76 @@
     padding: 8px 10px;
     border-radius: 6px;
     border: 1px solid rgba(248, 113, 113, 0.2);
+  }
+
+  .progress-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    border-bottom: 1px solid #23232f;
+    background: #14141b;
+    flex-shrink: 0;
+  }
+
+  .progress-bar-container progress {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    appearance: none;
+    background: #23232f;
+    border: none;
+  }
+
+  .progress-bar-container progress::-webkit-progress-bar {
+    background: #23232f;
+    border-radius: 3px;
+  }
+
+  .progress-bar-container progress::-webkit-progress-value {
+    background: linear-gradient(90deg, #6366f1, #a855f7);
+    border-radius: 3px;
+  }
+
+  .progress-bar-container progress::-moz-progress-bar {
+    background: linear-gradient(90deg, #6366f1, #a855f7);
+    border-radius: 3px;
+  }
+
+  .progress-label {
+    font-size: 12px;
+    color: #8f8faf;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .post-scout-guidance {
+    background: #1a1410;
+    border: 1px solid #3a2a10;
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .post-scout-guidance p {
+    margin: 0;
+    font-size: 13px;
+    color: #d4a050;
+    line-height: 1.4;
+  }
+
+  .post-scout-guidance .ghost-btn {
+    align-self: flex-start;
+    font-size: 12px;
+    padding: 4px 12px;
+    border: 1px solid #3a2a10;
+    color: #d4a050;
+  }
+
+  .post-scout-guidance .ghost-btn:hover {
+    background: #2a1a10;
+    color: #f0c070;
   }
 </style>
