@@ -201,7 +201,7 @@ func NewProgress() Progress {
 			Items:       items,
 		},
 		Context: OnboardingContext{
-			AIProviderPath: "anthropic",
+			AIProviderPath: "sdk",
 		},
 		CreatedAt: now,
 		UpdatedAt: now,

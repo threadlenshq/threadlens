@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -334,13 +335,69 @@ func itemLabel(i ExplorationItem) string {
 	}
 }
 
-// buildCapabilities returns the current Capabilities snapshot. In Task 5 the
-// provider list is empty; Tasks 6–7 will populate it from live env inspection.
+// buildCapabilities returns the current Capabilities snapshot with live
+// detection of all five supported AI providers (PATH checks for CLI tools,
+// env-var checks for API-based providers).
 func buildCapabilities() Capabilities {
-	return Capabilities{
+	caps := Capabilities{
 		Providers: []ProviderCapability{},
 		Sources:   SourceCapabilities{},
 	}
+
+	for _, def := range providerRegistry {
+		configured := false
+		switch def.kind {
+		case providerKindAPI:
+			configured = os.Getenv(def.envKey) != ""
+		case providerKindCLI:
+			if p, err := exec.LookPath(def.id); err == nil && p != "" {
+				configured = true
+			}
+			// claude-cli uses the "claude" binary.
+			if !configured && def.id == "claude-cli" {
+				if p, err := exec.LookPath("claude"); err == nil && p != "" {
+					configured = true
+				}
+			}
+		}
+		requiresSecret := def.kind == providerKindAPI && !configured
+		caps.Providers = append(caps.Providers, ProviderCapability{
+			ID:                   def.id,
+			Label:                def.label,
+			Configured:           configured,
+			RequiresSecret:       requiresSecret,
+			WritableInOnboarding: def.envKey != "",
+			MaskedValue:          maskEnvVar(def.envKey),
+		})
+	}
+
+	// Legacy: also advertise "anthropic" as an alias for the sdk provider so
+	// users who previously stored "anthropic" see it as configured.
+	if os.Getenv("ANTHROPIC_API_KEY") != "" {
+		caps.Providers = append(caps.Providers, ProviderCapability{
+			ID:                   "anthropic",
+			Label:                "Anthropic API (Claude)",
+			Configured:           true,
+			RequiresSecret:       false,
+			WritableInOnboarding: true,
+			MaskedValue:          maskEnvVar("ANTHROPIC_API_KEY"),
+		})
+	}
+
+	return caps
+}
+
+// maskEnvVar returns a masked representation of an env var's value or empty
+// string if the var is not set.
+func maskEnvVar(key string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		return ""
+	}
+	if len(val) <= 4 {
+		return "****"
+	}
+	return val[:4] + "…"
 }
 
 // buildAppDatabaseStatus derives the AppDatabaseStatus from the service config.

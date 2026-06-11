@@ -36,6 +36,9 @@ func TestNewProgress_DefaultsToRequiredSetupWelcome(t *testing.T) {
 	} else if value != onboarding.ItemStatePending {
 		t.Errorf("Exploration.Items[ExplorationItemStarterProject] = %v; want ItemStatePending", value)
 	}
+	if p.Context.AIProviderPath != "sdk" {
+		t.Errorf("Context.AIProviderPath = %q; want %q", p.Context.AIProviderPath, "sdk")
+	}
 }
 
 // ── 2. Phase calculation ──────────────────────────────────────────────────────

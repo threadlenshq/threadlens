@@ -4,7 +4,9 @@
 
   let { status, onStatusReload = async () => {} } = $props();
   let currentStep = $state(status?.currentRequiredStep || 'welcome');
-  let aiProvider = $state(status?.context?.aiProviderPath || 'anthropic');
+  let aiProvider = $state(
+    (status?.context?.aiProviderPath || 'sdk') === 'anthropic' ? 'sdk' : (status?.context?.aiProviderPath || 'sdk')
+  );
   let providerSecret = $state('');
   let saving = $state(false);
   let error = $state('');
@@ -12,38 +14,25 @@
   let testError = $state('');
 
   const stepOrder = ['welcome', 'ai_provider', 'app_database', 'review'];
-  const providerSecretKeys = { anthropic: 'ANTHROPIC_API_KEY', gemini: 'GEMINI_API_KEY' };
+  const providerSecretKeys = { sdk: 'ANTHROPIC_API_KEY', gemini: 'GEMINI_API_KEY' };
 
   const AI_PROVIDERS = [
-    {
-      value: 'anthropic',
-      label: 'Anthropic API (Claude)',
-      description: 'Uses your ANTHROPIC_API_KEY. Recommended fastest path for Docker self-hosting.',
-    },
-    {
-      value: 'gemini',
-      label: 'Google Gemini',
-      description: 'Uses your GEMINI_API_KEY.',
-    },
-    {
-      value: 'copilot',
-      label: 'GitHub Copilot',
-      description: 'Advanced local path for people who already have Copilot CLI authenticated inside the runtime.',
-    },
-    {
-      value: 'claude-cli',
-      label: 'Claude CLI',
-      description: 'Advanced local path for people who already have Claude CLI authenticated inside the runtime.',
-    },
+    { value: 'sdk', label: 'Anthropic API (Claude)',        description: 'Uses your ANTHROPIC_API_KEY. Recommended fastest path for Docker self-hosting.' },
+    { value: 'gemini', label: 'Google Gemini',              description: 'Uses your GEMINI_API_KEY.' },
+    { value: 'copilot', label: 'GitHub Copilot',            description: 'Requires Copilot CLI authenticated on PATH.' },
+    { value: 'claude-cli', label: 'Claude CLI',             description: 'Requires Claude CLI authenticated on PATH.' },
+    { value: 'opencode', label: 'OpenCode CLI',             description: 'Requires opencode CLI authenticated on PATH.' },
   ];
 
   let providerConfigured = $derived(
-    !!status?.capabilities?.providers?.find((provider) => provider.id === aiProvider && provider.configured)
+    !!status?.capabilities?.providers?.find((p) => p.id === aiProvider && p.configured)
   );
-  let requiresSecret = $derived(['anthropic', 'gemini'].includes(aiProvider) && !providerConfigured);
+  let requiresSecret = $derived(
+    !!status?.capabilities?.providers?.find((p) => p.id === aiProvider)?.requiresSecret
+  );
   let providerDescription = $derived(AI_PROVIDERS.find((p) => p.value === aiProvider)?.description || '');
   let canContinue = $derived(
-    currentStep !== 'ai_provider' || (aiProvider && (!requiresSecret || providerSecret.trim().length > 0))
+    currentStep !== 'ai_provider' || (aiProvider && (!requiresSecret || providerSecret.trim().length > 0) && testState === 'connected')
   );
 
   function goToStep(step) {
@@ -206,31 +195,7 @@
           {#if testState === 'connected'}
             <span class="test-success">Connected to {aiProvider}</span>
           {:else if testState === 'failed'}
-            <span class="test-failure">{testError} — you can still continue and try again after saving.</span>
-          {/if}
-        </div>
-      {/if}
-      {#if !requiresSecret && ['anthropic', 'gemini'].includes(aiProvider)}
-        <div class="test-connection-row">
-          <button
-            data-testid="test-connection"
-            class="test-btn"
-            disabled={testState === 'testing'}
-            onclick={testConnection}
-            aria-label="Test AI provider connection"
-          >
-            {#if testState === 'testing'}
-              <span class="spinner"></span> Testing connection…
-            {:else if testState === 'connected'}
-              ✓ Connected
-            {:else}
-              Test Connection
-            {/if}
-          </button>
-          {#if testState === 'connected'}
-            <span class="test-success">Connected to {aiProvider}</span>
-          {:else if testState === 'failed'}
-            <span class="test-failure">{testError} — you can still continue and try again after saving.</span>
+            <span class="test-failure">{testError}</span>
           {/if}
         </div>
       {/if}
