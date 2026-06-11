@@ -715,9 +715,6 @@
     const created = await projectsApi.create({ id, name, mode, ...(description ? { description } : {}) });
     await loadProjects();
 
-    // If the exploration phase is active and the starter project step is pending,
-    // link the newly created project to the onboarding context and create a
-    // default query so the seeding flow can proceed.
     if (onboardingShowsExploration) {
       const starterProjectItem = onboardingStatus?.items?.find(i => i.id === 'starter_project');
       if (starterProjectItem && starterProjectItem.state === 'pending') {
@@ -1027,7 +1024,6 @@
     await checkOnboarding();
     if (!appInitialized || onboardingRequiresSetup || onboardingError) return;
     await continueAppInit();
-    // Auto-open the exploration checklist when the wizard transitions to exploration phase.
     if (onboardingShowsExploration) {
       checklistOpen = true;
     }

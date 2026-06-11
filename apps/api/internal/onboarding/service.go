@@ -148,24 +148,16 @@ func (s *Service) saveProgress(ctx context.Context, p Progress) error {
 	return nil
 }
 
-// applyProviderKeysToProcessEnv calls os.Setenv for AI provider keys found in
-// values, so the running process can use them immediately without a restart.
-// Empty values are skipped to avoid overwriting an already-loaded key with a
-// blank. Non-AI keys are silently ignored.
+// Hot-activate AI provider keys so they are available without a process restart.
 func applyProviderKeysToProcessEnv(values map[string]string) {
-	aiKeys := map[string]bool{
-		"ANTHROPIC_API_KEY": true,
-		"GEMINI_API_KEY":    true,
-	}
-	for k, v := range values {
-		if !aiKeys[k] {
+	for _, d := range providerRegistry {
+		if d.envKey == "" {
 			continue
 		}
-		trimmed := strings.TrimSpace(v)
-		if trimmed == "" {
-			continue
+		trimmed := strings.TrimSpace(values[d.envKey])
+		if trimmed != "" {
+			os.Setenv(d.envKey, trimmed)
 		}
-		os.Setenv(k, trimmed)
 	}
 }
 
@@ -216,7 +208,7 @@ func (s *Service) GetStatus(ctx context.Context) (Status, error) {
 			Phase:       PhaseDisabled,
 			EnvFilePath: s.cfg.EnvFilePath,
 			Steps:       buildStepViews(NewProgress()),
-			Items:       s.buildItemViews(NewProgress()),
+			Items:       s.buildItemViews(ctx, NewProgress()),
 		}, nil
 	}
 
@@ -224,12 +216,12 @@ func (s *Service) GetStatus(ctx context.Context) (Status, error) {
 	if err != nil {
 		return Status{}, err
 	}
-	return s.statusFromProgress(p), nil
+	return s.statusFromProgress(ctx, p), nil
 }
 
 // statusFromProgress assembles a Status from an already-loaded Progress,
 // avoiding a second DB round-trip in mutating operations.
-func (s *Service) statusFromProgress(p Progress) Status {
+func (s *Service) statusFromProgress(ctx context.Context, p Progress) Status {
 	phase := PhaseForProgress(true, p)
 	requiredSetupComplete := p.RequiredSetup.Status == RequiredStatusComplete
 	explorationComplete := ExplorationComplete(p.Exploration.Items) ||
@@ -245,7 +237,7 @@ func (s *Service) statusFromProgress(p Progress) Status {
 		CurrentRequiredStep:    p.RequiredSetup.CurrentStep,
 		CurrentExplorationItem: p.Exploration.CurrentItem,
 		Steps:                  buildStepViews(p),
-		Items:                  s.buildItemViews(p),
+		Items:                  s.buildItemViews(ctx, p),
 		Capabilities:           buildCapabilities(),
 		AppDatabase:            buildAppDatabaseStatus(s.cfg),
 		Context:                p.Context,
@@ -274,10 +266,10 @@ func buildStepViews(p Progress) []StepView {
 // buildItemViews produces the ordered display list of exploration items.
 // For ExplorationItemStarterQuery, it populates SeededQueryCount from the
 // project repository. If the count cannot be loaded, it defaults to 0.
-func (s *Service) buildItemViews(p Progress) []ItemView {
+func (s *Service) buildItemViews(ctx context.Context, p Progress) []ItemView {
 	seededCount := 0
 	if p.Context.StarterProjectID != "" && s.projectRepo != nil {
-		queries, err := s.projectRepo.ListAllQueries(context.Background(), p.Context.StarterProjectID)
+		queries, err := s.projectRepo.ListAllQueries(ctx, p.Context.StarterProjectID)
 		if err == nil {
 			seededCount = len(queries)
 		}
@@ -543,7 +535,7 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 	if err := s.saveProgress(ctx, p); err != nil {
 		return Status{}, err
 	}
-	return s.statusFromProgress(p), nil
+	return s.statusFromProgress(ctx, p), nil
 }
 
 // Save writes the supplied key/value pairs to the env file (Docker mode only),
@@ -690,7 +682,7 @@ func (s *Service) UpdateExploration(ctx context.Context, req ExplorationUpdate) 
 	if err := s.saveProgress(ctx, p); err != nil {
 		return Status{}, err
 	}
-	return s.statusFromProgress(p), nil
+	return s.statusFromProgress(ctx, p), nil
 }
 
 // CreateStarterProject creates a starter project and query idempotently,

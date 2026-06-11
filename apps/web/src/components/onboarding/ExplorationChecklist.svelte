@@ -35,14 +35,9 @@
   let seedError = $state('');
   let seedBusy = $state(false);
   let createdProjectId = $state('');
-  let hasAutoSeeded = $state(false);
-
-  // When a project is created externally and linked to the onboarding context,
-  // auto-trigger the seeding flow so the user can immediately add AI-suggested queries.
   $effect(() => {
     const ctxProjectId = status?.context?.starterProjectId;
-    if (ctxProjectId && ctxProjectId !== createdProjectId && !hasAutoSeeded) {
-      hasAutoSeeded = true;
+    if (ctxProjectId && ctxProjectId !== createdProjectId) {
       createdProjectId = ctxProjectId;
       seeding = true;
       loadSuggestions();
@@ -140,28 +135,23 @@
   async function createSelectedQueries() {
     seedBusy = true;
     seedError = '';
-    let created = 0;
-    let failed = 0;
-    for (const s of suggestions) {
-      if (!selected.has(s._id)) continue;
-      const edit = cardEdits[s._id] || s;
-      try {
-        await queries.create(createdProjectId, {
+    const toCreate = suggestions.filter(s => selected.has(s._id));
+    const results = await Promise.allSettled(
+      toCreate.map(s => {
+        const edit = cardEdits[s._id] || s;
+        return queries.create(createdProjectId, {
           platform: edit.platform,
           query_url: edit.query_url,
           angle: edit.angle || '',
-        });
-        created++;
-        // Uncheck successfully created queries so retry only submits failures.
-        selected.delete(s._id);
-      } catch (e) {
-        console.error('Failed to create query', s._id, e);
-        failed++;
-      }
-    }
-    if (failed > 0) {
-      seedError = `Created ${created} of ${created + failed} queries. ${failed} failed.`;
-      // Keep the panel open so the user can see the error and retry/skip.
+        }).then(() => s._id);
+      })
+    );
+    const succeeded = new Set(results.filter(r => r.status === 'fulfilled').map(r => r.value));
+    const failedCount = results.filter(r => r.status === 'rejected').length;
+    if (failedCount > 0) {
+      seedError = `Created ${succeeded.size} of ${toCreate.length} queries. ${failedCount} failed.`;
+      // Uncheck succeeded so retry only re-submits failures.
+      selected = new Set([...selected].filter(id => !succeeded.has(id)));
       seedBusy = false;
       await onStatusReload();
       return;

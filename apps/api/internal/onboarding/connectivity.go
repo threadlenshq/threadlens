@@ -42,7 +42,7 @@ var providerRegistryByID = func() map[string]providerDef {
 	for _, d := range providerRegistry {
 		m[d.id] = d
 	}
-	m["anthropic"] = providerDef{id: "anthropic", label: "Anthropic API (Claude)", kind: providerKindAPI, envKey: "ANTHROPIC_API_KEY", model: "claude-haiku-4-5-20251001"}
+	m["anthropic"] = m["sdk"]
 	return m
 }()
 
@@ -120,9 +120,7 @@ func testAPIProvider(ctx context.Context, def providerDef, provider string, key 
 		errMsg := strings.ReplaceAll(err.Error(), resolvedKey, "[REDACTED]")
 		return false, errMsg
 	}
-	if strings.Contains(strings.ToUpper(strings.TrimSpace(text)), "OK") {
-		return true, ""
-	}
+	_ = text
 	return true, ""
 }
 
@@ -148,9 +146,7 @@ func testCLIProvider(ctx context.Context, def providerDef, provider string) (boo
 		}
 		return false, err.Error()
 	}
-	if strings.Contains(strings.ToUpper(strings.TrimSpace(text)), "OK") {
-		return true, ""
-	}
+	_ = text
 	return true, ""
 }
 
