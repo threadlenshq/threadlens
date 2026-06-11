@@ -288,11 +288,8 @@ func redditFetchWithRetry(ctx context.Context, fetchURL string) ([]byte, error) 
 		}
 
 		if (resp.StatusCode == 429 || resp.StatusCode == 503) && attempt < redditMaxRetries {
-			backoff := time.Duration(1<<uint(attempt)) * time.Second
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(backoff):
+			if err := retryBackoff(ctx, attempt, time.Second); err != nil {
+				return nil, err
 			}
 			continue
 		}

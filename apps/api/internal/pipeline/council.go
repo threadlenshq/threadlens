@@ -98,7 +98,9 @@ Synthesize the council advice into this JSON schema:
 }`, rep.Title, rep.Assessment, outputsJSON)
 }
 
-func parseCouncilJSON(raw string) (json.RawMessage, error) {
+// stripMarkdownFences removes a surrounding ```json ... ``` code fence that
+// models sometimes wrap JSON responses in, returning the trimmed inner text.
+func stripMarkdownFences(raw string) string {
 	cleaned := strings.TrimSpace(raw)
 	if strings.HasPrefix(cleaned, "```") {
 		cleaned = strings.TrimPrefix(cleaned, "```json")
@@ -106,6 +108,11 @@ func parseCouncilJSON(raw string) (json.RawMessage, error) {
 		cleaned = strings.TrimSuffix(cleaned, "```")
 		cleaned = strings.TrimSpace(cleaned)
 	}
+	return cleaned
+}
+
+func parseCouncilJSON(raw string) (json.RawMessage, error) {
+	cleaned := stripMarkdownFences(raw)
 	if !json.Valid([]byte(cleaned)) {
 		return nil, fmt.Errorf("invalid JSON from AI: %s", cleaned[:min(len(cleaned), 200)])
 	}

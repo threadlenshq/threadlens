@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/ai"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
@@ -233,14 +232,7 @@ func RunAnalysis(ctx context.Context, db *sql.DB, aiSvc *ai.Service, repo *repos
 		return repo.MarkReportFailed(ctx, reportID, err.Error())
 	}
 
-	// Strip markdown fences.
-	cleaned := strings.TrimSpace(raw)
-	if strings.HasPrefix(cleaned, "```") {
-		cleaned = strings.TrimPrefix(cleaned, "```json")
-		cleaned = strings.TrimPrefix(cleaned, "```")
-		cleaned = strings.TrimSuffix(cleaned, "```")
-		cleaned = strings.TrimSpace(cleaned)
-	}
+	cleaned := stripMarkdownFences(raw)
 
 	var result analyzerResult
 	if err := json.Unmarshal([]byte(cleaned), &result); err != nil {

@@ -93,10 +93,7 @@ func (s *PostService) ListPostsPage(ctx context.Context, projectID string, filte
 func (s *PostService) GetPost(ctx context.Context, projectID string, postID string) (domain.Post, int, string) {
 	post, err := s.repo.GetPost(ctx, projectID, postID)
 	if err != nil {
-		code, msg := mapError(err)
-		if msg == "not found" {
-			msg = "Post not found"
-		}
+		code, msg := mapEntityError(err, "Post not found")
 		return domain.Post{}, code, msg
 	}
 	return post, http.StatusOK, ""
@@ -116,10 +113,7 @@ func (s *PostService) PatchPost(ctx context.Context, projectID string, postID st
 	}
 	post, err := s.repo.PatchPost(ctx, projectID, postID, req)
 	if err != nil {
-		code, msg := mapError(err)
-		if msg == "not found" {
-			msg = "Post not found"
-		}
+		code, msg := mapEntityError(err, "Post not found")
 		return domain.Post{}, code, msg
 	}
 	return post, http.StatusOK, ""
@@ -156,19 +150,13 @@ type PatchDMBody struct {
 func (s *PostService) PatchDMTarget(ctx context.Context, projectID string, postID string, username string, body PatchDMBody) (domain.DMTarget, int, string) {
 	// Verify post belongs to project first.
 	if _, err := s.repo.GetPost(ctx, projectID, postID); err != nil {
-		code, msg := mapError(err)
-		if msg == "not found" {
-			msg = "Post not found"
-		}
+		code, msg := mapEntityError(err, "Post not found")
 		return domain.DMTarget{}, code, msg
 	}
 
 	target, err := s.repo.PatchDMTarget(ctx, projectID, postID, username, body.DraftDM, body.DMStatus)
 	if err != nil {
-		code, msg := mapError(err)
-		if msg == "not found" {
-			msg = "DM target not found"
-		}
+		code, msg := mapEntityError(err, "DM target not found")
 		return domain.DMTarget{}, code, msg
 	}
 	return target, http.StatusOK, ""
@@ -216,10 +204,7 @@ func (s *PostService) GenerateDraft(ctx context.Context, projectID string, postI
 
 	post, err := s.repo.GetPost(ctx, projectID, postID)
 	if err != nil {
-		code, msg := mapError(err)
-		if msg == "not found" {
-			msg = "Post not found"
-		}
+		code, msg := mapEntityError(err, "Post not found")
 		return domain.Post{}, code, msg
 	}
 
@@ -301,19 +286,13 @@ func (s *PostService) GenerateDMDraft(ctx context.Context, projectID string, pos
 
 	post, err := s.repo.GetPost(ctx, projectID, postID)
 	if err != nil {
-		code, msg := mapError(err)
-		if msg == "not found" {
-			msg = "Post not found"
-		}
+		code, msg := mapEntityError(err, "Post not found")
 		return domain.DMTarget{}, code, msg
 	}
 
 	target, err := s.repo.GetDMTarget(ctx, postID, username)
 	if err != nil {
-		code, msg := mapError(err)
-		if msg == "not found" {
-			msg = "DM target not found"
-		}
+		code, msg := mapEntityError(err, "DM target not found")
 		return domain.DMTarget{}, code, msg
 	}
 
@@ -367,10 +346,7 @@ func (s *PostService) PostReply(ctx context.Context, projectID string, postID st
 
 	post, err := s.repo.GetPost(ctx, projectID, postID)
 	if err != nil {
-		code, msg := mapError(err)
-		if msg == "not found" {
-			msg = "Post not found"
-		}
+		code, msg := mapEntityError(err, "Post not found")
 		return domain.Post{}, code, msg
 	}
 

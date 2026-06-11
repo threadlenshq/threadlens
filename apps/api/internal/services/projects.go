@@ -122,6 +122,16 @@ func (s *ProjectService) Graduate(ctx context.Context, id string) (domain.Projec
 	return p, http.StatusOK, ""
 }
 
+// mapEntityError is like mapError but substitutes a caller-specific message
+// for the generic "not found" sentinel (e.g. "Post not found").
+func mapEntityError(err error, notFoundMsg string) (int, string) {
+	code, msg := mapError(err)
+	if msg == "not found" {
+		msg = notFoundMsg
+	}
+	return code, msg
+}
+
 // mapError converts repository errors to HTTP status codes and messages.
 func mapError(err error) (int, string) {
 	msg := err.Error()

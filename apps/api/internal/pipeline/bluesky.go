@@ -23,6 +23,17 @@ const (
 
 var blueskyHTTPClient = &http.Client{Timeout: 15 * time.Second}
 
+// retryBackoff waits for an exponential backoff (base * 2^attempt) before the
+// next retry, returning ctx.Err() if the context is cancelled first.
+func retryBackoff(ctx context.Context, attempt int, base time.Duration) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(time.Duration(1<<uint(attempt)) * base):
+		return nil
+	}
+}
+
 // blueskyFetchWithRetry fetches a URL with retry logic for 429/503 responses.
 func blueskyFetchWithRetry(ctx context.Context, method, reqURL string, headers map[string]string, bodyBytes []byte) ([]byte, error) {
 	for attempt := 0; attempt <= blueskyMaxRetries; attempt++ {
@@ -53,11 +64,8 @@ func blueskyFetchWithRetry(ctx context.Context, method, reqURL string, headers m
 		}
 
 		if (resp.StatusCode == 429 || resp.StatusCode == 503) && attempt < blueskyMaxRetries {
-			backoff := time.Duration(1<<uint(attempt)) * blueskyBaseBackof
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(backoff):
+			if err := retryBackoff(ctx, attempt, blueskyBaseBackof); err != nil {
+				return nil, err
 			}
 			continue
 		}
