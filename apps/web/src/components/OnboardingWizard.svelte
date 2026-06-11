@@ -199,6 +199,30 @@
           {/if}
         </div>
       {/if}
+      {#if !requiresSecret}
+        <div class="test-connection-row">
+          <button
+            data-testid="test-connection"
+            class="test-btn"
+            disabled={testState === 'testing'}
+            onclick={testConnection}
+            aria-label="Test AI provider connection"
+          >
+            {#if testState === 'testing'}
+              <span class="spinner"></span> Testing connection…
+            {:else if testState === 'connected'}
+              ✓ Connected
+            {:else}
+              Test Connection
+            {/if}
+          </button>
+          {#if testState === 'connected'}
+            <span class="test-success">Connected to {aiProvider}</span>
+          {:else if testState === 'failed'}
+            <span class="test-failure">{testError}</span>
+          {/if}
+        </div>
+      {/if}
     </section>
     <div class="wizard-actions">
       <button class="ghost-btn" onclick={() => goToStep('welcome')}>Back</button>
