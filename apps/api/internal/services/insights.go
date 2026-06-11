@@ -235,17 +235,16 @@ func IsInvalidSince(err error) bool {
 	return ok
 }
 
+// matches e.g. "7d", "30d", "1h", "15m"
+var sinceRe = regexp.MustCompile(`^(\d+)([dhm])$`)
+var sinceUnits = map[string]string{"d": "days", "h": "hours", "m": "minutes"}
+
 func parseSince(since string) (string, bool) {
-	// matches e.g. "7d", "30d", "1h", "15m"
-	re := regexp.MustCompile(`^(\d+)([dhm])$`)
-	m := re.FindStringSubmatch(since)
+	m := sinceRe.FindStringSubmatch(since)
 	if m == nil {
 		return "", false
 	}
-	num := m[1]
-	unit := m[2]
-	unitMap := map[string]string{"d": "days", "h": "hours", "m": "minutes"}
-	return "-" + num + " " + unitMap[unit], true
+	return "-" + m[1] + " " + sinceUnits[m[2]], true
 }
 
 func computeTopKeywords(whyList []string, topN int) []map[string]any {

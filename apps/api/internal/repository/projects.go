@@ -63,7 +63,7 @@ func (r *Repository) CreateProject(ctx context.Context, p domain.Project) (domai
 
 func (r *Repository) GetProject(ctx context.Context, id string) (domain.Project, error) {
 	row := r.DB.QueryRowContext(ctx, "SELECT * FROM projects WHERE id = ?", id)
-	p, err := scanProjectRow(row)
+	p, err := scanProject(row)
 	if err == sql.ErrNoRows {
 		return domain.Project{}, fmt.Errorf("%w: Project not found", ErrNotFound)
 	}
@@ -236,41 +236,11 @@ func (r *Repository) GraduateProject(ctx context.Context, projectID string) (dom
 	return r.GetProject(ctx, projectID)
 }
 
-// scanProject scans from sql.Rows
-func scanProject(rows *sql.Rows) (domain.Project, error) {
+func scanProject(s rowScanner) (domain.Project, error) {
 	var p domain.Project
 	var scoringPrompt, description sql.NullString
 	var selectedReportID, selectedClusterIndex sql.NullInt64
-	err := rows.Scan(
-		&p.ID, &p.Name, &p.Mode,
-		&scoringPrompt, &description,
-		&selectedReportID, &selectedClusterIndex,
-		&p.CreatedAt, &p.UpdatedAt,
-	)
-	if err != nil {
-		return domain.Project{}, err
-	}
-	if scoringPrompt.Valid {
-		p.ScoringPrompt = &scoringPrompt.String
-	}
-	if description.Valid {
-		p.Description = &description.String
-	}
-	if selectedReportID.Valid {
-		p.SelectedReportID = &selectedReportID.Int64
-	}
-	if selectedClusterIndex.Valid {
-		p.SelectedClusterIndex = &selectedClusterIndex.Int64
-	}
-	return p, nil
-}
-
-// scanProjectRow scans from sql.Row
-func scanProjectRow(row *sql.Row) (domain.Project, error) {
-	var p domain.Project
-	var scoringPrompt, description sql.NullString
-	var selectedReportID, selectedClusterIndex sql.NullInt64
-	err := row.Scan(
+	err := s.Scan(
 		&p.ID, &p.Name, &p.Mode,
 		&scoringPrompt, &description,
 		&selectedReportID, &selectedClusterIndex,

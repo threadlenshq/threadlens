@@ -349,7 +349,7 @@ func (r *Repository) GetQuery(ctx context.Context, projectID string, queryID int
 		"SELECT id, project_id, platform, query_url, angle, enabled, created_at FROM project_queries WHERE id = ? AND project_id = ?",
 		queryID, projectID,
 	)
-	q, err := scanQueryRow(row)
+	q, err := scanQuery(row)
 	if err == sql.ErrNoRows {
 		return domain.Query{}, fmt.Errorf("%w: Query not found", ErrNotFound)
 	}
@@ -361,21 +361,20 @@ func (r *Repository) getQueryByID(ctx context.Context, id int64) (domain.Query, 
 		"SELECT id, project_id, platform, query_url, angle, enabled, created_at FROM project_queries WHERE id = ?",
 		id,
 	)
-	q, err := scanQueryRow(row)
+	q, err := scanQuery(row)
 	if err == sql.ErrNoRows {
 		return domain.Query{}, fmt.Errorf("%w: Query not found", ErrNotFound)
 	}
 	return q, err
 }
 
-func scanQuery(rows *sql.Rows) (domain.Query, error) {
-	var q domain.Query
-	err := rows.Scan(&q.ID, &q.ProjectID, &q.Platform, &q.QueryURL, &q.Angle, &q.Enabled, &q.CreatedAt)
-	return q, err
+// rowScanner is satisfied by both *sql.Rows and *sql.Row.
+type rowScanner interface {
+	Scan(dest ...any) error
 }
 
-func scanQueryRow(row *sql.Row) (domain.Query, error) {
+func scanQuery(s rowScanner) (domain.Query, error) {
 	var q domain.Query
-	err := row.Scan(&q.ID, &q.ProjectID, &q.Platform, &q.QueryURL, &q.Angle, &q.Enabled, &q.CreatedAt)
+	err := s.Scan(&q.ID, &q.ProjectID, &q.Platform, &q.QueryURL, &q.Angle, &q.Enabled, &q.CreatedAt)
 	return q, err
 }

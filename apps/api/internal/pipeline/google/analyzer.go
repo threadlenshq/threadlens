@@ -70,22 +70,27 @@ type AnalyzedResult struct {
 	ScoreBreakdown       ScoreBreakdown `json:"score_breakdown"`
 }
 
+var (
+	forumURLRe      = regexp.MustCompile(`reddit\.com|news\.ycombinator\.com|stackoverflow\.com`)
+	guideRe         = regexp.MustCompile(`\b(guide|tutorial|checklist|step[- ]by[- ]step|how to)\b`)
+	comparisonRe    = regexp.MustCompile(`\b(best|compare|comparison|vs\.?|alternative|review)\b`)
+	productRe       = regexp.MustCompile(`\b(pricing|product|signup|features|demo)\b`)
+	questionTitleRe = regexp.MustCompile(`\?$`)
+	problemTextRe   = regexp.MustCompile(`\b(help|struggle|stuck|pain|problem|difficult|hard)\b`)
+	solutionRe      = regexp.MustCompile(`\b(guide|tutorial|template|checklist|step[- ]by[- ]step|solution|workflow)\b`)
+	reentryRe       = regexp.MustCompile(`resume coding project|re-entry|lost context`)
+	careerRe        = regexp.MustCompile(`job|hiring|salary`)
+	productSignalRe = regexp.MustCompile(`\b(tool|app|product|saas|platform|pricing|demo|features|signup)\b`)
+)
+
 var contentTypeRules = []struct {
 	contentType string
 	test        func(url, text string) bool
 }{
-	{"forum", func(url, _ string) bool {
-		return regexp.MustCompile(`reddit\.com|news\.ycombinator\.com|stackoverflow\.com`).MatchString(url)
-	}},
-	{"guide", func(_, text string) bool {
-		return regexp.MustCompile(`\b(guide|tutorial|checklist|step[- ]by[- ]step|how to)\b`).MatchString(text)
-	}},
-	{"comparison", func(_, text string) bool {
-		return regexp.MustCompile(`\b(best|compare|comparison|vs\.?|alternative|review)\b`).MatchString(text)
-	}},
-	{"product", func(_, text string) bool {
-		return regexp.MustCompile(`\b(pricing|product|signup|features|demo)\b`).MatchString(text)
-	}},
+	{"forum", func(url, _ string) bool { return forumURLRe.MatchString(url) }},
+	{"guide", func(_, text string) bool { return guideRe.MatchString(text) }},
+	{"comparison", func(_, text string) bool { return comparisonRe.MatchString(text) }},
+	{"product", func(_, text string) bool { return productRe.MatchString(text) }},
 	{"article", func(_, _ string) bool { return true }},
 }
 
@@ -94,14 +99,10 @@ var intentTypeRules = []struct {
 	test       func(title, text string) bool
 }{
 	{"problem", func(title, text string) bool {
-		return regexp.MustCompile(`\?$`).MatchString(title) || regexp.MustCompile(`\b(help|struggle|stuck|pain|problem|difficult|hard)\b`).MatchString(text)
+		return questionTitleRe.MatchString(title) || problemTextRe.MatchString(text)
 	}},
-	{"evaluation", func(_, text string) bool {
-		return regexp.MustCompile(`\b(best|compare|comparison|vs\.?|alternative|review)\b`).MatchString(text)
-	}},
-	{"solution", func(_, text string) bool {
-		return regexp.MustCompile(`\b(guide|tutorial|template|checklist|step[- ]by[- ]step|solution|workflow)\b`).MatchString(text)
-	}},
+	{"evaluation", func(_, text string) bool { return comparisonRe.MatchString(text) }},
+	{"solution", func(_, text string) bool { return solutionRe.MatchString(text) }},
 	{"informational", func(_, _ string) bool { return true }},
 }
 
@@ -239,7 +240,7 @@ func getFitReasons(text string, problemScore, audienceScore, workflowScore, acti
 	if actionabilityScore >= 1 {
 		reasons = append(reasons, "contains actionable solution patterns")
 	}
-	if regexp.MustCompile(`resume coding project|re-entry|lost context`).MatchString(text) {
+	if reentryRe.MatchString(text) {
 		reasons = append(reasons, "strong keepgoing re-entry signal")
 	}
 	if rootKeywordMatched {
@@ -250,7 +251,7 @@ func getFitReasons(text string, problemScore, audienceScore, workflowScore, acti
 
 func getDisqualifiers(text, url string) []string {
 	var disqualifiers []string
-	if regexp.MustCompile(`job|hiring|salary`).MatchString(text) {
+	if careerRe.MatchString(text) {
 		disqualifiers = append(disqualifiers, "career-only topic")
 	}
 	if strings.Contains(url, "news") {
@@ -288,7 +289,7 @@ func AnalyzeResult(result SearchResult, fetched FetchResult, kctx AnalysisContex
 	workflowScore := scoreDimension(ctx.text, WORKFLOW_TERMS, 2)
 	actionabilityScore := scoreDimension(ctx.text, ACTIONABILITY_TERMS, 2)
 
-	hasProductSignal := regexp.MustCompile(`\b(tool|app|product|saas|platform|pricing|demo|features|signup)\b`).MatchString(ctx.text) ||
+	hasProductSignal := productSignalRe.MatchString(ctx.text) ||
 		kctx.IntentType == "product" || kctx.ProductIntent
 
 	rawRelevance := float64(problemScore+audienceScore+workflowScore+actionabilityScore) + rkSignal.rootKeywordScore

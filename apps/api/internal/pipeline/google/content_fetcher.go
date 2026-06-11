@@ -36,12 +36,18 @@ var transientStatuses = map[int]bool{408: true, 425: true, 429: true, 500: true,
 var htmlEntityRe = regexp.MustCompile(`&#x?[0-9a-fA-F]+;|&[a-z]+;`)
 var htmlTagRe = regexp.MustCompile(`<[^>]+>`)
 var multiSpaceRe = regexp.MustCompile(`\s+`)
+var aposEntityRe = regexp.MustCompile(`(?i)&#39;|&apos;`)
+var linkLocalIPv6Re = regexp.MustCompile(`^fe[89ab]`)
 
-func stripTagBlock(html, tagName string) string {
-	// case-insensitive strip of complete tag blocks
-	re := regexp.MustCompile(`(?i)<` + regexp.QuoteMeta(tagName) + `\b[^>]*>[\s\S]*?</` + regexp.QuoteMeta(tagName) + `>`)
-	return re.ReplaceAllString(html, " ")
-}
+// nonContentTagBlockRes holds one precompiled block-stripping regex per
+// nonContentTags entry, built once at init rather than per fetched page.
+var nonContentTagBlockRes = func() []*regexp.Regexp {
+	res := make([]*regexp.Regexp, len(nonContentTags))
+	for i, tag := range nonContentTags {
+		res[i] = regexp.MustCompile(`(?i)<` + regexp.QuoteMeta(tag) + `\b[^>]*>[\s\S]*?</` + regexp.QuoteMeta(tag) + `>`)
+	}
+	return res
+}()
 
 func stripHtmlTags(html string) string {
 	cleaned := htmlTagRe.ReplaceAllString(html, " ")
@@ -49,7 +55,7 @@ func stripHtmlTags(html string) string {
 	cleaned = strings.ReplaceAll(cleaned, "&amp;", "&")
 	cleaned = strings.ReplaceAll(cleaned, "&lt;", "<")
 	cleaned = strings.ReplaceAll(cleaned, "&gt;", ">")
-	cleaned = regexp.MustCompile(`(?i)&#39;|&apos;`).ReplaceAllString(cleaned, "'")
+	cleaned = aposEntityRe.ReplaceAllString(cleaned, "'")
 	cleaned = strings.ReplaceAll(cleaned, "&quot;", "\"")
 	cleaned = multiSpaceRe.ReplaceAllString(cleaned, " ")
 	return strings.TrimSpace(cleaned)
@@ -57,8 +63,8 @@ func stripHtmlTags(html string) string {
 
 func extractPageText(html string) string {
 	cleaned := html
-	for _, tag := range nonContentTags {
-		cleaned = stripTagBlock(cleaned, tag)
+	for _, re := range nonContentTagBlockRes {
+		cleaned = re.ReplaceAllString(cleaned, " ")
 	}
 	return stripHtmlTags(cleaned)
 }
@@ -131,7 +137,7 @@ func isDisallowedIPv6(address string) bool {
 	if strings.HasPrefix(normalized, "fc") || strings.HasPrefix(normalized, "fd") {
 		return true
 	}
-	if regexp.MustCompile(`^fe[89ab]`).MatchString(normalized) {
+	if linkLocalIPv6Re.MatchString(normalized) {
 		return true
 	}
 	if strings.HasPrefix(normalized, "::ffff:") {
