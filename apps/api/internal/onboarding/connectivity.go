@@ -98,7 +98,6 @@ func TestAI(ctx context.Context, provider string, key string) (bool, string) {
 
 // testAPIProvider tests an API-key-based provider (sdk, gemini).
 func testAPIProvider(ctx context.Context, def providerDef, provider string, key string) (bool, string) {
-	// Resolve the key: prefer the submitted key, fall back to the env value.
 	resolvedKey := strings.TrimSpace(key)
 	if resolvedKey == "" {
 		resolvedKey = os.Getenv(def.envKey)
@@ -107,15 +106,12 @@ func testAPIProvider(ctx context.Context, def providerDef, provider string, key 
 		return false, "no API key provided or configured"
 	}
 
-	// Reject keys with control characters (defensive).
 	for _, r := range resolvedKey {
 		if r < 0x20 || r == 0x7F {
 			return false, "invalid API key format"
 		}
 	}
 
-	// Temporarily set the env var so the provider's Available() and Generate()
-	// pick it up, then restore the previous value.
 	testAIEnvMu.Lock()
 	prev := os.Getenv(def.envKey)
 	os.Setenv(def.envKey, resolvedKey)
@@ -136,7 +132,7 @@ func testAPIProvider(ctx context.Context, def providerDef, provider string, key 
 		return false, "provider not available after setting key"
 	}
 
-	timeout := 10 * time.Second
+	timeout := 30 * time.Second
 	text, err := p.Generate(ctx, def.model, "", "Reply with exactly the text: OK", timeout)
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
@@ -170,7 +166,7 @@ func testCLIProvider(ctx context.Context, def providerDef, provider string) (boo
 		return false, fmt.Sprintf("%s CLI not found in PATH — install it first", provider)
 	}
 
-	timeout := 10 * time.Second
+	timeout := 30 * time.Second
 	text, err := p.Generate(ctx, def.model, "", "Reply with exactly the text: OK", timeout)
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
