@@ -45,13 +45,8 @@ func (r *Repository) ListPosts(ctx context.Context, projectID string, filters Po
 	if err != nil {
 		return nil, err
 	}
-	// attach dm_targets for each post
-	for i := range posts {
-		targets, err := r.listDMTargets(ctx, posts[i].ID)
-		if err != nil {
-			return nil, err
-		}
-		posts[i].DMTargets = targets
+	if err := r.attachDMTargets(ctx, posts); err != nil {
+		return nil, err
 	}
 	if posts == nil {
 		posts = []domain.Post{}
@@ -85,12 +80,8 @@ func (r *Repository) ListPostsPage(ctx context.Context, projectID string, filter
 	if err != nil {
 		return domain.PagedPosts{}, err
 	}
-	for i := range posts {
-		targets, err := r.listDMTargets(ctx, posts[i].ID)
-		if err != nil {
-			return domain.PagedPosts{}, err
-		}
-		posts[i].DMTargets = targets
+	if err := r.attachDMTargets(ctx, posts); err != nil {
+		return domain.PagedPosts{}, err
 	}
 	if posts == nil {
 		posts = []domain.Post{}
@@ -304,15 +295,9 @@ func (r *Repository) InsertDMTargets(ctx context.Context, postID string, targets
 }
 
 // listDMTargets fetches dm_targets for a post ordered by intent_score DESC.
-func (r *Repository) listDMTargets(ctx context.Context, postID string) ([]domain.DMTarget, error) {
-	rows, err := r.DB.QueryContext(ctx,
-		"SELECT id, post_id, username, intent_score, signal, context, approach, draft_dm, draft_provider, dm_status FROM dm_targets WHERE post_id = ? ORDER BY intent_score DESC",
-		postID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+const dmTargetColumns = "id, post_id, username, intent_score, signal, context, approach, draft_dm, draft_provider, dm_status"
+
+func scanDMTargetRows(rows *sql.Rows) ([]domain.DMTarget, error) {
 	var targets []domain.DMTarget
 	for rows.Next() {
 		var t domain.DMTarget
@@ -328,13 +313,67 @@ func (r *Repository) listDMTargets(ctx context.Context, postID string) ([]domain
 		}
 		targets = append(targets, t)
 	}
-	if err := rows.Err(); err != nil {
+	return targets, rows.Err()
+}
+
+func (r *Repository) listDMTargets(ctx context.Context, postID string) ([]domain.DMTarget, error) {
+	rows, err := r.DB.QueryContext(ctx,
+		"SELECT "+dmTargetColumns+" FROM dm_targets WHERE post_id = ? ORDER BY intent_score DESC",
+		postID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	targets, err := scanDMTargetRows(rows)
+	if err != nil {
 		return nil, err
 	}
 	if targets == nil {
 		targets = []domain.DMTarget{}
 	}
 	return targets, nil
+}
+
+// attachDMTargets loads dm_targets for all posts in a single batched query
+// (chunked to stay under SQLite's bound-parameter limit) and assigns them.
+func (r *Repository) attachDMTargets(ctx context.Context, posts []domain.Post) error {
+	const chunkSize = 500
+	byPost := make(map[string][]domain.DMTarget, len(posts))
+	for start := 0; start < len(posts); start += chunkSize {
+		end := start + chunkSize
+		if end > len(posts) {
+			end = len(posts)
+		}
+		args := make([]any, 0, end-start)
+		for _, p := range posts[start:end] {
+			args = append(args, p.ID)
+		}
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(args)), ",")
+		rows, err := r.DB.QueryContext(ctx,
+			"SELECT "+dmTargetColumns+" FROM dm_targets WHERE post_id IN ("+placeholders+") ORDER BY intent_score DESC",
+			args...,
+		)
+		if err != nil {
+			return err
+		}
+		targets, err := scanDMTargetRows(rows)
+		rows.Close()
+		if err != nil {
+			return err
+		}
+		for _, t := range targets {
+			byPost[t.PostID] = append(byPost[t.PostID], t)
+		}
+	}
+	for i := range posts {
+		targets := byPost[posts[i].ID]
+		if targets == nil {
+			targets = []domain.DMTarget{}
+		}
+		posts[i].DMTargets = targets
+	}
+	return nil
 }
 
 func buildPostFilterClauses(filters PostFilters) ([]string, []any) {

@@ -80,6 +80,9 @@ type RefineRecommendation struct {
 var httpPrefixRe = regexp.MustCompile(`(?i)^https?://`)
 var nonAlphaNumRe = regexp.MustCompile(`[^a-z0-9]+`)
 var httpURLTokenRe = regexp.MustCompile(`https?://\S+`)
+var pathSegmentExtRe = regexp.MustCompile(`\.[a-z0-9]+$`)
+var mdFenceOpenRe = regexp.MustCompile("(?s)^```(?:json)?\\n?")
+var mdFenceCloseRe = regexp.MustCompile("\\n?```$")
 
 func parseJSON(value string, fallback any) any {
 	var out any
@@ -161,7 +164,6 @@ func tokenizeQueryURL(value string) []string {
 		"search": true, "json": true, "comments": true,
 		"new": true, "top": true, "hot": true,
 	}
-	pathSegmentExtRe := regexp.MustCompile(`\.[a-z0-9]+$`)
 	for _, seg := range strings.Split(parsed.Path, "/") {
 		cleaned := pathSegmentExtRe.ReplaceAllString(decodeTokenSource(seg), "")
 		for _, t := range tokenize(cleaned) {
@@ -1135,8 +1137,8 @@ func nilIfEmpty(s string) any {
 func sanitizeAIJSON(value string) string {
 	cleaned := strings.TrimSpace(value)
 	if strings.HasPrefix(cleaned, "```") {
-		cleaned = regexp.MustCompile("(?s)^```(?:json)?\\n?").ReplaceAllString(cleaned, "")
-		cleaned = regexp.MustCompile("\\n?```$").ReplaceAllString(cleaned, "")
+		cleaned = mdFenceOpenRe.ReplaceAllString(cleaned, "")
+		cleaned = mdFenceCloseRe.ReplaceAllString(cleaned, "")
 		cleaned = strings.TrimSpace(cleaned)
 	}
 	return cleaned

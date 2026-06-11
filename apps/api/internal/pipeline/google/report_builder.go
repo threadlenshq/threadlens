@@ -5,7 +5,21 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+)
+
+var (
+	mdImageRe       = regexp.MustCompile(`!\[[^\]]*\]\([^)]*\)`)
+	mdLinkRe        = regexp.MustCompile(`\[([^\]]*)\]\([^)]*\)`)
+	mdLinkTextRe    = regexp.MustCompile(`\[([^\]]*)\]`)
+	scaffoldURLRe   = regexp.MustCompile(`https?://\S+`)
+	sectionTitleRe  = regexp.MustCompile(`(?i)section title\s*:?`)
+	contentLabelRe  = regexp.MustCompile(`(?i)\bcontent\s*:`)
+	numEntityRe     = regexp.MustCompile(`&#x?[0-9a-fA-F]+;`)
+	namedEntityRe   = regexp.MustCompile(`&[a-z]+;`)
+	scaffoldPunctRe = regexp.MustCompile(`[>•·|#]+`)
+	nonAlphaNumRe   = regexp.MustCompile(`[^a-z0-9]+`)
 )
 
 // contentPlatforms mirrors CONTENT_PLATFORMS from report-builder.js.
@@ -58,21 +72,21 @@ var stopwords = map[string]bool{
 // stripScaffolding mirrors stripScaffolding() from report-builder.js.
 func stripScaffolding(text string) string {
 	out := text
-	out = regexp.MustCompile(`!\[[^\]]*\]\([^)]*\)`).ReplaceAllString(out, " ")
-	out = regexp.MustCompile(`\[([^\]]*)\]\([^)]*\)`).ReplaceAllStringFunc(out, func(m string) string {
-		inner := regexp.MustCompile(`\[([^\]]*)\]`).FindStringSubmatch(m)
+	out = mdImageRe.ReplaceAllString(out, " ")
+	out = mdLinkRe.ReplaceAllStringFunc(out, func(m string) string {
+		inner := mdLinkTextRe.FindStringSubmatch(m)
 		if len(inner) > 1 {
 			return inner[1] + " "
 		}
 		return " "
 	})
-	out = regexp.MustCompile(`https?://\S+`).ReplaceAllString(out, " ")
-	out = regexp.MustCompile(`(?i)section title\s*:?`).ReplaceAllString(out, " ")
-	out = regexp.MustCompile(`(?i)\bcontent\s*:`).ReplaceAllString(out, " ")
-	out = regexp.MustCompile(`&#x?[0-9a-fA-F]+;`).ReplaceAllString(out, " ")
-	out = regexp.MustCompile(`&[a-z]+;`).ReplaceAllString(out, " ")
-	out = regexp.MustCompile(`[>•·|#]+`).ReplaceAllString(out, " ")
-	out = regexp.MustCompile(`\s+`).ReplaceAllString(out, " ")
+	out = scaffoldURLRe.ReplaceAllString(out, " ")
+	out = sectionTitleRe.ReplaceAllString(out, " ")
+	out = contentLabelRe.ReplaceAllString(out, " ")
+	out = numEntityRe.ReplaceAllString(out, " ")
+	out = namedEntityRe.ReplaceAllString(out, " ")
+	out = scaffoldPunctRe.ReplaceAllString(out, " ")
+	out = whitespaceRe.ReplaceAllString(out, " ")
 	return strings.TrimSpace(out)
 }
 
@@ -569,7 +583,7 @@ func buildRisks(analyzedResults []AnalyzedResult, outreachCandidates []AnalyzedR
 		}
 		risks = append(risks, Risk{
 			Level:  level,
-			Label:  strings.Replace("X% of results are weak fit", "X", toString(weakFitPct), 1),
+			Label:  strings.Replace("X% of results are weak fit", "X", strconv.Itoa(weakFitPct), 1),
 			Detail: "Consider tighter root keywords or adding forum-biased queries.",
 		})
 	}
@@ -584,7 +598,7 @@ func buildRisks(analyzedResults []AnalyzedResult, outreachCandidates []AnalyzedR
 	} else if outreach < 5 {
 		risks = append(risks, Risk{
 			Level:  "low",
-			Label:  "Only " + toString(outreach) + " outreach candidates",
+			Label:  "Only " + strconv.Itoa(outreach) + " outreach candidates",
 			Detail: "Low signal for engagement work on this run.",
 		})
 	}
@@ -593,7 +607,7 @@ func buildRisks(analyzedResults []AnalyzedResult, outreachCandidates []AnalyzedR
 	if shortPct >= 30 {
 		risks = append(risks, Risk{
 			Level:  "medium",
-			Label:  strings.Replace("X% of results have thin content", "X", toString(shortPct), 1),
+			Label:  strings.Replace("X% of results have thin content", "X", strconv.Itoa(shortPct), 1),
 			Detail: "Fetcher likely failed or pages are JS-heavy. Relevance scoring is biased toward titles.",
 		})
 	}
@@ -622,27 +636,10 @@ func buildRisks(analyzedResults []AnalyzedResult, outreachCandidates []AnalyzedR
 	return risks
 }
 
-func toString(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	neg := ""
-	if n < 0 {
-		neg = "-"
-		n = -n
-	}
-	digits := []byte{}
-	for n > 0 {
-		digits = append([]byte{byte('0' + n%10)}, digits...)
-		n /= 10
-	}
-	return neg + string(digits)
-}
-
 func tokenizeKeywords(keywords []string) map[string]bool {
 	set := make(map[string]bool)
 	for _, kw := range keywords {
-		tokens := regexp.MustCompile(`[^a-z0-9]+`).Split(strings.ToLower(kw), -1)
+		tokens := nonAlphaNumRe.Split(strings.ToLower(kw), -1)
 		for _, t := range tokens {
 			if len(t) >= 3 {
 				set[t] = true
@@ -699,13 +696,12 @@ func buildPainThemeCounts(results []AnalyzedResult) map[string]int {
 
 func buildPhraseCounts(results []AnalyzedResult, excludedTokens map[string]bool) map[string]int {
 	counts := make(map[string]int)
-	nonAlphaNum := regexp.MustCompile(`[^a-z0-9]+`)
 	for _, item := range results {
 		stripped := strings.ToLower(stripScaffolding(item.Summary))
 		if stripped == "" {
 			continue
 		}
-		tokens := nonAlphaNum.Split(stripped, -1)
+		tokens := nonAlphaNumRe.Split(stripped, -1)
 		for _, token := range tokens {
 			if len(token) < 5 {
 				continue

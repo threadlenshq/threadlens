@@ -9,9 +9,15 @@ import (
 	"strings"
 )
 
+var (
+	trailingSlashRe = regexp.MustCompile(`/+$`)
+	wwwPrefixRe     = regexp.MustCompile(`^www\.`)
+	whitespaceRe    = regexp.MustCompile(`\s+`)
+)
+
 // canonicalizePath trims trailing slashes and lowercases.
 func canonicalizePath(pathname string) string {
-	trimmed := regexp.MustCompile(`/+$`).ReplaceAllString(pathname, "")
+	trimmed := trailingSlashRe.ReplaceAllString(pathname, "")
 	if trimmed == "" {
 		trimmed = "/"
 	}
@@ -64,10 +70,10 @@ func CanonicalizeURL(rawURL string) string {
 	// net/url.Parse handles the heavy lifting.
 	parsed, err := parseURL(raw)
 	if err != nil {
-		return strings.ToLower(regexp.MustCompile(`/+$`).ReplaceAllString(raw, ""))
+		return strings.ToLower(trailingSlashRe.ReplaceAllString(raw, ""))
 	}
 
-	hostname := regexp.MustCompile(`^www\.`).ReplaceAllString(strings.ToLower(parsed.host), "")
+	hostname := wwwPrefixRe.ReplaceAllString(strings.ToLower(parsed.host), "")
 	pathname := canonicalizePath(parsed.path)
 
 	// Sort query params
@@ -158,7 +164,7 @@ func parseURL(raw string) (parsedURL, error) {
 }
 
 func normalizeTextForHash(value string) string {
-	return strings.TrimSpace(strings.ToLower(regexp.MustCompile(`\s+`).ReplaceAllString(value, " ")))
+	return strings.TrimSpace(strings.ToLower(whitespaceRe.ReplaceAllString(value, " ")))
 }
 
 func getCanonicalGroupKey(r *AnalyzedResult) string {

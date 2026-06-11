@@ -1,6 +1,7 @@
 package google
 
 import (
+	"strconv"
 	"testing"
 )
 
@@ -540,7 +541,7 @@ func TestBuildMentionedProductsCapsAt10(t *testing.T) {
 	names := []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"}
 	results := make([]AnalyzedResult, len(names))
 	for i, name := range names {
-		results[i] = AnalyzedResult{URL: "https://result-" + toString(i) + ".com", MentionedProducts: []string{name}}
+		results[i] = AnalyzedResult{URL: "https://result-" + strconv.Itoa(i) + ".com", MentionedProducts: []string{name}}
 	}
 	products := BuildMentionedProducts(results)
 	if len(products) != 10 {
