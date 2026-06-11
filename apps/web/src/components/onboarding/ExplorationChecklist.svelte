@@ -35,6 +35,19 @@
   let seedError = $state('');
   let seedBusy = $state(false);
   let createdProjectId = $state('');
+  let hasAutoSeeded = $state(false);
+
+  // When a project is created externally and linked to the onboarding context,
+  // auto-trigger the seeding flow so the user can immediately add AI-suggested queries.
+  $effect(() => {
+    const ctxProjectId = status?.context?.starterProjectId;
+    if (ctxProjectId && ctxProjectId !== createdProjectId && !hasAutoSeeded) {
+      hasAutoSeeded = true;
+      createdProjectId = ctxProjectId;
+      seeding = true;
+      loadSuggestions();
+    }
+  });
 
   async function completeItem(item) {
     await mutateExploration({ item, state: 'completed', selectedProjectId });
@@ -163,10 +176,34 @@
     await onStatusReload();
   }
 
-  function navigateForItem(item) {
-    if (item === 'reports_intro') onNavigate('reports');
-    else if (item === 'settings_intro') onNavigate('models');
-    else onNavigate('posts');
+  async function handleTaskGo(item) {
+    if (item === 'starter_project') {
+      if (starterReady) {
+        await createStarterProject();
+      }
+      return;
+    }
+    if (item === 'starter_query') {
+      if (createdProjectId && !seeding) {
+        seeding = true;
+        await loadSuggestions();
+      } else if (createdProjectId && seeding && selected.size > 0) {
+        await createSelectedQueries();
+      } else {
+        onNavigate('posts');
+      }
+      return;
+    }
+    if (item === 'reports_intro') {
+      onNavigate('reports');
+      return;
+    }
+    if (item === 'settings_intro') {
+      onNavigate('models');
+      return;
+    }
+    // first_scout, review_results
+    onNavigate('posts');
   }
 </script>
 
@@ -224,7 +261,7 @@
             {/if}
           </button>
           
-          <button class="task-label" onclick={() => navigateForItem(item.id)} title="Show me">
+          <button class="task-label" onclick={() => handleTaskGo(item.id)} title="Do it">
             {#if item.id === 'first_scout' && item.state === 'pending'}
               {#if seededQueryCount === 0}
                 Run your first scout (add a query first)
@@ -245,6 +282,12 @@
           {#if item.state === 'pending'}
             <button class="task-skip" aria-label="Skip" onclick={() => skipItem(item.id)}>
               Skip
+            </button>
+          {/if}
+
+          {#if item.state === 'pending'}
+            <button class="task-go" onclick={() => handleTaskGo(item.id)} disabled={item.id === 'starter_project' && !starterReady}>
+              {item.id === 'starter_project' ? 'Create' : item.id === 'starter_query' ? 'Add' : 'Go'}
             </button>
           {/if}
         </li>
@@ -578,6 +621,27 @@
   .task-skip:hover {
     background: #23232f;
     color: #e2e2e8;
+  }
+
+  .task-go {
+    background: #4f46e5;
+    border: none;
+    color: #fff;
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-weight: 500;
+    opacity: 0;
+  }
+
+  .task-item:hover .task-go {
+    opacity: 1;
+  }
+
+  .task-go:hover {
+    background: #4338ca;
   }
 
   .starter-card {

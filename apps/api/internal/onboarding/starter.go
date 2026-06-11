@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"unicode/utf8"
 
@@ -77,8 +78,11 @@ func createStarterProject(ctx context.Context, s *Service, req StarterProjectReq
 		project.UpdatedAt = patched.UpdatedAt
 	}
 
+	// Normalize the query value into a valid platform-specific format.
+	queryURL := normalizeQueryURL(req.Platform, req.Query)
+
 	// Create or reuse the query.
-	query, createdQuery, err := getOrCreateQuery(ctx, s.projectRepo, project.ID, req.Platform, req.Query)
+	query, createdQuery, err := getOrCreateQuery(ctx, s.projectRepo, project.ID, req.Platform, queryURL)
 	if err != nil {
 		return StarterProjectResult{}, fmt.Errorf("onboarding: get or create query: %w", err)
 	}
@@ -172,4 +176,22 @@ func updateProgressForStarter(ctx context.Context, s *Service, projectID string,
 	}
 
 	return s.saveProgress(ctx, p)
+}
+
+// normalizeQueryURL converts a user-entered query string into a
+// platform-appropriate format. For Reddit, plain-text keywords are turned
+// into a site-wide search JSON URL. Other platforms use the raw value.
+func normalizeQueryURL(platform, raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if platform != "reddit" {
+		return trimmed
+	}
+	if strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") {
+		return trimmed
+	}
+	// Build a Reddit site-wide search URL with default params.
+	return fmt.Sprintf(
+		"https://www.reddit.com/search.json?q=%s&sort=new&t=month&limit=100",
+		url.QueryEscape(trimmed),
+	)
 }

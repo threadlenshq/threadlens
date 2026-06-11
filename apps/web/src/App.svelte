@@ -714,6 +714,29 @@
     const { id, name, description, mode } = detail;
     const created = await projectsApi.create({ id, name, mode, ...(description ? { description } : {}) });
     await loadProjects();
+
+    // If the exploration phase is active and the starter project step is pending,
+    // link the newly created project to the onboarding context and create a
+    // default query so the seeding flow can proceed.
+    if (onboardingShowsExploration) {
+      const starterProjectItem = onboardingStatus?.items?.find(i => i.id === 'starter_project');
+      if (starterProjectItem && starterProjectItem.state === 'pending') {
+        try {
+          await onboardingApi.starterProject({
+            projectId: created.id,
+            projectName: created.name,
+            query: 'starter query',
+            platform: 'reddit',
+            description: created.description || '',
+          });
+          await checkOnboarding();
+          checklistOpen = true;
+        } catch (e) {
+          console.error('Failed to link project to onboarding context:', e);
+        }
+      }
+    }
+
     await selectProject(created.id);
   }
 
@@ -1004,6 +1027,10 @@
     await checkOnboarding();
     if (!appInitialized || onboardingRequiresSetup || onboardingError) return;
     await continueAppInit();
+    // Auto-open the exploration checklist when the wizard transitions to exploration phase.
+    if (onboardingShowsExploration) {
+      checklistOpen = true;
+    }
   }
 
   async function continueAppInit() {
@@ -1107,6 +1134,8 @@
         onSelectProject={handleProjectSelect}
         onRequestCreateProject={openNewProjectModal}
         onNavigate={(nextView) => navigateTo(nextView)}
+        {onboardingStatus}
+        onToggleChecklist={() => { checklistOpen = !checklistOpen; }}
       />
     {/snippet}
 
@@ -1139,7 +1168,11 @@
       <div class="empty-screen">
         <p class="empty-title">No project selected</p>
         <p class="empty-sub">Create a new project or select an existing one to get started.</p>
-        <button class="empty-create-btn" onclick={openNewProjectModal}>+ New Project</button>
+        {#if onboardingShowsExploration && onboardingStatus?.items?.find(i => i.id === 'starter_project')?.state === 'pending'}
+          <button class="empty-create-btn" onclick={() => { checklistOpen = true; }}>Create your starter project</button>
+        {:else}
+          <button class="empty-create-btn" onclick={openNewProjectModal}>+ New Project</button>
+        {/if}
       </div>
     {:else if view === 'models'}
       <div class="full-width-view">

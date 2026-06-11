@@ -1,6 +1,12 @@
 <script>
   import ProjectSelector from '../ProjectSelector.svelte';
-  let { projects = [], selectedProjectId = null, view = 'posts', collapsed = false, onToggleCollapse, onSelectProject, onRequestCreateProject, onNavigate } = $props();
+  let { projects = [], selectedProjectId = null, view = 'posts', collapsed = false, onToggleCollapse, onSelectProject, onRequestCreateProject, onNavigate, onboardingStatus = null, onToggleChecklist = () => {} } = $props();
+
+  let showOnboardingNav = $derived(
+    onboardingStatus?.requiredSetupComplete === true &&
+    onboardingStatus?.explorationComplete === false &&
+    onboardingStatus?.phase === 'exploration'
+  );
 
   const navItems = [
     {
@@ -87,6 +93,27 @@
       </div>
     {/each}
   </nav>
+
+  {#if showOnboardingNav}
+    <div class="onboarding-nav">
+      <button
+        type="button"
+        class="onboarding-btn"
+        onclick={onToggleChecklist}
+      >
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M12 8v4l2 2"></path>
+        </svg>
+        {#if !collapsed}
+          <span class="nav-label">Setup checklist</span>
+        {/if}
+      </button>
+      {#if collapsed}
+        <div class="nav-tooltip">Setup checklist</div>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -279,6 +306,39 @@
   }
 
   .nav-item-wrap:hover .nav-tooltip {
+    opacity: 1;
+  }
+
+  .onboarding-nav {
+    margin-top: auto;
+    padding: 0 var(--space-12, 12px);
+    position: relative;
+  }
+
+  .onboarding-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-8, 8px);
+    padding: 6px var(--space-8, 8px);
+    border-radius: var(--space-8, 8px);
+    background: var(--color-surface, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    font-size: 13px;
+    min-height: 34px;
+    white-space: nowrap;
+  }
+
+  .onboarding-btn:hover {
+    background: var(--color-surface-hover, rgba(255, 255, 255, 0.06));
+    color: var(--color-text-primary);
+    border-color: var(--color-accent, #6366f1);
+  }
+
+  .onboarding-nav:hover .nav-tooltip {
     opacity: 1;
   }
 </style>

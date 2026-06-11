@@ -895,9 +895,9 @@ func (s *QueryService) Suggest(ctx context.Context, projectID string, req Sugges
 
 	var out []SuggestedQuery
 	for _, s := range suggestions {
-		platform, _ := s["platform"].(string)
-		queryURL, _ := s["query_url"].(string)
-		angle, _ := s["angle"].(string)
+		platform := mapKeyAny(s, "platform", "Platform")
+		queryURL := mapKeyAny(s, "query_url", "queryUrl", "queryURL", "QueryURL")
+		angle := mapKeyAny(s, "angle", "Angle")
 		if platform == "" || queryURL == "" || angle == "" {
 			continue
 		}
@@ -1306,4 +1306,15 @@ func sanitizeRefineRecommendation(
 	}
 
 	return rec
+}
+
+// mapKeyAny returns the string value for the first matching key in the map,
+// trying each candidate in order. Returns "" if none match.
+func mapKeyAny(m map[string]any, keys ...string) string {
+	for _, k := range keys {
+		if v, ok := m[k].(string); ok {
+			return v
+		}
+	}
+	return ""
 }
