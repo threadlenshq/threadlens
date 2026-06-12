@@ -15,6 +15,10 @@
   import TourCallout from './components/onboarding/TourCallout.svelte';
   import { normalizeOnboardingStatus, shouldShowRequiredWizard, shouldShowExploration } from './lib/onboardingState.js';
   import { parseApiTimestamp } from './lib/format.js';
+  import TelemetryConsentToast from './components/TelemetryConsentToast.svelte';
+  import PrivacySettings from './components/PrivacySettings.svelte';
+  import { telemetry as telemetryApi } from './lib/api.js';
+  import { initTelemetry } from './lib/telemetry.js';
   import AppShell from './components/layout/AppShell.svelte';
   import WorkspaceRail from './components/layout/WorkspaceRail.svelte';
   import TopContextBar from './components/layout/TopContextBar.svelte';
@@ -1031,9 +1035,18 @@
 
   async function continueAppInit() {
     await Promise.all([loadCapabilities(), loadProjects()]);
+
+    // Initialize browser telemetry client.
+    try {
+      const telemetryStatus = await telemetryApi.status();
+      initTelemetry(telemetryStatus);
+    } catch {
+      // Telemetry is non-critical; ignore failures.
+    }
+
     const urlState = readUrlState();
 
-    const validViews = ['posts', 'settings', 'sources', 'reports', 'models', 'filtered'];
+    const validViews = ['posts', 'settings', 'sources', 'reports', 'models', 'filtered', 'privacy'];
     const validReportSources = ['social', 'google'];
     const validPlatforms = ['all', 'reddit', 'bluesky'];
     const validStatuses = [...POST_STATUSES, 'all'];
@@ -1436,8 +1449,13 @@
       <div class="full-width-view">
         <FilteredFindingsTab projectId={selectedProjectId} api={filtersApi} onJobCreated={fetchFilterJobs} onRestored={loadPosts} />
       </div>
+    {:else if view === 'privacy'}
+      <div class="full-width-view">
+        <PrivacySettings />
+      </div>
     {/if}
   </AppShell>
+  <TelemetryConsentToast />
   {/if}
 </div>
 
