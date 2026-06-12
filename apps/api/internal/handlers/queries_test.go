@@ -21,7 +21,7 @@ func newQueryRouter(t *testing.T) http.Handler {
 	repo := repository.New(db)
 	svc := services.NewQueryService(repo, ai.New())
 	r := chi.NewRouter()
-	handlers.MountQueryRoutes(r, svc)
+	handlers.MountQueryRoutes(r, svc, nil)
 	return r
 }
 
@@ -34,7 +34,7 @@ func newQueryRouterWithProject(t *testing.T) http.Handler {
 	querySvc := services.NewQueryService(repo, ai.New())
 	r := chi.NewRouter()
 	handlers.MountProjectRoutes(r, projSvc)
-	handlers.MountQueryRoutes(r, querySvc)
+	handlers.MountQueryRoutes(r, querySvc, nil)
 	return r
 }
 

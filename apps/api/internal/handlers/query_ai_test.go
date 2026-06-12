@@ -39,7 +39,7 @@ func newQueryAIRouter(t *testing.T, aiResult string) (http.Handler, *repository.
 	querySvc := services.NewQueryService(repo, aiSvc)
 	r := chi.NewRouter()
 	handlers.MountProjectRoutes(r, services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)))
-	handlers.MountQueryRoutes(r, querySvc)
+	handlers.MountQueryRoutes(r, querySvc, nil)
 	return r, repo
 }
 
@@ -163,7 +163,7 @@ func TestQueryAISuggest_NoAIProviderConfigured_ReturnsNotice(t *testing.T) {
 	querySvc := services.NewQueryService(repo, aiSvc)
 	r := chi.NewRouter()
 	handlers.MountProjectRoutes(r, services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)))
-	handlers.MountQueryRoutes(r, querySvc)
+	handlers.MountQueryRoutes(r, querySvc, nil)
 
 	doRequest(t, r, http.MethodPost, "/api/projects", map[string]any{"id": "p1", "name": "Test", "mode": "research"})
 
@@ -312,7 +312,7 @@ func TestQueryAIRefine_NoAIProviderConfigured_ReturnsContextOnly(t *testing.T) {
 	querySvc := services.NewQueryService(repo, aiSvc)
 	r := chi.NewRouter()
 	handlers.MountProjectRoutes(r, services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)))
-	handlers.MountQueryRoutes(r, querySvc)
+	handlers.MountQueryRoutes(r, querySvc, nil)
 
 	doRequest(t, r, http.MethodPost, "/api/projects", map[string]any{"id": "p1", "name": "Test", "mode": "research"})
 	doRequest(t, r, http.MethodPost, "/api/projects/p1/queries", map[string]any{

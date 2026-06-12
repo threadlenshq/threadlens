@@ -25,7 +25,7 @@ func newScoutRouter(t *testing.T) (http.Handler, *repository.Repository) {
 	r := chi.NewRouter()
 	resolver := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
 	handlers.MountProjectRoutes(r, services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, resolver))
-	handlers.MountScoutRoutes(r, services.NewScoutService(repo, runner, entitlements.RuntimeModeSelfHosted, resolver))
+	handlers.MountScoutRoutes(r, services.NewScoutService(repo, runner, entitlements.RuntimeModeSelfHosted, resolver), nil)
 	return r, repo
 }
 
@@ -159,7 +159,7 @@ func TestScout_Cancel_UntrackedRunningRow_MarksFailedWithCancelled(t *testing.T)
 	r2 := chi.NewRouter()
 	resolver2 := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
 	handlers.MountProjectRoutes(r2, services.NewProjectService(repo2, entitlements.RuntimeModeSelfHosted, resolver2))
-	handlers.MountScoutRoutes(r2, services.NewScoutService(repo2, runner, entitlements.RuntimeModeSelfHosted, resolver2))
+	handlers.MountScoutRoutes(r2, services.NewScoutService(repo2, runner, entitlements.RuntimeModeSelfHosted, resolver2), nil)
 	_ = repo // unused; repo2 is the test target
 
 	doRequest(t, r2, http.MethodPost, "/api/projects", map[string]any{"id": "sp4", "name": "Test", "mode": "research"})

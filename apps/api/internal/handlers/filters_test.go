@@ -18,7 +18,7 @@ func newFilterRouter(t *testing.T) (http.Handler, *repository.Repository) {
 	repo := repository.New(db)
 	classifier := pipeline.NewFilterClassifier(repo, nil)
 	r := chi.NewRouter()
-	handlers.MountFilterRoutes(r, repo, classifier)
+	handlers.MountFilterRoutes(r, repo, classifier, nil)
 	return r, repo
 }
 

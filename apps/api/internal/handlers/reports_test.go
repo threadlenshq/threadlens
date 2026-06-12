@@ -22,7 +22,7 @@ func newCombinedReportRouter(t *testing.T) (http.Handler, *repository.Repository
 	r := chi.NewRouter()
 	resolver := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
 	handlers.MountProjectRoutes(r, services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, resolver))
-	handlers.MountReportRoutes(r, services.NewReportService(repo, db, aiSvc, entitlements.RuntimeModeSelfHosted, resolver))
+	handlers.MountReportRoutes(r, services.NewReportService(repo, db, aiSvc, entitlements.RuntimeModeSelfHosted, resolver), nil)
 	return r, repo
 }
 
@@ -50,7 +50,7 @@ func TestReportList_ClustersIsArray(t *testing.T) {
 	r := chi.NewRouter()
 	resolver := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
 	handlers.MountProjectRoutes(r, services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, resolver))
-	handlers.MountReportRoutes(r, services.NewReportService(repo, db, aiSvc, entitlements.RuntimeModeSelfHosted, resolver))
+	handlers.MountReportRoutes(r, services.NewReportService(repo, db, aiSvc, entitlements.RuntimeModeSelfHosted, resolver), nil)
 
 	doRequest(t, r, http.MethodPost, "/api/projects", map[string]any{"id": "rp2", "name": "N", "mode": "research"})
 
@@ -88,7 +88,7 @@ func TestReportGet_NotFound(t *testing.T) {
 	aiSvc := ai.NewService(repo)
 	r := chi.NewRouter()
 	resolver := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
-	handlers.MountReportRoutes(r, services.NewReportService(repo, db, aiSvc, entitlements.RuntimeModeSelfHosted, resolver))
+	handlers.MountReportRoutes(r, services.NewReportService(repo, db, aiSvc, entitlements.RuntimeModeSelfHosted, resolver), nil)
 
 	rr := doRequest(t, r, http.MethodGet, "/api/projects/noproj/reports/999", nil)
 	if rr.Code != http.StatusNotFound {
@@ -109,7 +109,7 @@ func TestReportCouncil_NotFound(t *testing.T) {
 	aiSvc := ai.NewService(repo)
 	r := chi.NewRouter()
 	resolver := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
-	handlers.MountReportRoutes(r, services.NewReportService(repo, db, aiSvc, entitlements.RuntimeModeSelfHosted, resolver))
+	handlers.MountReportRoutes(r, services.NewReportService(repo, db, aiSvc, entitlements.RuntimeModeSelfHosted, resolver), nil)
 
 	rr := doRequest(t, r, http.MethodGet, "/api/projects/noproj/reports/999/council", nil)
 	if rr.Code != http.StatusNotFound {
@@ -131,7 +131,7 @@ func TestReportCreate_Returns201WithRunningStatus(t *testing.T) {
 	r := chi.NewRouter()
 	resolver := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
 	handlers.MountProjectRoutes(r, services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, resolver))
-	handlers.MountReportRoutes(r, services.NewReportService(repo, db, aiSvc, entitlements.RuntimeModeSelfHosted, resolver))
+	handlers.MountReportRoutes(r, services.NewReportService(repo, db, aiSvc, entitlements.RuntimeModeSelfHosted, resolver), nil)
 
 	doRequest(t, r, http.MethodPost, "/api/projects", map[string]any{"id": "rp3", "name": "N", "mode": "research"})
 

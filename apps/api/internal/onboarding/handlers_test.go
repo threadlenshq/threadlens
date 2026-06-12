@@ -110,7 +110,7 @@ var ErrOnboardingDisabled = onboarding.ErrDisabled
 
 func newOnboardingRouter(svc onboarding.ServiceIface) http.Handler {
 	r := chi.NewRouter()
-	onboarding.MountRoutes(r, svc)
+	onboarding.MountRoutes(r, svc, nil)
 	return r
 }
 

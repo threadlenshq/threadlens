@@ -26,7 +26,7 @@ func newScheduleRouter(t *testing.T) http.Handler {
 	sched := scheduler.New(repo, runner, nil)
 	svc := services.NewScheduleService(repo, sched)
 	r := chi.NewRouter()
-	handlers.MountScheduleRoutes(r, svc)
+	handlers.MountScheduleRoutes(r, svc, nil)
 	return r
 }
 
@@ -41,7 +41,7 @@ func newScheduleRouterWithProject(t *testing.T) http.Handler {
 	scheduleSvc := services.NewScheduleService(repo, sched)
 	r := chi.NewRouter()
 	handlers.MountProjectRoutes(r, projSvc)
-	handlers.MountScheduleRoutes(r, scheduleSvc)
+	handlers.MountScheduleRoutes(r, scheduleSvc, nil)
 	return r
 }
 

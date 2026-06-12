@@ -44,7 +44,7 @@ func newQueryReviewRouter(t *testing.T, aiResult string, aiErr error) (http.Hand
 	projectSvc := services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil))
 	r := chi.NewRouter()
 	handlers.MountProjectRoutes(r, projectSvc)
-	handlers.MountQueryRoutes(r, querySvc)
+	handlers.MountQueryRoutes(r, querySvc, nil)
 	handlers.MountQueryReviewJobRoutes(r, repo, querySvc)
 	return r, repo
 }
