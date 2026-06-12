@@ -15,6 +15,13 @@ type Config struct {
 	FrontendDist string
 	RuntimeMode  entitlements.RuntimeMode
 	Location     *time.Location
+	Telemetry    TelemetryConfig
+}
+
+// TelemetryConfig holds the runtime telemetry gating state.
+type TelemetryConfig struct {
+	// EnvOptIn is true only when SCOUT_TELEMETRY_OPT_IN=1.
+	EnvOptIn bool
 }
 
 func LoadConfig() Config {
@@ -40,7 +47,11 @@ func LoadConfig() Config {
 
 	loc := resolveLocation()
 
-	return Config{Port: port, DBPath: dbPath, FrontendDist: frontendDist, RuntimeMode: runtimeMode, Location: loc}
+	telemetry := TelemetryConfig{
+		EnvOptIn: os.Getenv("SCOUT_TELEMETRY_OPT_IN") == "1",
+	}
+
+	return Config{Port: port, DBPath: dbPath, FrontendDist: frontendDist, RuntimeMode: runtimeMode, Location: loc, Telemetry: telemetry}
 }
 
 // resolveLocation returns the timezone to use for the cron scheduler.
