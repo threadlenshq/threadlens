@@ -13,6 +13,7 @@ import (
 	"github.com/kyle/scout/open-core/apps/api/internal/httpx"
 	"github.com/kyle/scout/open-core/apps/api/internal/pipeline"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
+	"github.com/kyle/scout/open-core/apps/api/internal/telemetry"
 )
 
 type filterRecoverRequest struct {
@@ -36,7 +37,7 @@ type filterJobCreateRequest struct {
 }
 
 // MountFilterRoutes registers owner-facing filter endpoints on the given router.
-func MountFilterRoutes(r chi.Router, repo *repository.Repository, classifier *pipeline.FilterClassifier) {
+func MountFilterRoutes(r chi.Router, repo *repository.Repository, classifier *pipeline.FilterClassifier, rec *telemetry.Recorder) {
 
 	// GET /api/projects/{id}/filters/findings
 	r.Get("/api/projects/{id}/filters/findings", func(w http.ResponseWriter, req *http.Request) {
@@ -257,6 +258,9 @@ func MountFilterRoutes(r chi.Router, repo *repository.Repository, classifier *pi
 		}
 
 		go runFilterJob(context.Background(), repo, classifier, projectID, job.ID, body)
+		if rec != nil {
+			rec.Record(telemetry.EventFeatureFilterJob)
+		}
 		httpx.WriteJSON(w, http.StatusAccepted, job)
 	})
 

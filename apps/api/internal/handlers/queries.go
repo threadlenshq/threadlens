@@ -7,10 +7,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/kyle/scout/open-core/apps/api/internal/httpx"
 	"github.com/kyle/scout/open-core/apps/api/internal/services"
+	"github.com/kyle/scout/open-core/apps/api/internal/telemetry"
 )
 
 // MountQueryRoutes registers all query routes onto the provided router.
-func MountQueryRoutes(r chi.Router, svc *services.QueryService) {
+func MountQueryRoutes(r chi.Router, svc *services.QueryService, rec *telemetry.Recorder) {
 	r.Get("/api/projects/{id}/queries", func(w http.ResponseWriter, r *http.Request) {
 		projectID := chi.URLParam(r, "id")
 		queries, status, msg := svc.List(r.Context(), projectID)
@@ -33,7 +34,7 @@ func MountQueryRoutes(r chi.Router, svc *services.QueryService) {
 		httpx.WriteJSON(w, status, query)
 	})
 
-	r.Post("/api/projects/{id}/queries/suggest", func(w http.ResponseWriter, r *http.Request) {
+		r.Post("/api/projects/{id}/queries/suggest", func(w http.ResponseWriter, r *http.Request) {
 		projectID := chi.URLParam(r, "id")
 		var body services.SuggestRequest
 		_ = httpx.DecodeJSON(r, &body)
@@ -41,6 +42,9 @@ func MountQueryRoutes(r chi.Router, svc *services.QueryService) {
 		if msg != "" {
 			httpx.WriteError(w, status, msg)
 			return
+		}
+		if rec != nil {
+			rec.Record(telemetry.EventFeatureQuerySuggest)
 		}
 		httpx.WriteJSON(w, status, resp)
 	})

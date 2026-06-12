@@ -20,7 +20,7 @@ func (a *App) mountRoutes() {
 
 	handlers.MountRuntimeRoutes(a.Router, a.RuntimeService)
 	a.ModuleRegistry.MountRoutes(a.Router)
-	onboarding.MountRoutes(a.Router, a.OnboardingService)
+	onboarding.MountRoutes(a.Router, a.OnboardingService, a.TelemetryRecorder)
 	telemetry.MountRoutes(a.Router, a.SettingsRepo, a.TelemetryRecorder, telemetry.TelemetryStatusConfig{
 		EnvOptIn:       a.Config.Telemetry.EnvOptIn,
 		ScoutVersion:   scoutVersion,
@@ -30,16 +30,16 @@ func (a *App) mountRoutes() {
 
 	handlers.MountInsightsRoutes(a.Router, a.InsightsService)
 	handlers.MountProjectRoutes(a.Router, a.ProjectService)
-	handlers.MountQueryRoutes(a.Router, a.QueryService)
+	handlers.MountQueryRoutes(a.Router, a.QueryService, a.TelemetryRecorder)
 	handlers.MountQueryReviewJobRoutes(a.Router, a.Repo, a.QueryService)
-	handlers.MountFilterRoutes(a.Router, a.Repo, a.FilterClassifier)
+	handlers.MountFilterRoutes(a.Router, a.Repo, a.FilterClassifier, a.TelemetryRecorder)
 	handlers.MountPromptRoutes(a.Router, a.PromptService)
 	handlers.MountPostRoutes(a.Router, a.PostService)
 	handlers.MountModelRoutes(a.Router, a.ModelService)
-	handlers.MountReportRoutes(a.Router, a.ReportService)
+	handlers.MountReportRoutes(a.Router, a.ReportService, a.TelemetryRecorder)
 	handlers.MountGoogleRoutes(a.Router, a.GoogleService)
-	handlers.MountScoutRoutes(a.Router, a.ScoutService)
-	handlers.MountScheduleRoutes(a.Router, a.ScheduleService)
+	handlers.MountScoutRoutes(a.Router, a.ScoutService, a.TelemetryRecorder)
+	handlers.MountScheduleRoutes(a.Router, a.ScheduleService, a.TelemetryRecorder)
 
 	distDir := a.Config.FrontendDist
 	fileServer := http.FileServer(http.Dir(distDir))

@@ -7,10 +7,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/kyle/scout/open-core/apps/api/internal/httpx"
 	"github.com/kyle/scout/open-core/apps/api/internal/services"
+	"github.com/kyle/scout/open-core/apps/api/internal/telemetry"
 )
 
 // MountScheduleRoutes registers all schedule routes onto the provided router.
-func MountScheduleRoutes(r chi.Router, svc *services.ScheduleService) {
+func MountScheduleRoutes(r chi.Router, svc *services.ScheduleService, rec *telemetry.Recorder) {
 	r.Get("/api/projects/{id}/schedules", func(w http.ResponseWriter, r *http.Request) {
 		projectID := chi.URLParam(r, "id")
 		schedules, status, msg := svc.List(r.Context(), projectID)
@@ -21,7 +22,7 @@ func MountScheduleRoutes(r chi.Router, svc *services.ScheduleService) {
 		httpx.WriteJSON(w, status, schedules)
 	})
 
-	r.Post("/api/projects/{id}/schedules", func(w http.ResponseWriter, r *http.Request) {
+		r.Post("/api/projects/{id}/schedules", func(w http.ResponseWriter, r *http.Request) {
 		projectID := chi.URLParam(r, "id")
 		var body services.ScheduleRequest
 		_ = httpx.DecodeJSON(r, &body)
@@ -29,6 +30,9 @@ func MountScheduleRoutes(r chi.Router, svc *services.ScheduleService) {
 		if msg != "" {
 			httpx.WriteError(w, status, msg)
 			return
+		}
+		if rec != nil {
+			rec.Record(telemetry.EventFeatureScheduleCreate)
 		}
 		httpx.WriteJSON(w, status, sch)
 	})

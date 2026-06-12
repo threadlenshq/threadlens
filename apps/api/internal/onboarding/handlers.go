@@ -8,14 +8,15 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/kyle/scout/open-core/apps/api/internal/httpx"
+	"github.com/kyle/scout/open-core/apps/api/internal/telemetry"
 )
 
 // MountRoutes registers the onboarding HTTP endpoints on r under the prefix
 // /api/onboarding. It does not modify any global state and does not wire into
 // the main application router — that is left to the server bootstrap.
-func MountRoutes(r chi.Router, svc ServiceIface) {
+func MountRoutes(r chi.Router, svc ServiceIface, rec *telemetry.Recorder) {
 	r.Get("/api/onboarding/status", handleStatus(svc))
-	r.Post("/api/onboarding/save", handleSave(svc))
+	r.Post("/api/onboarding/save", handleSave(svc, rec))
 	r.Post("/api/onboarding/reset", handleReset(svc))
 	r.Post("/api/onboarding/steps/{step}", handleSaveRequiredStep(svc))
 	r.Post("/api/onboarding/required-step", handleRequiredStep(svc))
@@ -43,7 +44,7 @@ type saveRequest struct {
 	Values map[string]string `json:"values"`
 }
 
-func handleSave(svc ServiceIface) http.HandlerFunc {
+func handleSave(svc ServiceIface, rec *telemetry.Recorder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req saveRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -65,6 +66,9 @@ func handleSave(svc ServiceIface) http.HandlerFunc {
 			if errors.Is(err, ErrDisabled) {
 				httpx.WriteError(w, http.StatusForbidden, "onboarding is disabled")
 				return
+			}
+			if rec != nil {
+				rec.Record(telemetry.EventErrorOnboardingSave)
 			}
 			httpx.WriteError(w, http.StatusInternalServerError, "failed to save configuration")
 			return

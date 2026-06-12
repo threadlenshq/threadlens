@@ -7,10 +7,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/kyle/scout/open-core/apps/api/internal/httpx"
 	"github.com/kyle/scout/open-core/apps/api/internal/services"
+	"github.com/kyle/scout/open-core/apps/api/internal/telemetry"
 )
 
 // MountReportRoutes registers all report routes onto the provided router.
-func MountReportRoutes(r chi.Router, svc *services.ReportService) {
+func MountReportRoutes(r chi.Router, svc *services.ReportService, rec *telemetry.Recorder) {
 	// GET /api/projects/{id}/reports
 	r.Get("/api/projects/{id}/reports", func(w http.ResponseWriter, r *http.Request) {
 		projectID := chi.URLParam(r, "id")
@@ -58,7 +59,7 @@ func MountReportRoutes(r chi.Router, svc *services.ReportService) {
 	})
 
 	// POST /api/projects/{id}/reports
-	r.Post("/api/projects/{id}/reports", func(w http.ResponseWriter, r *http.Request) {
+		r.Post("/api/projects/{id}/reports", func(w http.ResponseWriter, r *http.Request) {
 		projectID := chi.URLParam(r, "id")
 		var body services.CreateReportRequest
 		_ = httpx.DecodeJSON(r, &body)
@@ -66,6 +67,9 @@ func MountReportRoutes(r chi.Router, svc *services.ReportService) {
 		if msg != "" {
 			httpx.WriteError(w, status, msg)
 			return
+		}
+		if rec != nil {
+			rec.Record(telemetry.EventFeatureReportCreate)
 		}
 		httpx.WriteJSON(w, status, rep)
 	})

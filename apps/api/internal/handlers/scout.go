@@ -7,10 +7,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/kyle/scout/open-core/apps/api/internal/httpx"
 	"github.com/kyle/scout/open-core/apps/api/internal/services"
+	"github.com/kyle/scout/open-core/apps/api/internal/telemetry"
 )
 
 // MountScoutRoutes registers all scout run routes onto the provided router.
-func MountScoutRoutes(r chi.Router, svc *services.ScoutService) {
+func MountScoutRoutes(r chi.Router, svc *services.ScoutService, rec *telemetry.Recorder) {
 	// POST /api/projects/{id}/scout
 	r.Post("/api/projects/{id}/scout", func(w http.ResponseWriter, r *http.Request) {
 		projectID := chi.URLParam(r, "id")
@@ -30,6 +31,9 @@ func MountScoutRoutes(r chi.Router, svc *services.ScoutService) {
 		if msg != "" {
 			httpx.WriteError(w, status, msg)
 			return
+		}
+		if rec != nil {
+			rec.Record(telemetry.EventFeatureScoutRun)
 		}
 		httpx.WriteJSON(w, http.StatusCreated, map[string]any{
 			"runId":  run.ID,
@@ -65,7 +69,7 @@ func MountScoutRoutes(r chi.Router, svc *services.ScoutService) {
 	})
 
 	// POST /api/projects/{id}/scout/runs/{rid}/cancel
-	r.Post("/api/projects/{id}/scout/runs/{rid}/cancel", func(w http.ResponseWriter, r *http.Request) {
+		r.Post("/api/projects/{id}/scout/runs/{rid}/cancel", func(w http.ResponseWriter, r *http.Request) {
 		projectID := chi.URLParam(r, "id")
 		rid, err := strconv.ParseInt(chi.URLParam(r, "rid"), 10, 64)
 		if err != nil {
@@ -79,4 +83,12 @@ func MountScoutRoutes(r chi.Router, svc *services.ScoutService) {
 		}
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
 	})
+}
+
+// RecordScoutRunError fires the error:scout_run telemetry event.
+// Called by the pipeline runner when a scout run ends in failed status.
+func RecordScoutRunError(rec *telemetry.Recorder) {
+	if rec != nil {
+		rec.Record(telemetry.EventErrorScoutRun)
+	}
 }
