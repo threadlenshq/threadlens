@@ -162,7 +162,6 @@ func (s *InsightsService) BuildInsights(ctx context.Context, f InsightsFilter) (
 	}
 	defer topPostRows.Close()
 	topPosts := []map[string]any{}
-	var whyTexts []string
 	for topPostRows.Next() {
 		var id, title, body, platform, author, url, foundAt string
 		var finalScore float64
@@ -182,9 +181,6 @@ func (s *InsightsService) BuildInsights(ctx context.Context, f InsightsFilter) (
 			"url":         url,
 			"found_at":    foundAt,
 		})
-		if why != nil {
-			whyTexts = append(whyTexts, *why)
-		}
 	}
 	if err := topPostRows.Err(); err != nil {
 		return nil, err

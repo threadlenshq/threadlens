@@ -77,33 +77,19 @@ func (r *Repository) GetProjectWithStats(ctx context.Context, id string) (domain
 	}
 
 	var totalPosts, newPosts, totalQueries int64
-
-	if err := r.DB.QueryRowContext(ctx,
-		"SELECT COUNT(*) as count FROM posts WHERE project_id = ?", id,
-	).Scan(&totalPosts); err != nil {
-		return domain.ProjectWithStats{}, err
-	}
-
-	if err := r.DB.QueryRowContext(ctx,
-		"SELECT COUNT(*) as count FROM posts WHERE project_id = ? AND status = 'new'", id,
-	).Scan(&newPosts); err != nil {
-		return domain.ProjectWithStats{}, err
-	}
-
-	if err := r.DB.QueryRowContext(ctx,
-		"SELECT COUNT(*) as count FROM project_queries WHERE project_id = ?", id,
-	).Scan(&totalQueries); err != nil {
+	var completedAt sql.NullString
+	if err := r.DB.QueryRowContext(ctx, `
+		SELECT
+			(SELECT COUNT(*) FROM posts WHERE project_id = ?),
+			(SELECT COUNT(*) FROM posts WHERE project_id = ? AND status = 'new'),
+			(SELECT COUNT(*) FROM project_queries WHERE project_id = ?),
+			(SELECT completed_at FROM scout_runs WHERE project_id = ? ORDER BY completed_at DESC LIMIT 1)`,
+		id, id, id, id,
+	).Scan(&totalPosts, &newPosts, &totalQueries, &completedAt); err != nil {
 		return domain.ProjectWithStats{}, err
 	}
 
 	var lastRun *string
-	row := r.DB.QueryRowContext(ctx,
-		"SELECT completed_at FROM scout_runs WHERE project_id = ? ORDER BY completed_at DESC LIMIT 1", id,
-	)
-	var completedAt sql.NullString
-	if err := row.Scan(&completedAt); err != nil && err != sql.ErrNoRows {
-		return domain.ProjectWithStats{}, err
-	}
 	if completedAt.Valid {
 		lastRun = &completedAt.String
 	}
