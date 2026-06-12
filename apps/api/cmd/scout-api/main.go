@@ -72,5 +72,6 @@ func main() {
 	if err := application.Scheduler.Stop(ctx); err != nil {
 		log.Printf("Scheduler stop: %v", err)
 	}
+	application.TelemetryRecorder.Shutdown()
 	log.Println("Server exited cleanly")
 }
