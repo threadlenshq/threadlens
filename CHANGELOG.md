@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.10.0 - 2026-06-12
+
+Tag: `threadlens-v0.10.0`
+
+### Features
+
+- feat(onboarding): extend provider detection, test connectivity for all providers, hard gate (`e6ad719`)
+- feat(web): add progress bar, smart first-scout labels, post-scout guidance to checklist (`68708b1`)
+- feat(web): add query seeding panel with editable AI suggestions to exploration checklist (`02992d2`)
+- feat(onboarding): add Description to starter project, populate SeededQueryCount (`14cf7e0`)
+- feat(onboarding): immediate env activation via os.Setenv in Save() (`82b4e49`)
+- feat(web): add Test Connection button to AI provider step in wizard (`429461d`)
+- feat(onboarding): add POST /api/onboarding/test-ai endpoint (`08bbcef`)
+
+### Fixes
+
+- fix(onboarding): wire exploration checklist into full user flow (`712f982`)
+- fix(onboarding): increase CLI connectivity timeout to 60s for copilot (`3b8f90d`)
+- fix(onboarding): restore testCLIProvider and increase connectivity timeout to 30s (`3fbbcfc`)
+- fix(web): restore Test Connection button for non-secret providers (CLI tools) (`0688451`)
+- fix(web): include status filter when dm-only is active (`f234440`)
+- fix(ai): strip Copilot skill noise from generated draft text (`d456671`)
+
+### Maintenance
+
+- refactor(api): collapse GetProjectWithStats into one query, drop dead var (`e87912e`)
+- refactor(api): dedup not-found mapping, markdown-fence stripping, retry backoff (`1acfb65`)
+- refactor(api): hoist more hot-path regexes and dedup scan helpers (`3e13f4f`)
+- refactor(api): hoist hot-path regexes, batch dm_targets, drop hand-rolled toString (`0b3be05`)
+- refactor(onboarding): simplify connectivity, capabilities, and seeding flow (`57bd27d`)
+
 ## 0.9.1 - 2026-06-09
 
 Tag: `threadlens-v0.9.1`

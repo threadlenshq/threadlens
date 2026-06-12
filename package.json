@@ -1,6 +1,6 @@
 {
   "name": "scout-open-core",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "private": true,
   "license": "BUSL-1.1",
   "type": "module",
