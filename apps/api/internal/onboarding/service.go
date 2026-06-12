@@ -551,6 +551,13 @@ func (s *Service) Save(ctx context.Context, values map[string]string) error {
 		return ErrDisabled
 	}
 
+	// Extract telemetry consent key before env file write — it belongs in
+	// app_settings, not in the env file.
+	telemetryChoice, hasTelemetryChoice := values["telemetry.consent.ui_choice"]
+	if hasTelemetryChoice {
+		delete(values, "telemetry.consent.ui_choice")
+	}
+
 	if s.cfg.DockerMode {
 		if len(values) == 0 {
 			return errors.New("onboarding: save rejected — no values provided in Docker mode")
@@ -566,6 +573,13 @@ func (s *Service) Save(ctx context.Context, values map[string]string) error {
 		// Hot-activate AI provider keys in the running process so they are
 		// available immediately without a container restart.
 		applyProviderKeysToProcessEnv(values)
+	}
+
+	// Persist telemetry consent choice to app_settings (not the env file).
+	if hasTelemetryChoice && (telemetryChoice == "granted" || telemetryChoice == "declined") {
+		if err := s.repo.Set(ctx, "telemetry.consent.ui_choice", telemetryChoice); err != nil {
+			return fmt.Errorf("onboarding: saving telemetry consent: %w", err)
+		}
 	}
 
 	// Update v1 progress first — marks required setup complete and transitions
