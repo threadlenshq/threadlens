@@ -1,5 +1,5 @@
 <script>
-  import { onboarding as onboardingApi } from '../lib/api.js';
+  import { onboarding as onboardingApi, telemetry as telemetryApi } from '../lib/api.js';
   import { untrack } from 'svelte';
 
   let { status, onStatusReload = async () => {} } = $props();
@@ -12,6 +12,8 @@
   let error = $state('');
   let testState = $state('idle'); // 'idle' | 'testing' | 'connected' | 'failed'
   let testError = $state('');
+  let telemetryOptIn = $state(true); // checked by default
+  let telemetryEnvOptIn = $state(false); // populated from status
 
   const stepOrder = ['welcome', 'ai_provider', 'app_database', 'review'];
   const providerSecretKeys = { sdk: 'ANTHROPIC_API_KEY', gemini: 'GEMINI_API_KEY' };
@@ -43,6 +45,9 @@
     const values = { AI_PROVIDER: aiProvider };
     const secretKey = providerSecretKeys[aiProvider];
     if (secretKey && providerSecret.trim()) values[secretKey] = providerSecret.trim();
+    // Include telemetry consent choice on every step save (the server
+    // only persists it when the key is present).
+    values['telemetry.consent.ui_choice'] = telemetryOptIn ? 'granted' : 'declined';
     return values;
   }
 
@@ -105,6 +110,16 @@
       testState = 'idle';
       testError = '';
     });
+  });
+
+  $effect(() => {
+    if (status) {
+      telemetryApi.status().then((s) => {
+        telemetryEnvOptIn = s.env_opt_in === true;
+      }).catch(() => {
+        telemetryEnvOptIn = false;
+      });
+    }
   });
 </script>
 
@@ -276,6 +291,25 @@
         <div class="readiness-row">
           <span class="readiness-label">Can write to env file</span>
           <span class="readiness-value">{status?.appDatabase?.envWritable ? 'Yes' : 'No'}</span>
+        </div>
+        <div class="telemetry-consent-row">
+          <label class="telemetry-consent-label">
+            <input
+              type="checkbox"
+              bind:checked={telemetryOptIn}
+              disabled={!telemetryEnvOptIn}
+              data-testid="telemetry-consent-checkbox"
+            />
+            <span class="telemetry-consent-text">
+              <strong>Help improve ThreadLens</strong> — Share anonymous usage events (feature usage, errors, version) with the ThreadLens team. No personal data, content, or credentials are ever sent.
+              <a href="https://docs.threadlens.dev/reference/telemetry/" target="_blank" rel="noopener">Learn more</a>
+            </span>
+          </label>
+          {#if !telemetryEnvOptIn}
+            <p class="telemetry-disabled-hint" data-testid="telemetry-disabled-hint">
+              Telemetry is disabled by your environment configuration.
+            </p>
+          {/if}
         </div>
       </div>
     </section>
@@ -559,5 +593,36 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  .telemetry-consent-row {
+    margin-top: 12px;
+    padding: 12px;
+    background: #1a1a24;
+    border: 1px solid #2a2a3a;
+    border-radius: 8px;
+  }
+  .telemetry-consent-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #d0d0e8;
+  }
+  .telemetry-consent-label input:disabled {
+    cursor: not-allowed;
+  }
+  .telemetry-consent-text {
+    line-height: 1.5;
+  }
+  .telemetry-consent-text a {
+    color: #7c6af5;
+    text-decoration: underline;
+  }
+  .telemetry-disabled-hint {
+    font-size: 12px;
+    color: #8080a0;
+    margin: 8px 0 0 24px;
   }
 </style>
