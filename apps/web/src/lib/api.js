@@ -160,3 +160,10 @@ export const onboarding = {
   reset: (mode = 'progress') => api('/api/onboarding/reset', { method: 'POST', body: { mode } }),
   testAI: (body) => api('/api/onboarding/test-ai', { method: 'POST', body }),
 };
+
+export const telemetry = {
+  status: () => api('/api/telemetry/status'),
+  consent: (choice) => api('/api/telemetry/consent', { method: 'POST', body: { choice } }),
+  popupDismissed: () => api('/api/telemetry/popup-dismissed', { method: 'POST' }),
+  resetConsent: () => api('/api/telemetry/reset-consent', { method: 'POST' }),
+};
