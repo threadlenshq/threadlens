@@ -50,6 +50,10 @@ The sidebar is organized for two audiences:
 
 `docs/` is publishable by default in the public repository. Private hosted SaaS runbooks, credentials, billing provider details, private customer data, and proprietary roadmap notes do not belong in this docs tree.
 
+## Privacy and telemetry
+
+ThreadLens includes an optional, anonymous telemetry pipeline. Telemetry is off by default and requires explicit opt-in at both the infrastructure and UI level. See [Telemetry](reference/telemetry/) for details.
+
 ## Related sites
 
 - Product and waitlist: [threadlens.dev](https://threadlens.dev)

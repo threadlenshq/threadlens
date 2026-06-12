@@ -28,6 +28,7 @@ Docker reads values from the repository root `.env` unless an embedding reposito
 | `SCOUT_ONBOARDING_MODE` | Empty | Optional Docker onboarding persistence | Set to `docker` in container environments so the onboarding wizard persists completed configuration to `/data/.env`. Leave unset for non-containerised installs. |
 | `SCOUT_ONBOARDING_ENV_FILE` | `/data/.env` when onboarding Docker mode is active | Optional Docker onboarding persistence override | Writable env-file path used by the backend onboarding service when `SCOUT_ONBOARDING_MODE=docker`. |
 | `SCOUT_ONBOARDING_DISABLE` | Empty | Optional onboarding skip | Set to `1` to skip the onboarding wizard entirely. Useful for automated or pre-configured deployments where all required env vars are already supplied. |
+| `SCOUT_TELEMETRY_OPT_IN` | Empty | Optional anonymous telemetry | Set to `1` to enable anonymous usage telemetry. Telemetry is off by default and requires a separate UI consent choice. See [Telemetry](/reference/telemetry/) for details. |
 
 ## First-run importance
 

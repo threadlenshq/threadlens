@@ -133,6 +133,10 @@ BLUESKY_APP_PASSWORD=example-app-password-not-real
 
 Do not commit real provider keys, private URLs, hosted credentials, billing tokens, or customer data.
 
+## Anonymous telemetry (optional)
+
+ThreadLens includes an optional anonymous telemetry pipeline that helps maintainers understand how the self-hosted product is used. Telemetry is off by default. To enable it, set `SCOUT_TELEMETRY_OPT_IN=1` in your `.env` file and restart Docker. See [Telemetry](/reference/telemetry/) for details on what is and is not collected.
+
 ## Next steps
 
 - Continue to [Create Your First Project](first-project/) after Docker is running and at least one AI provider path is configured. For most first runs, use a provider key.

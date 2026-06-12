@@ -51,6 +51,7 @@ export default defineConfig({
             { slug: 'reference/api-shape-overview' },
             { slug: 'reference/data-storage-and-backups' },
             { slug: 'reference/self-host-troubleshooting' },
+            { slug: 'reference/telemetry' },
           ],
         },
         {
