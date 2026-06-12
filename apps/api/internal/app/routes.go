@@ -4,11 +4,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/handlers"
 	"github.com/kyle/scout/open-core/apps/api/internal/httpx"
 	"github.com/kyle/scout/open-core/apps/api/internal/onboarding"
+	"github.com/kyle/scout/open-core/apps/api/internal/telemetry"
 )
 
 func (a *App) mountRoutes() {
@@ -19,6 +21,12 @@ func (a *App) mountRoutes() {
 	handlers.MountRuntimeRoutes(a.Router, a.RuntimeService)
 	a.ModuleRegistry.MountRoutes(a.Router)
 	onboarding.MountRoutes(a.Router, a.OnboardingService)
+	telemetry.MountRoutes(a.Router, a.SettingsRepo, a.TelemetryRecorder, telemetry.TelemetryStatusConfig{
+		EnvOptIn:       a.Config.Telemetry.EnvOptIn,
+		ScoutVersion:   scoutVersion,
+		DeploymentType: telemetry.DetectDeploymentType(),
+		OSPlatform:     detectOSPlatform(),
+	})
 
 	handlers.MountInsightsRoutes(a.Router, a.InsightsService)
 	handlers.MountProjectRoutes(a.Router, a.ProjectService)
@@ -60,4 +68,13 @@ func (a *App) mountRoutes() {
 
 		http.NotFound(w, r)
 	})
+}
+
+func detectOSPlatform() string {
+	switch runtime.GOOS {
+	case "linux", "darwin", "windows":
+		return runtime.GOOS
+	default:
+		return "unknown"
+	}
 }

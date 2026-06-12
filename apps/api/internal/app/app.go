@@ -2,8 +2,10 @@ package app
 
 import (
 	"context"
+	crand "crypto/rand"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -19,9 +21,14 @@ import (
 	"github.com/kyle/scout/open-core/apps/api/internal/scheduler"
 	"github.com/kyle/scout/open-core/apps/api/internal/services"
 	"github.com/kyle/scout/open-core/apps/api/internal/settings"
+	"github.com/kyle/scout/open-core/apps/api/internal/telemetry"
 	"github.com/kyle/scout/open-core/apps/api/internal/templates"
 	"github.com/kyle/scout/open-core/apps/api/internal/usage"
 )
+
+// scoutVersion is the build version of the API. Override via ldflags at build time:
+//   go build -ldflags "-X github.com/kyle/scout/open-core/apps/api/internal/app.scoutVersion=0.8.0"
+var scoutVersion = "0.7.2-dev"
 
 type App struct {
 	Config            Config
@@ -43,6 +50,8 @@ type App struct {
 	ScoutService      *services.ScoutService
 	ScheduleService   *services.ScheduleService
 	FilterClassifier  *pipeline.FilterClassifier
+	TelemetryRecorder *telemetry.Recorder
+	SettingsRepo      *settings.Repository
 }
 
 func New(cfg Config, db *sql.DB) *App {
@@ -68,10 +77,25 @@ func New(cfg Config, db *sql.DB) *App {
 		panic("onboarding: failed to load config: " + err.Error())
 	}
 	onboardingCfg.DBPath = cfg.DBPath
-	onboardingSvc, err := onboarding.NewService(onboardingCfg, settings.NewRepository(db), repo)
+	settingsRepo := settings.NewRepository(db)
+	onboardingSvc, err := onboarding.NewService(onboardingCfg, settingsRepo, repo)
 	if err != nil {
 		panic("onboarding: failed to construct service: " + err.Error())
 	}
+
+	// Ensure instance_id exists in app_settings on first boot.
+	ensureInstanceID(settingsRepo)
+
+	telemetryRecorder := telemetry.NewRecorder(telemetry.RecorderConfig{
+		EnvOptIn:       cfg.Telemetry.EnvOptIn,
+		ScoutVersion:   scoutVersion,
+		DeploymentType: telemetry.DetectDeploymentType(),
+		InstanceID:     readInstanceID(settingsRepo),
+		ConsentChecker: func() string { return telemetry.ReadConsentChoice(settingsRepo) },
+	})
+
+	// Fire instance_started on boot (no-op when EnvOptIn is false).
+	telemetryRecorder.Record(telemetry.EventInstanceStarted)
 
 	a := &App{
 		Config:            cfg,
@@ -93,6 +117,8 @@ func New(cfg Config, db *sql.DB) *App {
 		ScoutService:      services.NewScoutService(repo, runner, cfg.RuntimeMode, entitlementResolver),
 		ScheduleService:   services.NewScheduleService(repo, sched),
 		FilterClassifier:  filterClassifier,
+		TelemetryRecorder: telemetryRecorder,
+		SettingsRepo:      settingsRepo,
 	}
 	a.mountRoutes()
 	return a
@@ -125,4 +151,34 @@ type blueskyReplierAdapter struct{}
 
 func (blueskyReplierAdapter) PostBlueskyReply(ctx context.Context, handle, appPassword, text, parentURI, parentCID string) (json.RawMessage, error) {
 	return pipeline.PostBlueskyReply(ctx, handle, appPassword, text, parentURI, parentCID)
+}
+
+// ensureInstanceID writes a fresh UUID to app_settings if the key is absent.
+func ensureInstanceID(repo *settings.Repository) {
+	ctx := context.Background()
+	_, found, err := repo.Get(ctx, telemetry.SettingsKeyInstanceID)
+	if err != nil || found {
+		return
+	}
+	id := generateUUID()
+	_ = repo.Set(ctx, telemetry.SettingsKeyInstanceID, id)
+}
+
+// readInstanceID reads the instance UUID from app_settings. Returns "" if absent.
+func readInstanceID(repo *settings.Repository) string {
+	val, found, err := repo.Get(context.Background(), telemetry.SettingsKeyInstanceID)
+	if err != nil || !found {
+		return ""
+	}
+	return val
+}
+
+// generateUUID returns a random v4 UUID string.
+func generateUUID() string {
+	var uuid [16]byte
+	_, _ = crand.Read(uuid[:])
+	uuid[6] = (uuid[6] & 0x0f) | 0x40 // version 4
+	uuid[8] = (uuid[8] & 0x3f) | 0x80 // variant 10
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		uuid[0:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:16])
 }
