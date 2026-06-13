@@ -39,7 +39,7 @@ func TestHandleStatus_Defaults(t *testing.T) {
 
 	r := chi.NewRouter()
 	MountRoutes(r, repo, nil, TelemetryStatusConfig{
-		EnvOptIn:       false,
+		OptInMode:      "disabled",
 		ScoutVersion:   "0.7.2",
 		DeploymentType: "local",
 		OSPlatform:     "darwin",
@@ -54,8 +54,8 @@ func TestHandleStatus_Defaults(t *testing.T) {
 	}
 	var resp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &resp)
-	if resp["env_opt_in"] != false {
-		t.Error("expected env_opt_in to be false")
+	if resp["env_opt_in"] != "disabled" {
+		t.Error("expected env_opt_in to be 'disabled'")
 	}
 	if resp["ui_consent"] != "unset" {
 		t.Errorf("expected ui_consent 'unset', got %v", resp["ui_consent"])
@@ -71,7 +71,7 @@ func TestHandleConsent_Granted(t *testing.T) {
 	repo := settings.NewRepository(db)
 
 	r := chi.NewRouter()
-	MountRoutes(r, repo, nil, TelemetryStatusConfig{EnvOptIn: true})
+	MountRoutes(r, repo, nil, TelemetryStatusConfig{OptInMode: "consent"})
 
 	body := `{"choice":"granted"}`
 	req := httptest.NewRequest("POST", "/api/telemetry/consent", strings.NewReader(body))
@@ -95,7 +95,7 @@ func TestHandleConsent_Declined(t *testing.T) {
 	repo := settings.NewRepository(db)
 
 	r := chi.NewRouter()
-	MountRoutes(r, repo, nil, TelemetryStatusConfig{EnvOptIn: true})
+	MountRoutes(r, repo, nil, TelemetryStatusConfig{OptInMode: "consent"})
 
 	body := `{"choice":"declined"}`
 	req := httptest.NewRequest("POST", "/api/telemetry/consent", strings.NewReader(body))
@@ -119,7 +119,7 @@ func TestHandleConsent_InvalidChoice(t *testing.T) {
 	repo := settings.NewRepository(db)
 
 	r := chi.NewRouter()
-	MountRoutes(r, repo, nil, TelemetryStatusConfig{EnvOptIn: true})
+	MountRoutes(r, repo, nil, TelemetryStatusConfig{OptInMode: "consent"})
 
 	body := `{"choice":"maybe"}`
 	req := httptest.NewRequest("POST", "/api/telemetry/consent", strings.NewReader(body))
@@ -138,7 +138,7 @@ func TestHandlePopupDismissed(t *testing.T) {
 	repo := settings.NewRepository(db)
 
 	r := chi.NewRouter()
-	MountRoutes(r, repo, nil, TelemetryStatusConfig{EnvOptIn: true})
+	MountRoutes(r, repo, nil, TelemetryStatusConfig{OptInMode: "consent"})
 
 	req := httptest.NewRequest("POST", "/api/telemetry/popup-dismissed", nil)
 	w := httptest.NewRecorder()
@@ -164,7 +164,7 @@ func TestHandleStatus_WithConsent(t *testing.T) {
 
 	r := chi.NewRouter()
 	MountRoutes(r, repo, nil, TelemetryStatusConfig{
-		EnvOptIn:       true,
+		OptInMode:      "consent",
 		ScoutVersion:   "0.7.2",
 		DeploymentType: "docker",
 		OSPlatform:     "linux",
@@ -198,7 +198,7 @@ func TestHandleResetConsent(t *testing.T) {
 	_ = repo.Set(context.Background(), SettingsKeyPopupDismissedAt, "2026-06-12T08:31:00Z")
 
 	r := chi.NewRouter()
-	MountRoutes(r, repo, nil, TelemetryStatusConfig{EnvOptIn: true})
+	MountRoutes(r, repo, nil, TelemetryStatusConfig{OptInMode: "consent"})
 
 	req := httptest.NewRequest("POST", "/api/telemetry/reset-consent", nil)
 	w := httptest.NewRecorder()

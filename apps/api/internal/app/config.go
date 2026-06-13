@@ -20,8 +20,11 @@ type Config struct {
 
 // TelemetryConfig holds the runtime telemetry gating state.
 type TelemetryConfig struct {
-	// EnvOptIn is true only when SCOUT_TELEMETRY_OPT_IN=1.
-	EnvOptIn bool
+	// OptInMode is the parsed tri-state from SCOUT_TELEMETRY_OPT_IN:
+	//   "consent"  — default, unset: recorder active, UI consent required
+	//   "enabled"  — SCOUT_TELEMETRY_OPT_IN=1: always on, no consent prompts
+	//   "disabled" — SCOUT_TELEMETRY_OPT_IN=0: recorder inactive, no consent
+	OptInMode string
 }
 
 func LoadConfig() Config {
@@ -48,7 +51,7 @@ func LoadConfig() Config {
 	loc := resolveLocation()
 
 	telemetry := TelemetryConfig{
-		EnvOptIn: os.Getenv("SCOUT_TELEMETRY_OPT_IN") == "1",
+		OptInMode: parseTelemetryOptInMode(os.Getenv("SCOUT_TELEMETRY_OPT_IN")),
 	}
 
 	return Config{Port: port, DBPath: dbPath, FrontendDist: frontendDist, RuntimeMode: runtimeMode, Location: loc, Telemetry: telemetry}
@@ -87,6 +90,18 @@ func resolveLocation() *time.Location {
 
 	log.Printf("config: scheduler timezone defaulting to UTC (set SCOUT_TIMEZONE to override)")
 	return time.UTC
+}
+
+// parseTelemetryOptInMode interprets SCOUT_TELEMETRY_OPT_IN as a tri-state.
+func parseTelemetryOptInMode(v string) string {
+	switch v {
+	case "0":
+		return "disabled"
+	case "1":
+		return "enabled"
+	default:
+		return "consent"
+	}
 }
 
 // findLast returns the index of the last occurrence of substr in s, or -1.

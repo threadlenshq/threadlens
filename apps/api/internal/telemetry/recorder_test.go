@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-func TestRecorder_NoopWhenEnvOptInFalse(t *testing.T) {
-	r := NewRecorder(RecorderConfig{EnvOptIn: false})
+func TestRecorder_NoopWhenOptInDisabled(t *testing.T) {
+	r := NewRecorder(RecorderConfig{OptInMode: "disabled"})
 	r.Record(EventInstanceStarted) // should not panic
 	r.Shutdown()                   // should return immediately
 }
@@ -31,7 +31,7 @@ func TestRecorder_RejectsInvalidEventName(t *testing.T) {
 	defer srv.Close()
 
 	r := NewRecorder(RecorderConfig{
-		EnvOptIn:       true,
+		OptInMode:      "consent",
 		WorkerURL:      srv.URL,
 		ScoutVersion:   "0.7.2",
 		DeploymentType: "local",
@@ -40,7 +40,7 @@ func TestRecorder_RejectsInvalidEventName(t *testing.T) {
 	})
 
 	r.Record(EventName("not_a_real_event")) // should be dropped
-	r.Record(EventInstanceStarted)           // should be queued
+	r.Record(EventInstanceStarted)          // should be queued
 	r.Shutdown()
 
 	mu.Lock()
@@ -72,7 +72,7 @@ func TestRecorder_BatchesUpTo50(t *testing.T) {
 	defer srv.Close()
 
 	r := NewRecorder(RecorderConfig{
-		EnvOptIn:       true,
+		OptInMode:      "consent",
 		WorkerURL:      srv.URL,
 		ScoutVersion:   "0.7.2",
 		DeploymentType: "docker",
@@ -106,7 +106,7 @@ func TestRecorder_SkipsFlushWhenConsentNotGranted(t *testing.T) {
 	defer srv.Close()
 
 	r := NewRecorder(RecorderConfig{
-		EnvOptIn:       true,
+		OptInMode:      "consent",
 		WorkerURL:      srv.URL,
 		ScoutVersion:   "0.7.2",
 		DeploymentType: "local",
@@ -131,7 +131,7 @@ func TestRecorder_SkipsFlushWhenInstanceIDEmpty(t *testing.T) {
 	defer srv.Close()
 
 	r := NewRecorder(RecorderConfig{
-		EnvOptIn:       true,
+		OptInMode:      "consent",
 		WorkerURL:      srv.URL,
 		ScoutVersion:   "0.7.2",
 		DeploymentType: "local",
@@ -160,7 +160,7 @@ func TestRecorder_WireFormat(t *testing.T) {
 	defer srv.Close()
 
 	r := NewRecorder(RecorderConfig{
-		EnvOptIn:       true,
+		OptInMode:      "consent",
 		WorkerURL:      srv.URL,
 		ScoutVersion:   "0.7.2",
 		DeploymentType: "docker",

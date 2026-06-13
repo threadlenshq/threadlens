@@ -22,7 +22,7 @@ func (a *App) mountRoutes() {
 	a.ModuleRegistry.MountRoutes(a.Router)
 	onboarding.MountRoutes(a.Router, a.OnboardingService, a.TelemetryRecorder)
 	telemetry.MountRoutes(a.Router, a.SettingsRepo, a.TelemetryRecorder, telemetry.TelemetryStatusConfig{
-		EnvOptIn:       a.Config.Telemetry.EnvOptIn,
+		OptInMode:      a.Config.Telemetry.OptInMode,
 		ScoutVersion:   scoutVersion,
 		DeploymentType: telemetry.DetectDeploymentType(),
 		OSPlatform:     detectOSPlatform(),
