@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.11.0 - 2026-06-13
+
+Tag: `threadlens-v0.11.0`
+
+### Features
+
+- feat(telemetry): toast reappears immediately after consent reset; privacy view auto-syncs with consent changes (`ee888d1`)
+- feat(telemetry): update frontend for tri-state SCOUT_TELEMETRY_OPT_IN (`19f21a7`)
+- feat(web): wire telemetry toast and privacy view into app shell (`f7778a2`)
+- feat(web): add PrivacySettings component (`cf93688`)
+- feat(web): add TelemetryConsentToast component (`52d77e4`)
+- feat(web): add telemetry consent checkbox to onboarding wizard (`a6ef295`)
+- feat(web): add browser telemetry client with sendBeacon (`116e125`)
+- feat(web): add telemetry API client (`3841a7a`)
+- feat(telemetry): persist consent choice from onboarding save (`aa26d1b`)
+- feat(telemetry): add recorder calls to handler sites (`c7ff753`)
+- feat(telemetry): add graceful shutdown for telemetry recorder (`dbafec6`)
+- feat(telemetry): wire recorder and consent routes into app (`e8f138d`)
+- feat(telemetry): add consent API handlers (status, consent, popup-dismissed) (`363439e`)
+- feat(telemetry): add recorder with queue, batch, flush, and ping ticker (`995116d`)
+- feat(telemetry): add event types and wire format (`0cfdd40`)
+- feat(telemetry): add TelemetryConfig to app config (`4de0feb`)
+
+### Fixes
+
+- fix(web): hide project breadcrumb for privacy view (instance-level setting) (`8f5d4a2`)
+- fix(onboarding): allow user to toggle telemetry consent checkbox (`543469f`)
+- fix(telemetry): sync test/config files to OptInMode string tri-state (`f21992c`)
+- fix(simplify): address review findings - consent dedup, reset ordering, UUID error handling, queue logging, double DB read, toast redundancy (`d555630`)
+- fix(web): handle 204 No Content for all methods, not just DELETE (`4887ca0`)
+
+### Documentation
+
+- docs: add telemetry cross-links to sidebar, env vars, and config pages (`5da989d`)
+- docs: add telemetry reference page (`bcdd3df`)
+- docs: add SCOUT_TELEMETRY_OPT_IN to .env.example (`1f03803`)
+
+### Maintenance
+
+- test: fix handler and onboarding tests for telemetry recorder parameter (`545aaa3`)
+- test(web): add browser telemetry client tests (`d477a2b`)
+- test(telemetry): add consent handler tests (`8e8a4ea`)
+- test(telemetry): add recorder unit tests (`6cf5a3a`)
+
 ## 0.10.0 - 2026-06-12
 
 Tag: `threadlens-v0.10.0`
