@@ -1,14 +1,14 @@
 <script>
   import { onMount } from 'svelte';
   import { telemetry as telemetryApi } from '../lib/api.js';
-  import { getTelemetryStatus, updateTelemetryStatus } from '../lib/telemetry.js';
+  import { getTelemetryStatus, updateTelemetryStatus, onTelemetryChange } from '../lib/telemetry.js';
 
   let { onDismiss = () => {} } = $props();
 
   let visible = $state(false);
   let loading = $state(false);
 
-  onMount(() => {
+  function checkVisiblity() {
     const status = getTelemetryStatus();
     if (
       status?.env_opt_in === 'consent' &&
@@ -16,7 +16,14 @@
       !status?.popup_dismissed_at
     ) {
       visible = true;
+    } else {
+      visible = false;
     }
+  }
+
+  onMount(() => {
+    checkVisiblity();
+    return onTelemetryChange(() => checkVisiblity());
   });
 
   async function handleChoice(choice) {

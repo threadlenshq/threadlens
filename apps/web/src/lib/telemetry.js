@@ -5,6 +5,7 @@
  */
 
 let cachedStatus = null;
+let changeListeners = new Set();
 
 /**
  * Initializes the browser telemetry client with the status from the API.
@@ -16,14 +17,27 @@ export function initTelemetry(status) {
 }
 
 /**
- * Updates the cached consent state. Call this after the user changes
- * their consent choice in the UI.
+ * Updates the cached consent state and notifies all subscribers.
+ * Call this after the user changes their consent choice in the UI.
  * @param {object} partial - Partial status update (e.g. { ui_consent: 'granted' }).
  */
 export function updateTelemetryStatus(partial) {
   if (cachedStatus) {
     cachedStatus = { ...cachedStatus, ...partial };
   }
+  changeListeners.forEach(fn => {
+    try { fn(cachedStatus); } catch {}
+  });
+}
+
+/**
+ * Subscribes to telemetry status changes. Returns an unsubscribe function.
+ * @param {function} fn - Called with the full status object on each change.
+ * @returns {function} Unsubscribe function.
+ */
+export function onTelemetryChange(fn) {
+  changeListeners.add(fn);
+  return () => changeListeners.delete(fn);
 }
 
 /**

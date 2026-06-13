@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { telemetry as telemetryApi } from '../lib/api.js';
-  import { updateTelemetryStatus } from '../lib/telemetry.js';
+  import { getTelemetryStatus, updateTelemetryStatus, onTelemetryChange } from '../lib/telemetry.js';
 
   let status = $state(null);
   let loading = $state(true);
@@ -13,7 +13,14 @@
   let consentForced = $derived(envMode === 'enabled');
   let consentGranted = $derived(consentForced || status?.ui_consent === 'granted');
 
-  onMount(async () => {
+  onMount(() => {
+    fetchStatus();
+    return onTelemetryChange((latest) => {
+      if (latest) status = { ...status, ...latest };
+    });
+  });
+
+  async function fetchStatus() {
     try {
       status = await telemetryApi.status();
     } catch (e) {
@@ -21,7 +28,7 @@
     } finally {
       loading = false;
     }
-  });
+  }
 
   async function handleToggle() {
     if (!consentEnabled) return;
@@ -134,7 +141,7 @@
         onclick={handleResetPrompt}
         data-testid="privacy-reset-prompt"
       >Reset consent prompt</button>
-      <p class="reset-hint">This clears your consent choice and shows the bottom-left prompt again on next page load.</p>
+      <p class="reset-hint">This clears your consent choice and shows the consent prompt again.</p>
     </div>
   {/if}
 </div>
