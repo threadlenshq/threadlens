@@ -1,7 +1,7 @@
 <script>
   let { view = '', projectName = '', children } = $props();
 
-  let showProjectCrumb = $derived(view !== 'models');
+  let showProjectCrumb = $derived(view !== 'models' && view !== 'privacy');
   let normalizedView = $derived(view ? view.charAt(0).toUpperCase() + view.slice(1) : '');
 </script>
 
