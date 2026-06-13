@@ -12,7 +12,7 @@
     try {
       const status = await telemetryApi.status();
       if (
-        status.env_opt_in === true &&
+        status.env_opt_in === 'consent' &&
         status.ui_consent === 'unset' &&
         !status.popup_dismissed_at
       ) {

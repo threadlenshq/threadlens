@@ -8,8 +8,10 @@
   let saving = $state(false);
   let error = $state('');
 
-  let consentEnabled = $derived(status?.env_opt_in === true);
-  let consentGranted = $derived(status?.ui_consent === 'granted');
+  let envMode = $derived(status?.env_opt_in || 'disabled');
+  let consentEnabled = $derived(envMode !== 'disabled');
+  let consentForced = $derived(envMode === 'enabled');
+  let consentGranted = $derived(consentForced || status?.ui_consent === 'granted');
 
   onMount(async () => {
     try {
@@ -67,7 +69,7 @@
     <div class="privacy-status">
       <div class="status-row">
         <span class="status-label">Environment opt-in</span>
-        <span class="status-value">{status?.env_opt_in ? 'Enabled' : 'Disabled'}</span>
+        <span class="status-value">{envMode}</span>
       </div>
       <div class="status-row">
         <span class="status-label">UI consent</span>
@@ -84,7 +86,7 @@
         <input
           type="checkbox"
           checked={consentGranted}
-          disabled={!consentEnabled || saving}
+          disabled={!consentEnabled || consentForced || saving}
           onchange={handleToggle}
           data-testid="privacy-consent-toggle"
         />
@@ -92,7 +94,12 @@
       </label>
       {#if !consentEnabled}
         <p class="privacy-disabled-hint" data-testid="privacy-disabled-hint">
-          Disabled by your environment configuration. Set <code>SCOUT_TELEMETRY_OPT_IN=1</code> to enable.
+          Disabled by environment configuration. Set <code>SCOUT_TELEMETRY_OPT_IN=1</code> for always-on
+          or leave unset for consent mode.
+        </p>
+      {:else if consentForced}
+        <p class="privacy-disabled-hint" data-testid="privacy-forced-hint">
+          Always enabled by environment configuration (<code>SCOUT_TELEMETRY_OPT_IN=1</code>).
         </p>
       {/if}
     </div>

@@ -31,12 +31,10 @@ export function updateTelemetryStatus(partial) {
  */
 export function isTelemetryEnabled() {
   if (!cachedStatus) return false;
-  return Boolean(
-    cachedStatus.env_opt_in === true
-      && cachedStatus.ui_consent === 'granted'
-      && cachedStatus.instance_id
-      && cachedStatus.instance_id.length > 0
-  );
+  const mode = cachedStatus.env_opt_in;
+  if (mode === 'disabled' || !cachedStatus.instance_id) return false;
+  if (mode === 'enabled') return true;
+  return cachedStatus.ui_consent === 'granted';
 }
 
 /**
