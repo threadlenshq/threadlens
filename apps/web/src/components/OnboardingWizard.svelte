@@ -297,7 +297,6 @@
             <input
               type="checkbox"
               bind:checked={telemetryOptIn}
-              disabled={!telemetryEnvOptIn}
               data-testid="telemetry-consent-checkbox"
             />
             <span class="telemetry-consent-text">
