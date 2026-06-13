@@ -84,17 +84,17 @@ func New(cfg Config, db *sql.DB) *App {
 	}
 
 	// Ensure instance_id exists in app_settings on first boot.
-	ensureInstanceID(settingsRepo)
+	instanceID := ensureInstanceID(settingsRepo)
 
 	telemetryRecorder := telemetry.NewRecorder(telemetry.RecorderConfig{
-		EnvOptIn:       cfg.Telemetry.EnvOptIn,
+		OptInMode:      cfg.Telemetry.OptInMode,
 		ScoutVersion:   scoutVersion,
 		DeploymentType: telemetry.DetectDeploymentType(),
-		InstanceID:     readInstanceID(settingsRepo),
-		ConsentChecker: func() string { return telemetry.ReadConsentChoice(settingsRepo) },
+		InstanceID:     instanceID,
+		ConsentChecker: telemetryConsentChecker(cfg.Telemetry.OptInMode, settingsRepo),
 	})
 
-	// Fire instance_started on boot (no-op when EnvOptIn is false).
+	// Fire instance_started on boot (no-op when OptInMode is "disabled").
 	telemetryRecorder.Record(telemetry.EventInstanceStarted)
 
 	a := &App{
@@ -153,30 +153,35 @@ func (blueskyReplierAdapter) PostBlueskyReply(ctx context.Context, handle, appPa
 	return pipeline.PostBlueskyReply(ctx, handle, appPassword, text, parentURI, parentCID)
 }
 
-// ensureInstanceID writes a fresh UUID to app_settings if the key is absent.
-func ensureInstanceID(repo *settings.Repository) {
+// telemetryConsentChecker returns a consent checker that respects the
+// tri-state OptInMode. When mode is "enabled", consent is always "granted";
+// otherwise the stored user choice is used.
+func telemetryConsentChecker(mode string, repo *settings.Repository) func() string {
+	if mode == "enabled" {
+		return func() string { return "granted" }
+	}
+	return func() string { return telemetry.ReadConsentChoice(repo) }
+}
+
+// ensureInstanceID writes a fresh UUID to app_settings if the key is absent,
+// and returns the instance ID in all cases.
+func ensureInstanceID(repo *settings.Repository) string {
 	ctx := context.Background()
-	_, found, err := repo.Get(ctx, telemetry.SettingsKeyInstanceID)
-	if err != nil || found {
-		return
+	val, found, err := repo.Get(ctx, telemetry.SettingsKeyInstanceID)
+	if err == nil && found {
+		return val
 	}
 	id := generateUUID()
 	_ = repo.Set(ctx, telemetry.SettingsKeyInstanceID, id)
-}
-
-// readInstanceID reads the instance UUID from app_settings. Returns "" if absent.
-func readInstanceID(repo *settings.Repository) string {
-	val, found, err := repo.Get(context.Background(), telemetry.SettingsKeyInstanceID)
-	if err != nil || !found {
-		return ""
-	}
-	return val
+	return id
 }
 
 // generateUUID returns a random v4 UUID string.
 func generateUUID() string {
 	var uuid [16]byte
-	_, _ = crand.Read(uuid[:])
+	if _, err := crand.Read(uuid[:]); err != nil {
+		panic("telemetry: crypto/rand read failed: " + err.Error())
+	}
 	uuid[6] = (uuid[6] & 0x0f) | 0x40 // version 4
 	uuid[8] = (uuid[8] & 0x3f) | 0x80 // variant 10
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",

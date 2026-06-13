@@ -1,25 +1,21 @@
 <script>
   import { onMount } from 'svelte';
   import { telemetry as telemetryApi } from '../lib/api.js';
-  import { updateTelemetryStatus } from '../lib/telemetry.js';
+  import { getTelemetryStatus, updateTelemetryStatus } from '../lib/telemetry.js';
 
   let { onDismiss = () => {} } = $props();
 
   let visible = $state(false);
   let loading = $state(false);
 
-  onMount(async () => {
-    try {
-      const status = await telemetryApi.status();
-      if (
-        status.env_opt_in === 'consent' &&
-        status.ui_consent === 'unset' &&
-        !status.popup_dismissed_at
-      ) {
-        visible = true;
-      }
-    } catch {
-      // If we can't fetch status, don't show the toast.
+  onMount(() => {
+    const status = getTelemetryStatus();
+    if (
+      status?.env_opt_in === 'consent' &&
+      status?.ui_consent === 'unset' &&
+      !status?.popup_dismissed_at
+    ) {
+      visible = true;
     }
   });
 

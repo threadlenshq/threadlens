@@ -27,6 +27,13 @@ export function updateTelemetryStatus(partial) {
 }
 
 /**
+ * Returns the cached telemetry status, or null if not yet initialized.
+ */
+export function getTelemetryStatus() {
+  return cachedStatus;
+}
+
+/**
  * Returns true if telemetry is currently allowed (both gates open).
  */
 export function isTelemetryEnabled() {

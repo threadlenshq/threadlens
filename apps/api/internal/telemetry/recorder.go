@@ -27,9 +27,11 @@ const (
 
 // RecorderConfig holds the parameters needed to construct a Recorder.
 type RecorderConfig struct {
-	// EnvOptIn is the infrastructure-level gate. When false, the recorder
-	// is a no-op and never makes network calls.
-	EnvOptIn bool
+	// OptInMode is the tri-state from SCOUT_TELEMETRY_OPT_IN:
+	//   "consent"  — recorder active, consent required
+	//   "enabled"  — recorder active, always on
+	//   "disabled" — recorder is a no-op
+	OptInMode string
 	// WorkerURL overrides the default worker endpoint. Leave empty to use
 	// DefaultWorkerURL. This field exists solely for testing: production
 	// code always leaves it empty.
@@ -61,9 +63,12 @@ type Recorder struct {
 	done      chan struct{}
 }
 
-// NewRecorder creates and starts a Recorder. When cfg.EnvOptIn is false,
+// NewRecorder creates and starts a Recorder. When cfg.OptInMode is "disabled",
 // the recorder is a no-op: Record is a no-op, no goroutines are started,
-// and no network calls are made.
+// and no network calls are made. When cfg.OptInMode is "enabled", consent
+// checks are bypassed (the caller is expected to set ConsentChecker to always
+// return "granted"). When cfg.OptInMode is "consent" (or any unrecognized
+// value), the recorder checks ConsentChecker before each flush.
 func NewRecorder(cfg RecorderConfig) *Recorder {
 	workerURL := cfg.WorkerURL
 	if workerURL == "" {
@@ -80,7 +85,7 @@ func NewRecorder(cfg RecorderConfig) *Recorder {
 	if r.client == nil {
 		r.client = http.DefaultClient
 	}
-	if !cfg.EnvOptIn {
+	if cfg.OptInMode == "disabled" {
 		// No-op mode: close done so Shutdown returns immediately.
 		close(r.done)
 		return r
@@ -89,10 +94,10 @@ func NewRecorder(cfg RecorderConfig) *Recorder {
 	return r
 }
 
-// Record enqueues a single event. It is a no-op when EnvOptIn is false,
+// Record enqueues a single event. It is a no-op when OptInMode is "disabled",
 // when the event name is not in the allow-list, or when the queue is full.
 func (r *Recorder) Record(name EventName) {
-	if !r.cfg.EnvOptIn {
+	if r.cfg.OptInMode == "disabled" {
 		return
 	}
 	if !IsValidEventName(name) {
@@ -102,7 +107,7 @@ func (r *Recorder) Record(name EventName) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if len(r.queue) >= maxBatchSize {
-		// Drop oldest to prevent unbounded growth.
+		log.Printf("telemetry: queue full (%d), dropping oldest event", maxBatchSize)
 		r.queue = r.queue[1:]
 	}
 	r.queue = append(r.queue, evt)
@@ -112,7 +117,7 @@ func (r *Recorder) Record(name EventName) {
 // a 5-second deadline, and returns. Events still in the queue after the
 // deadline are dropped.
 func (r *Recorder) Shutdown() {
-	if !r.cfg.EnvOptIn {
+	if r.cfg.OptInMode == "disabled" {
 		return
 	}
 	close(r.stop)

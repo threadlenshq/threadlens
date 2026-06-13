@@ -28,7 +28,7 @@ func MountRoutes(r chi.Router, repo *settings.Repository, recorder *Recorder, cf
 
 // TelemetryStatusConfig holds the static values returned by the status endpoint.
 type TelemetryStatusConfig struct {
-	EnvOptIn       bool
+	OptInMode      string
 	ScoutVersion   string
 	DeploymentType string
 	OSPlatform     string
@@ -49,7 +49,7 @@ func handleStatus(repo *settings.Repository, cfg TelemetryStatusConfig) http.Han
 
 		resp := map[string]any{
 			"instance_id":        instanceID,
-			"env_opt_in":         cfg.EnvOptIn,
+			"env_opt_in":         cfg.OptInMode,
 			"ui_consent":         uiChoice,
 			"popup_dismissed_at": popupDismissedAt,
 			"scout_version":      cfg.ScoutVersion,
@@ -75,13 +75,15 @@ func handleConsent(repo *settings.Repository, recorder *Recorder) http.HandlerFu
 			return
 		}
 
+		prev, _, _ := repo.Get(r.Context(), SettingsKeyUIChoice)
+
 		if err := repo.Set(r.Context(), SettingsKeyUIChoice, body.Choice); err != nil {
 			httpx.WriteError(w, http.StatusInternalServerError, "failed to save consent")
 			return
 		}
 
-		// Emit consent-changed heartbeat.
-		if recorder != nil {
+		// Emit consent-changed heartbeat only when the choice actually changes.
+		if recorder != nil && prev != body.Choice {
 			recorder.Record(EventInstanceConsentChanged)
 		}
 
@@ -106,12 +108,14 @@ func handlePopupDismissed(repo *settings.Repository) http.HandlerFunc {
 func handleResetConsent(repo *settings.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		if err := repo.Delete(ctx, SettingsKeyUIChoice); err != nil {
-			httpx.WriteError(w, http.StatusInternalServerError, "failed to clear consent")
-			return
-		}
+		// Delete popup-dismissed first: if this step fails, consent is still
+		// intact and the toast stays hidden (the user can retry reset).
 		if err := repo.Delete(ctx, SettingsKeyPopupDismissedAt); err != nil {
 			httpx.WriteError(w, http.StatusInternalServerError, "failed to clear popup dismissal")
+			return
+		}
+		if err := repo.Delete(ctx, SettingsKeyUIChoice); err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "failed to clear consent")
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
