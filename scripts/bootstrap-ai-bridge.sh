@@ -203,10 +203,59 @@ build_binary() {
   fi
 }
 
+# needs_rebuild returns 0 (true) when the binary is missing or older than any
+# Go source file under the bridge package tree, meaning a rebuild is required.
+needs_rebuild() {
+  local binary="${ROOT_DIR}/bin/scout-ai-bridge"
+  [[ -x "$binary" ]] || return 0
+
+  local module_dir="${ROOT_DIR}/apps/api"
+  local bin_ts
+  bin_ts="$(stat -f %m "$binary" 2>/dev/null || stat -c %Y "$binary" 2>/dev/null || echo 0)"
+
+  # Check cmd entry point and internal/bridge package sources.
+  local src_files
+  src_files=(
+    "${module_dir}/cmd/scout-ai-bridge/main.go"
+    "${module_dir}/internal/bridge"
+  )
+  for src in "${src_files[@]}"; do
+    local newest
+    if [[ -f "$src" ]]; then
+      newest="$(stat -f %m "$src" 2>/dev/null || stat -c %Y "$src" 2>/dev/null || echo 0)"
+    elif [[ -d "$src" ]]; then
+      # Find newest .go file in the directory tree (cross-platform).
+      newest="$(find "$src" -name '*.go' -exec stat -f %m {} \; 2>/dev/null | sort -rn | head -1)"
+      [[ -z "$newest" ]] && newest="$(find "$src" -name '*.go' -exec stat -c %Y {} \; 2>/dev/null | sort -rn | head -1)"
+    fi
+    [[ -n "$newest" && "$newest" -gt "$bin_ts" ]] && return 0
+  done
+  return 1
+}
+
 start_daemon() {
   local binary="${ROOT_DIR}/bin/scout-ai-bridge"
   local token
   token="$(cat "$TOKEN_FILE" 2>/dev/null || echo '')"
+
+  # Rebuild the bridge binary if Go source has changed since the last build.
+  local rebuilt=0
+  if needs_rebuild; then
+    log "Rebuilding bridge binary (source newer than binary)"
+    build_binary && rebuilt=1 || true
+  fi
+
+  # If the binary was rebuilt, kill the old daemon so the new one takes over.
+  if [[ "$rebuilt" -eq 1 ]]; then
+    log "Binary rebuilt; stopping old daemon for restart"
+    local managed_pid
+    managed_pid="$(read_pid)"
+    if [[ -n "$managed_pid" ]] && kill -0 "$managed_pid" 2>/dev/null; then
+      kill "$managed_pid" 2>/dev/null || true
+      sleep 1
+    fi
+    kill_bridge_on_port
+  fi
 
   # Bridge is fully healthy: responding AND has at least one working runtime.
   if bridge_has_available_runtime; then
@@ -238,7 +287,7 @@ start_daemon() {
     sleep 1
   fi
 
-  # Try to build if binary not present
+  # Try to build if binary not present (may have been skipped above if no source changes).
   if [[ ! -x "$binary" ]]; then
     build_binary || true
   fi
