@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.2 - 2026-06-14
+
+Tag: `threadlens-v0.11.2`
+
+### Fixes
+
+- fix(bridge): rebuild bridge binary when Go source is newer than existing binary (`84dc748`)
+
 ## 0.11.1 - 2026-06-14
 
 Tag: `threadlens-v0.11.1`
