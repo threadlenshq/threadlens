@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.1 - 2026-06-14
+
+Tag: `threadlens-v0.11.1`
+
+### Fixes
+
+- fix(reddit): prevent 429 floods in DM context fetches and shorten warnings (`d6afbcc`)
+
 ## 0.11.0 - 2026-06-13
 
 Tag: `threadlens-v0.11.0`
