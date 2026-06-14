@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -44,10 +45,14 @@ type redditSession struct {
 	harvestedAt time.Time
 }
 
+const redditFetchMinInterval = 1500 * time.Millisecond
+
 var (
 	globalRedditSession = &redditSession{}
 	// Separate client without a jar used only for the harvest request.
-	redditHarvestClient = &http.Client{Timeout: 15 * time.Second}
+	redditHarvestClient  = &http.Client{Timeout: 15 * time.Second}
+	lastRedditFetch      time.Time
+	lastRedditFetchMu    sync.Mutex
 )
 
 // redditClient returns an http.Client with a fresh-enough cookie jar.
@@ -288,8 +293,19 @@ func redditFetchWithRetry(ctx context.Context, fetchURL string) ([]byte, error) 
 		}
 
 		if (resp.StatusCode == 429 || resp.StatusCode == 503) && attempt < redditMaxRetries {
-			if err := retryBackoff(ctx, attempt, time.Second); err != nil {
-				return nil, err
+			delay := time.Duration(1<<uint(attempt)) * 5 * time.Second
+			if resp.StatusCode == 429 {
+				if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
+					if seconds, err := strconv.Atoi(retryAfter); err == nil && seconds > 0 && seconds <= 120 {
+						delay = time.Duration(seconds) * time.Second
+					}
+				}
+				log.Printf("[reddit] 429 on attempt %d, waiting %s before retry", attempt, delay)
+			}
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(delay):
 			}
 			continue
 		}
@@ -384,6 +400,18 @@ func FetchRedditPosts(ctx context.Context, queryURLs []string, onProgress func(d
 // On network failure the function returns an empty RedditContext and the error
 // so that callers can decide whether to abort (500) or continue with partial data.
 func FetchRedditContext(ctx context.Context, postURL string) (RedditContext, error) {
+	lastRedditFetchMu.Lock()
+	wait := redditFetchMinInterval - time.Since(lastRedditFetch)
+	lastRedditFetch = time.Now()
+	lastRedditFetchMu.Unlock()
+	if wait > 0 {
+		select {
+		case <-ctx.Done():
+			return RedditContext{}, ctx.Err()
+		case <-time.After(wait):
+		}
+	}
+
 	// Build the JSON endpoint URL.
 	// postURL may be a full https URL or a /r/… permalink path.
 	var jsonURL string

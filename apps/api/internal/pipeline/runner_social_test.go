@@ -599,7 +599,7 @@ func TestSocialRunnerDMTargetWarningsDoNotFailRun(t *testing.T) {
 	if run.Status != "completed" {
 		t.Fatalf("run status = %s, want completed", run.Status)
 	}
-	if run.Warnings == nil || !containsStr(*run.Warnings, "DM targets: t3_warn reddit context fetch failed: context timeout") {
+	if run.Warnings == nil || !containsStr(*run.Warnings, "DM targets: t3_warn reddit context fetch failed") {
 		t.Fatalf("expected DM warning, got %v", run.Warnings)
 	}
 }

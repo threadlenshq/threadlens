@@ -197,8 +197,8 @@ func TestDMTargetGeneratorFetchFailureInsertsAuthorOnlyAndWarns(t *testing.T) {
 
 	warnings := generator.Generate(context.Background(), marketingProject(), "reddit", []domain.Post{post})
 
-	if len(warnings) != 1 || !strings.Contains(warnings[0], "reddit unavailable") {
-		t.Fatalf("expected fetch warning mentioning reddit unavailable, got %v", warnings)
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "reddit context fetch failed") {
+		t.Fatalf("expected fetch warning mentioning reddit context fetch failed, got %v", warnings)
 	}
 	targets := repo.inserted[post.ID]
 	if len(targets) != 1 || targets[0].Username != "post_author" {

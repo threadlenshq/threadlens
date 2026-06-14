@@ -279,7 +279,11 @@ func (g *DMTargetGenerator) buildCandidates(ctx context.Context, platform string
 		}
 		contextResult, err := g.reddit.FetchRedditContext(ctx, post.URL)
 		if err != nil {
-			warnings = append(warnings, fmt.Sprintf("DM targets: %s reddit context fetch failed: %s", post.ID, err.Error()))
+			msg := "reddit context fetch failed"
+			if strings.Contains(err.Error(), "429") {
+				msg = "reddit context fetch failed (rate limited)"
+			}
+			warnings = append(warnings, fmt.Sprintf("DM targets: %s %s", post.ID, msg))
 			return candidates, warnings
 		}
 		for i, comment := range contextResult.TopComments {

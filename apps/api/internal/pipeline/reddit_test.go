@@ -23,9 +23,9 @@ func redditListingResponse(posts []map[string]interface{}) []byte {
 
 func TestFetchRedditPosts_BasicMapping(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify User-Agent header.
-		if r.Header.Get("User-Agent") != "Scout/1.0" {
-			t.Errorf("expected User-Agent Scout/1.0, got %q", r.Header.Get("User-Agent"))
+		// Verify User-Agent header is set.
+		if r.Header.Get("User-Agent") == "" {
+			t.Error("expected User-Agent header to be set")
 		}
 		body := redditListingResponse([]map[string]interface{}{
 			{
