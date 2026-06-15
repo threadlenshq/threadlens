@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.12.0 - 2026-06-15
+
+Tag: `threadlens-v0.12.0`
+
+### Features
+
+- feat(web): add ✦ recommended badge to model config dropdown (`7ddd2a8`)
+- feat(shared): add defaultByProvider mapping and getDefaultForTask helper (`ea788b2`)
+- feat(onboarding): auto-assign model overrides on SaveRequiredStep(ai_provider) (`3afd76e`)
+- feat(services): provider-aware Catalog() with currentProvider and StoreProvider method (`ffce671`)
+- feat(repository): add SetSetting for plain key/value upserts in app_settings (`497b52a`)
+- feat(catalog): add DefaultByProvider field to TaskEntry (`62d44fb`)
+
+### Fixes
+
+- fix(catalog): update copilot model costs to usage-based pricing (`aec7782`)
+
+### Maintenance
+
+- chore: update pnpm-lock.yaml for @testing-library/svelte (`b0f6c98`)
+- test: add JS catalog helper tests and Svelte component tests (`b43d3d1`)
+- test: add ModelService and onboarding auto-assignment tests (`d46835c`)
+- test: add catalog validation and repository SetSetting tests (`4850828`)
+
 ## 0.11.2 - 2026-06-14
 
 Tag: `threadlens-v0.11.2`
