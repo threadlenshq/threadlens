@@ -28,8 +28,9 @@ func NewModelService(repo *repository.Repository, mode entitlements.RuntimeMode,
 	return &ModelService{repo: repo, mode: mode, resolver: resolver}
 }
 
-// Catalog returns the model catalog with entitlement-aware managed provider metadata
-// and read-only host bridge status.
+// Catalog returns the model catalog with entitlement-aware managed provider metadata,
+// read-only host bridge status, the user's current provider, and per-task defaults
+// overridden to match the current provider.
 func (s *ModelService) Catalog(ctx context.Context) (map[string]any, error) {
 	subject := tenant.SubjectFromContext(ctx, s.mode)
 	decision, err := s.resolver.Check(ctx, entitlements.CheckRequest{Subject: subject, Capability: entitlements.CapabilityManagedAIUse, Action: "models.catalog.managed_ai"})
@@ -39,14 +40,34 @@ func (s *ModelService) Catalog(ctx context.Context) (map[string]any, error) {
 
 	bridgeState := ai.LoadBridgeStatus()
 
+	// Read the user's current provider from app_settings; default to "sdk".
+	provider := "sdk"
+	if raw, ok, getErr := s.repo.GetSetting(ctx, "ai_provider"); getErr == nil && ok && raw != "" {
+		provider = raw
+	}
+
+	// Build a shallow copy of ai.Tasks with per-provider default overrides.
+	// The override only applies when DefaultByProvider has the key AND the
+	// referenced model exists in the catalog.
+	tasksCopy := make([]ai.TaskEntry, len(ai.Tasks))
+	copy(tasksCopy, ai.Tasks)
+	for i := range tasksCopy {
+		if override, found := tasksCopy[i].DefaultByProvider[provider]; found && override != "" {
+			if ai.GetModel(override) != nil {
+				tasksCopy[i].Default = override
+			}
+		}
+	}
+
 	return map[string]any{
 		"models": ai.ModelCatalog,
-		"tasks":  ai.Tasks,
+		"tasks":  tasksCopy,
 		"managedProvider": map[string]any{
 			"available":  decision.Allowed,
 			"capability": entitlements.CapabilityManagedAIUse,
 		},
 		"externalRuntime": safeBridgeStatus(bridgeState),
+		"currentProvider": provider,
 	}, nil
 }
 
@@ -130,6 +151,15 @@ func (s *ModelService) DeleteConfig(ctx context.Context, taskID string) error {
 	return s.repo.DeleteModelSetting(ctx, taskID)
 }
 
+// StoreProvider persists the chosen AI provider to app_settings under the key
+// "ai_provider". The provider value is stored as a plain string (not JSON).
+func (s *ModelService) StoreProvider(ctx context.Context, provider string) error {
+	if provider == "" {
+		return &ModelError{Kind: "invalidProvider"}
+	}
+	return s.repo.SetSetting(ctx, "ai_provider", provider)
+}
+
 // ModelError carries structured error info for model operations.
 type ModelError struct {
 	Kind    string
@@ -143,6 +173,8 @@ func (e *ModelError) Error() string {
 		return "unknownTask:" + e.TaskID
 	case "unknownModel":
 		return "unknownModel:" + e.ModelID
+	case "invalidProvider":
+		return "invalidProvider: provider must not be empty"
 	}
 	return "model error"
 }
