@@ -24,12 +24,12 @@ type TaskEntry struct {
 
 // ModelCatalog is the full list of available AI models, mirroring catalog.js MODEL_CATALOG.
 var ModelCatalog = []ModelEntry{
-	{ID: "copilot:gpt-4.1", Provider: "copilot", Model: "gpt-4.1", Label: "GPT-4.1 (Copilot)", Tier: "low", Cost: "free (0x)"},
-	{ID: "copilot:gpt-5-mini", Provider: "copilot", Model: "gpt-5-mini", Label: "GPT-5 mini (Copilot)", Tier: "low", Cost: "free (0x)"},
-	{ID: "copilot:gpt-5.4-mini", Provider: "copilot", Model: "gpt-5.4-mini", Label: "GPT-5.4 mini (Copilot)", Tier: "medium", Cost: "0.33x"},
-	{ID: "copilot:gpt-5.4", Provider: "copilot", Model: "gpt-5.4", Label: "GPT-5.4 (Copilot)", Tier: "high", Cost: "1x"},
-	{ID: "copilot:claude-haiku-4.5", Provider: "copilot", Model: "claude-haiku-4.5", Label: "Claude Haiku 4.5 (Copilot)", Tier: "low", Cost: "0.33x"},
-	{ID: "copilot:claude-sonnet-4.6", Provider: "copilot", Model: "claude-sonnet-4.6", Label: "Claude Sonnet 4.6 (Copilot)", Tier: "high", Cost: "1x"},
+	{ID: "copilot:gpt-4.1", Provider: "copilot", Model: "gpt-4.1", Label: "GPT-4.1 (Copilot)", Tier: "low", Cost: "usage-based"},
+	{ID: "copilot:gpt-5-mini", Provider: "copilot", Model: "gpt-5-mini", Label: "GPT-5 mini (Copilot)", Tier: "low", Cost: "usage-based"},
+	{ID: "copilot:gpt-5.4-mini", Provider: "copilot", Model: "gpt-5.4-mini", Label: "GPT-5.4 mini (Copilot)", Tier: "medium", Cost: "usage-based"},
+	{ID: "copilot:gpt-5.4", Provider: "copilot", Model: "gpt-5.4", Label: "GPT-5.4 (Copilot)", Tier: "high", Cost: "usage-based"},
+	{ID: "copilot:claude-haiku-4.5", Provider: "copilot", Model: "claude-haiku-4.5", Label: "Claude Haiku 4.5 (Copilot)", Tier: "low", Cost: "usage-based"},
+	{ID: "copilot:claude-sonnet-4.6", Provider: "copilot", Model: "claude-sonnet-4.6", Label: "Claude Sonnet 4.6 (Copilot)", Tier: "high", Cost: "usage-based"},
 	{ID: "claude-cli:haiku", Provider: "claude-cli", Model: "haiku", Label: "Claude Haiku (CLI)", Tier: "low", Cost: "token-billed"},
 	{ID: "claude-cli:sonnet", Provider: "claude-cli", Model: "sonnet", Label: "Claude Sonnet (CLI)", Tier: "high", Cost: "token-billed"},
 	{ID: "claude-cli:opus", Provider: "claude-cli", Model: "opus", Label: "Claude Opus (CLI)", Tier: "reasoning", Cost: "token-billed"},
