@@ -23,6 +23,19 @@ func (r *Repository) GetSetting(ctx context.Context, key string) (string, bool, 
 	return value, true, nil
 }
 
+// SetSetting inserts or updates an arbitrary key/value string pair in
+// app_settings, mirroring GetSetting. Used for non-model settings such as
+// the active AI provider chosen at onboarding.
+func (r *Repository) SetSetting(ctx context.Context, key, value string) error {
+	_, err := r.DB.ExecContext(ctx, `
+		INSERT INTO app_settings (key, value)
+		VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE
+		SET value = excluded.value, updated_at = datetime('now')
+	`, key, value)
+	return err
+}
+
 // SetModelSetting saves the user-chosen model for a task using the same JSON format as Express:
 // { "modelId": "provider:model" }.
 func (r *Repository) SetModelSetting(ctx context.Context, taskID string, modelID string) error {
