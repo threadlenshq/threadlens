@@ -18,6 +18,7 @@
   let savedTimer = null;
   let initialized = false;
   let hasLoadedCatalog = false;
+  let currentProvider = 'sdk';
 
   $: modelGroups = Object.entries(
     catalogModels.reduce((acc, model) => {
@@ -60,6 +61,7 @@
       catalogModels = Array.isArray(catalog.models) ? catalog.models : [];
       tasks = Array.isArray(catalog.tasks) ? catalog.tasks : [];
       managedProvider = catalog.managedProvider || { available: false };
+      currentProvider = catalog.currentProvider || 'sdk';
       config = currentConfig || {};
       hasLoadedCatalog = true;
     } catch (e) {
@@ -187,7 +189,8 @@
                 {#each modelGroups as [provider, models]}
                   <optgroup label={provider}>
                     {#each models as model (model.id)}
-                      <option value={model.id}>{model.label} — {model.cost}</option>
+                      {@const recommended = model.provider === currentProvider}
+                      <option value={model.id}>{model.label} — {model.cost}{recommended ? ' ✦ recommended' : ''}</option>
                     {/each}
                   </optgroup>
                 {/each}
