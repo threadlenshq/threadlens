@@ -12,13 +12,14 @@ type ModelEntry struct {
 
 // TaskEntry represents a task that can be configured with a model.
 type TaskEntry struct {
-	ID          string `json:"id"`
-	Label       string `json:"label"`
-	Complexity  string `json:"complexity"`
-	Volume      string `json:"volume"`
-	TimeoutMs   int    `json:"timeoutMs"`
-	Description string `json:"description"`
-	Default     string `json:"default"`
+	ID                string            `json:"id"`
+	Label             string            `json:"label"`
+	Complexity        string            `json:"complexity"`
+	Volume            string            `json:"volume"`
+	TimeoutMs         int               `json:"timeoutMs"`
+	Description       string            `json:"description"`
+	Default           string            `json:"default"`
+	DefaultByProvider map[string]string `json:"defaultByProvider"`
 }
 
 // ModelCatalog is the full list of available AI models, mirroring catalog.js MODEL_CATALOG.
@@ -58,36 +59,85 @@ var Tasks = []TaskEntry{
 		ID: "post_scoring", Label: "Post Scoring", Complexity: "low", Volume: "high", TimeoutMs: 60000,
 		Description: "Per-post pain-signal scoring during Reddit/Bluesky scout runs. High volume - runs 10 batches of 15 posts in parallel.",
 		Default:     "copilot:gpt-5-mini",
+		DefaultByProvider: map[string]string{
+			"copilot":    "copilot:gpt-5-mini",
+			"claude-cli": "claude-cli:haiku",
+			"opencode":   "opencode-go:deepseek-v4-flash",
+			"sdk":        "sdk:haiku",
+			"gemini":     "gemini:2.5-flash",
+		},
 	},
 	{
 		ID: "query_suggestion", Label: "Query Suggestion", Complexity: "medium", Volume: "one-time", TimeoutMs: 60000,
 		Description: "Generates 10 search URLs and angles when adding queries.",
 		Default:     "copilot:gpt-5-mini",
+		DefaultByProvider: map[string]string{
+			"copilot":    "copilot:claude-haiku-4.5",
+			"claude-cli": "claude-cli:sonnet",
+			"opencode":   "opencode-go:mimo-v2.5-pro",
+			"sdk":        "sdk:haiku",
+			"gemini":     "gemini:2.5-flash",
+		},
 	},
 	{
 		ID: "query_refinement", Label: "Query Refinement", Complexity: "reasoning", Volume: "one-time", TimeoutMs: 300000,
 		Description: "Reviews current queries against report findings and recommends which to disable or add next. Uses a 5-minute timeout because report-backed refinement can run longer than basic suggestions.",
 		Default:     "claude-cli:opus",
+		DefaultByProvider: map[string]string{
+			"copilot":    "copilot:claude-sonnet-4.6",
+			"claude-cli": "claude-cli:opus",
+			"opencode":   "opencode-go:kimi-k2.5",
+			"sdk":        "sdk:haiku",
+			"gemini":     "gemini:2.5-flash",
+		},
 	},
 	{
 		ID: "report_clustering", Label: "Research Report", Complexity: "reasoning", Volume: "one-time", TimeoutMs: 300000,
 		Description: "Clusters posts into pain themes and proposes product angles. One-time per report; 5-minute timeout.",
 		Default:     "claude-cli:opus",
+		DefaultByProvider: map[string]string{
+			"copilot":    "copilot:claude-sonnet-4.6",
+			"claude-cli": "claude-cli:opus",
+			"opencode":   "opencode-go:kimi-k2.5",
+			"sdk":        "sdk:haiku",
+			"gemini":     "gemini:2.5-flash",
+		},
 	},
 	{
 		ID: "draft_generation", Label: "Draft Comment / DM", Complexity: "medium", Volume: "per-post", TimeoutMs: 60000,
 		Description: "Drafts contextual replies and direct messages for outreach.",
 		Default:     "claude-cli:haiku",
+		DefaultByProvider: map[string]string{
+			"copilot":    "copilot:claude-sonnet-4.6",
+			"claude-cli": "claude-cli:sonnet",
+			"opencode":   "opencode-go:mimo-v2.5-pro",
+			"sdk":        "sdk:haiku",
+			"gemini":     "gemini:2.5-flash",
+		},
 	},
 	{
 		ID: "google_analysis", Label: "Google Search Analysis", Complexity: "low", Volume: "high", TimeoutMs: 60000,
 		Description: "Per-result product extraction plus relevance and intent scoring in Google scout.",
 		Default:     "copilot:claude-haiku-4.5",
+		DefaultByProvider: map[string]string{
+			"copilot":    "copilot:gpt-5-mini",
+			"claude-cli": "claude-cli:haiku",
+			"opencode":   "opencode-go:deepseek-v4-flash",
+			"sdk":        "sdk:haiku",
+			"gemini":     "gemini:2.5-flash",
+		},
 	},
 	{
 		ID: "advisor_council", Label: "Advisor Council", Complexity: "reasoning", Volume: "one-time", TimeoutMs: 300000,
 		Description: "Five-advisor council critique of a completed research report.",
 		Default:     "claude-cli:opus",
+		DefaultByProvider: map[string]string{
+			"copilot":    "copilot:claude-sonnet-4.6",
+			"claude-cli": "claude-cli:opus",
+			"opencode":   "opencode-go:kimi-k2.5",
+			"sdk":        "sdk:haiku",
+			"gemini":     "gemini:2.5-flash",
+		},
 	},
 }
 
