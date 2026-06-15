@@ -11,7 +11,12 @@ const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://localhost:47
 
 export default defineConfig({
   root: __dirname,
-  plugins: [svelte()],
+  plugins: [svelte({
+    dynamicCompileOptions() {
+      // Force client compilation in Vitest so Svelte component tests render correctly.
+      return process.env.VITEST ? { generate: 'client' } : {};
+    },
+  })],
   test: {
     root: repoRoot,
     environmentMatchGlobs: [['test/frontend/**/*.test.js', 'jsdom']],
@@ -19,7 +24,23 @@ export default defineConfig({
     alias: [
       {
         find: /^svelte$/,
-        replacement: resolve(__dirname, '../../node_modules/svelte/src/index-client.js'),
+        replacement: resolve(__dirname, 'node_modules/svelte/src/index-client.js'),
+      },
+      {
+        find: /^svelte\/internal\/client$/,
+        replacement: resolve(__dirname, 'node_modules/svelte/src/internal/client/index.js'),
+      },
+      {
+        find: /^svelte\/internal\/server$/,
+        replacement: resolve(__dirname, 'node_modules/svelte/src/internal/server/index.js'),
+      },
+      {
+        find: /^svelte\/internal\/disclose-version$/,
+        replacement: resolve(__dirname, 'node_modules/svelte/src/internal/disclose-version.js'),
+      },
+      {
+        find: /^svelte\/internal\/flags\/legacy$/,
+        replacement: resolve(__dirname, 'node_modules/svelte/src/internal/flags/legacy.js'),
       },
     ],
   },
