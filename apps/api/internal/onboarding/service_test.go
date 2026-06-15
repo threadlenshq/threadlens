@@ -39,7 +39,7 @@ func newTestService(t *testing.T, cfg onboarding.Config) *onboarding.Service {
 	t.Helper()
 	db := testhelpers.OpenTestDB(t)
 	repo := settings.NewRepository(db)
-	svc, err := onboarding.NewService(cfg, repo, nil)
+	svc, err := onboarding.NewService(cfg, repo, nil, nil)
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestGetStatus_LegacyCompleteMigratesToExploration(t *testing.T) {
 
 	svc, err := onboarding.NewService(
 		onboarding.Config{CompletionKey: completionKey, StateKey: stateKey},
-		repo, nil,
+		repo, nil, nil,
 	)
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
@@ -223,7 +223,7 @@ func TestSaveFinalRequiredSetupWritesEnvAndDoesNotStoreSecretInProgress(t *testi
 	}
 	db := testhelpers.OpenTestDB(t)
 	repo := settings.NewRepository(db)
-	svc, err := onboarding.NewService(cfg, repo, nil)
+	svc, err := onboarding.NewService(cfg, repo, nil, nil)
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
 	}

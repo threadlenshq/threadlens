@@ -10,8 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kyle/scout/open-core/apps/api/internal/ai"
 	"github.com/kyle/scout/open-core/apps/api/internal/configfile"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
+	"github.com/kyle/scout/open-core/apps/api/internal/services"
 	"github.com/kyle/scout/open-core/apps/api/internal/settings"
 )
 
@@ -69,12 +71,13 @@ type Service struct {
 	cfg         Config
 	repo        *settings.Repository
 	projectRepo *repository.Repository
+	models      *services.ModelService
 }
 
 // NewService constructs a Service. It returns an error if the Config is
 // inconsistent or the repository is nil. projectRepo may be nil for
 // environments that do not exercise project-count behaviour.
-func NewService(cfg Config, repo *settings.Repository, projectRepo *repository.Repository) (*Service, error) {
+func NewService(cfg Config, repo *settings.Repository, projectRepo *repository.Repository, models *services.ModelService) (*Service, error) {
 	if repo == nil {
 		return nil, errors.New("onboarding: settings repository must not be nil")
 	}
@@ -87,7 +90,7 @@ func NewService(cfg Config, repo *settings.Repository, projectRepo *repository.R
 	if cfg.DockerMode && cfg.EnvFilePath == "" {
 		return nil, errors.New("onboarding: Config.EnvFilePath must not be empty in Docker mode")
 	}
-	return &Service{cfg: cfg, repo: repo, projectRepo: projectRepo}, nil
+	return &Service{cfg: cfg, repo: repo, projectRepo: projectRepo, models: models}, nil
 }
 
 // ── persistence helpers ────────────────────────────────────────────────────────
@@ -503,6 +506,25 @@ func (s *Service) SaveRequiredStep(ctx context.Context, step RequiredStep, value
 			return Status{}, errors.New("onboarding: AI_PROVIDER is required")
 		}
 		p.Context.AIProviderPath = provider
+
+		// Persist the provider to app_settings so Catalog() can read it.
+		if s.models != nil && s.projectRepo != nil {
+			if storeErr := s.models.StoreProvider(ctx, provider); storeErr != nil {
+				return Status{}, fmt.Errorf("onboarding: storing provider: %w", storeErr)
+			}
+			// Auto-assign per-task model overrides for the chosen provider.
+			// Each task whose DefaultByProvider has this provider gets a
+			// model.<taskID> row written via the existing SetModelSetting.
+			for _, task := range ai.Tasks {
+				if modelID, found := task.DefaultByProvider[provider]; found && modelID != "" {
+					if ai.GetModel(modelID) != nil {
+						if setErr := s.projectRepo.SetModelSetting(ctx, task.ID, modelID); setErr != nil {
+							return Status{}, fmt.Errorf("onboarding: setting model for task %q: %w", task.ID, setErr)
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// Promote status from not_started → active; never regress from active or complete.

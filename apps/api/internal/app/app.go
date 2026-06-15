@@ -78,7 +78,8 @@ func New(cfg Config, db *sql.DB) *App {
 	}
 	onboardingCfg.DBPath = cfg.DBPath
 	settingsRepo := settings.NewRepository(db)
-	onboardingSvc, err := onboarding.NewService(onboardingCfg, settingsRepo, repo)
+	modelSvc := services.NewModelService(repo, cfg.RuntimeMode, entitlementResolver)
+	onboardingSvc, err := onboarding.NewService(onboardingCfg, settingsRepo, repo, modelSvc)
 	if err != nil {
 		panic("onboarding: failed to construct service: " + err.Error())
 	}
@@ -111,7 +112,7 @@ func New(cfg Config, db *sql.DB) *App {
 		QueryService:      services.NewQueryService(repo, aiSvc),
 		PromptService:     services.NewPromptService(repo),
 		PostService:       services.NewPostServiceFull(repo, aiSvc, redditContextFetcher{}, blueskyReplierAdapter{}),
-		ModelService:      services.NewModelService(repo, cfg.RuntimeMode, entitlementResolver),
+		ModelService:      modelSvc,
 		ReportService:     services.NewReportService(repo, db, aiSvc, cfg.RuntimeMode, entitlementResolver),
 		GoogleService:     services.NewGoogleService(repo),
 		ScoutService:      services.NewScoutService(repo, runner, cfg.RuntimeMode, entitlementResolver),

@@ -21,7 +21,7 @@ func newStarterService(t *testing.T) (*onboarding.Service, *repository.Repositor
 	svc, err := onboarding.NewService(
 		onboarding.Config{CompletionKey: completionKey, StateKey: stateKey},
 		settings.NewRepository(db),
-		repo,
+		repo, nil,
 	)
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
