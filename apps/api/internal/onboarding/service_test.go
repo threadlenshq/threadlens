@@ -22,12 +22,17 @@ package onboarding_test
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/kyle/scout/open-core/apps/api/internal/ai"
+	"github.com/kyle/scout/open-core/apps/api/internal/entitlements"
 	"github.com/kyle/scout/open-core/apps/api/internal/onboarding"
+	"github.com/kyle/scout/open-core/apps/api/internal/repository"
+	"github.com/kyle/scout/open-core/apps/api/internal/services"
 	"github.com/kyle/scout/open-core/apps/api/internal/settings"
 	"github.com/kyle/scout/open-core/apps/api/internal/testhelpers"
 )
@@ -500,9 +505,212 @@ func TestUpdateExploration_RepeatedDismissPreservesCompletedAt(t *testing.T) {
 	}
 }
 
+// ── 10. Auto-assign model overrides on SaveRequiredStep(ai_provider) ─────────
+
+func TestSaveRequiredStep_AIProvider_WritesOpencodeDefaults(t *testing.T) {
+	cfg := onboarding.Config{CompletionKey: completionKey, StateKey: stateKey}
+	db := testhelpers.OpenTestDB(t)
+	settingsRepo := settings.NewRepository(db)
+	projectRepo := repository.New(db)
+	resolver := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
+	modelSvc := services.NewModelService(projectRepo, entitlements.RuntimeModeSelfHosted, resolver)
+	svc, err := onboarding.NewService(cfg, settingsRepo, projectRepo, modelSvc)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	ctx := context.Background()
+
+	// Complete welcome step first.
+	if _, err := svc.SaveRequiredStep(ctx, onboarding.RequiredStepWelcome, nil); err != nil {
+		t.Fatalf("SaveRequiredStep(welcome): %v", err)
+	}
+
+	// Save ai_provider with "opencode".
+	if _, err := svc.SaveRequiredStep(ctx, onboarding.RequiredStepAIProvider, map[string]string{
+		"AI_PROVIDER": "opencode",
+	}); err != nil {
+		t.Fatalf("SaveRequiredStep(ai_provider): %v", err)
+	}
+
+	// Verify all 7 model.<taskID> rows exist with opencode-go defaults.
+	for _, task := range ai.Tasks {
+		key := "model." + task.ID
+		raw, ok, getErr := projectRepo.GetSetting(ctx, key)
+		if getErr != nil {
+			t.Fatalf("GetSetting(%q): %v", key, getErr)
+		}
+		if !ok {
+			t.Errorf("model.%s row not found after SaveRequiredStep(opencode)", task.ID)
+			continue
+		}
+		var obj map[string]string
+		if jsonErr := json.Unmarshal([]byte(raw), &obj); jsonErr != nil {
+			t.Errorf("model.%s value is not valid JSON: %v", task.ID, jsonErr)
+			continue
+		}
+		expectedModel := task.DefaultByProvider["opencode"]
+		if obj["modelId"] != expectedModel {
+			t.Errorf("model.%s = %q; want %q", task.ID, obj["modelId"], expectedModel)
+		}
+	}
+
+	// Verify ai_provider was stored.
+	val, ok, getErr := projectRepo.GetSetting(ctx, "ai_provider")
+	if getErr != nil {
+		t.Fatalf("GetSetting(ai_provider): %v", getErr)
+	}
+	if !ok || val != "opencode" {
+		t.Errorf("ai_provider = %q (ok=%v); want %q", val, ok, "opencode")
+	}
+}
+
+func TestSaveRequiredStep_AIProvider_WritesClaudeCliDefaults(t *testing.T) {
+	cfg := onboarding.Config{CompletionKey: completionKey, StateKey: stateKey}
+	db := testhelpers.OpenTestDB(t)
+	settingsRepo := settings.NewRepository(db)
+	projectRepo := repository.New(db)
+	resolver := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
+	modelSvc := services.NewModelService(projectRepo, entitlements.RuntimeModeSelfHosted, resolver)
+	svc, err := onboarding.NewService(cfg, settingsRepo, projectRepo, modelSvc)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	ctx := context.Background()
+
+	// Complete welcome step first.
+	if _, err := svc.SaveRequiredStep(ctx, onboarding.RequiredStepWelcome, nil); err != nil {
+		t.Fatalf("SaveRequiredStep(welcome): %v", err)
+	}
+
+	// Save ai_provider with "claude-cli".
+	if _, err := svc.SaveRequiredStep(ctx, onboarding.RequiredStepAIProvider, map[string]string{
+		"AI_PROVIDER": "claude-cli",
+	}); err != nil {
+		t.Fatalf("SaveRequiredStep(ai_provider): %v", err)
+	}
+
+	// Verify all 7 model.<taskID> rows exist with claude-cli defaults.
+	for _, task := range ai.Tasks {
+		key := "model." + task.ID
+		raw, ok, getErr := projectRepo.GetSetting(ctx, key)
+		if getErr != nil {
+			t.Fatalf("GetSetting(%q): %v", key, getErr)
+		}
+		if !ok {
+			t.Errorf("model.%s row not found after SaveRequiredStep(claude-cli)", task.ID)
+			continue
+		}
+		var obj map[string]string
+		if jsonErr := json.Unmarshal([]byte(raw), &obj); jsonErr != nil {
+			t.Errorf("model.%s value is not valid JSON: %v", task.ID, jsonErr)
+			continue
+		}
+		expectedModel := task.DefaultByProvider["claude-cli"]
+		if obj["modelId"] != expectedModel {
+			t.Errorf("model.%s = %q; want %q", task.ID, obj["modelId"], expectedModel)
+		}
+	}
+}
+
+func TestSaveRequiredStep_AIProvider_IdempotentOnResave(t *testing.T) {
+	cfg := onboarding.Config{CompletionKey: completionKey, StateKey: stateKey}
+	db := testhelpers.OpenTestDB(t)
+	settingsRepo := settings.NewRepository(db)
+	projectRepo := repository.New(db)
+	resolver := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
+	modelSvc := services.NewModelService(projectRepo, entitlements.RuntimeModeSelfHosted, resolver)
+	svc, err := onboarding.NewService(cfg, settingsRepo, projectRepo, modelSvc)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	ctx := context.Background()
+
+	// Walk through welcome → ai_provider with "claude-cli".
+	if _, err := svc.SaveRequiredStep(ctx, onboarding.RequiredStepWelcome, nil); err != nil {
+		t.Fatalf("SaveRequiredStep(welcome): %v", err)
+	}
+	if _, err := svc.SaveRequiredStep(ctx, onboarding.RequiredStepAIProvider, map[string]string{
+		"AI_PROVIDER": "claude-cli",
+	}); err != nil {
+		t.Fatalf("SaveRequiredStep(ai_provider, claude-cli): %v", err)
+	}
+
+	// Capture the model rows after first save.
+	firstValues := make(map[string]string, len(ai.Tasks))
+	for _, task := range ai.Tasks {
+		raw, ok, _ := projectRepo.GetSetting(ctx, "model."+task.ID)
+		if ok {
+			firstValues[task.ID] = raw
+		}
+	}
+
+	// Re-save the same provider (idempotent).
+	if _, err := svc.SaveRequiredStep(ctx, onboarding.RequiredStepAIProvider, map[string]string{
+		"AI_PROVIDER": "claude-cli",
+	}); err != nil {
+		t.Fatalf("SaveRequiredStep(ai_provider, claude-cli) re-save: %v", err)
+	}
+
+	// Verify rows are unchanged.
+	for _, task := range ai.Tasks {
+		raw, ok, _ := projectRepo.GetSetting(ctx, "model."+task.ID)
+		if !ok {
+			t.Errorf("model.%s row missing after re-save", task.ID)
+			continue
+		}
+		if raw != firstValues[task.ID] {
+			t.Errorf("model.%s changed on re-save: got %q, had %q", task.ID, raw, firstValues[task.ID])
+		}
+	}
+}
+
+func TestSaveRequiredStep_AIProvider_UnrecognizedProviderWritesNoRows(t *testing.T) {
+	cfg := onboarding.Config{CompletionKey: completionKey, StateKey: stateKey}
+	db := testhelpers.OpenTestDB(t)
+	settingsRepo := settings.NewRepository(db)
+	projectRepo := repository.New(db)
+	resolver := entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil)
+	modelSvc := services.NewModelService(projectRepo, entitlements.RuntimeModeSelfHosted, resolver)
+	svc, err := onboarding.NewService(cfg, settingsRepo, projectRepo, modelSvc)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	ctx := context.Background()
+
+	// Complete welcome step first.
+	if _, err := svc.SaveRequiredStep(ctx, onboarding.RequiredStepWelcome, nil); err != nil {
+		t.Fatalf("SaveRequiredStep(welcome): %v", err)
+	}
+
+	// Save ai_provider with an unrecognized provider.
+	if _, err := svc.SaveRequiredStep(ctx, onboarding.RequiredStepAIProvider, map[string]string{
+		"AI_PROVIDER": "unknown-provider",
+	}); err != nil {
+		t.Fatalf("SaveRequiredStep(ai_provider): %v", err)
+	}
+
+	// Verify no model.<taskID> rows were written.
+	for _, task := range ai.Tasks {
+		key := "model." + task.ID
+		_, ok, getErr := projectRepo.GetSetting(ctx, key)
+		if getErr != nil {
+			t.Fatalf("GetSetting(%q): %v", key, getErr)
+		}
+		if ok {
+			t.Errorf("model.%s row was written for unrecognized provider, expected none", task.ID)
+		}
+	}
+
+	// Verify ai_provider was still stored.
+	val, ok, getErr := projectRepo.GetSetting(ctx, "ai_provider")
+	if getErr != nil {
+		t.Fatalf("GetSetting(ai_provider): %v", getErr)
+	}
+	if !ok || val != "unknown-provider" {
+		t.Errorf("ai_provider = %q (ok=%v); want %q", val, ok, "unknown-provider")
+	}
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-// contains is a thin wrapper so tests don't need to import strings directly.
-func contains(s, substr string) bool {
-	return strings.Contains(s, substr)
-}
+
