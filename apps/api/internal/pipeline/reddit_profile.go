@@ -78,32 +78,26 @@ func DetectSelfPromotion(title, domain string) bool {
 		}
 	}
 
-	// Skip self-posts (domain like "self.subreddit") and empty domains.
-	if host == "" || strings.HasPrefix(host, "self.") {
-		// Still check title match even for self-posts.
-		for _, kw := range selfPromoKeywords {
-			if strings.Contains(lowerTitle, kw) {
-				return true
-			}
+	// Check title keywords once, regardless of domain type.
+	hasKeyword := false
+	for _, kw := range selfPromoKeywords {
+		if strings.Contains(lowerTitle, kw) {
+			hasKeyword = true
+			break
 		}
-		return false
 	}
 
-	// Domain match.
+	if host == "" || strings.HasPrefix(host, "self.") {
+		return hasKeyword
+	}
+
 	for _, d := range selfPromoDomains {
 		if strings.Contains(host, d) {
 			return true
 		}
 	}
 
-	// Title match.
-	for _, kw := range selfPromoKeywords {
-		if strings.Contains(lowerTitle, kw) {
-			return true
-		}
-	}
-
-	return false
+	return hasKeyword
 }
 
 // ScoreProfile applies the deterministic rule-based scorer to a RedditProfile.

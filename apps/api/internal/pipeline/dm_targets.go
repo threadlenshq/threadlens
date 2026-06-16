@@ -243,18 +243,16 @@ func (g *DMTargetGenerator) fetchProfileWithCache(ctx context.Context, username 
 	g.profileCacheMu.Lock()
 	if cached, ok := g.profileCache[key]; ok {
 		g.profileCacheMu.Unlock()
-		return cached // may be nil if a previous fetch already failed
+		return cached
 	}
-	g.profileCacheMu.Unlock()
+	// Hold the lock across the fetch so concurrent callers don't race.
 	profile, err := g.profileFetcher.FetchRedditProfile(ctx, username)
 	if err != nil {
 		log.Printf("[reddit-profile] %s fetch failed: %v", username, err)
-		g.profileCacheMu.Lock()
 		g.profileCache[key] = nil
 		g.profileCacheMu.Unlock()
 		return nil
 	}
-	g.profileCacheMu.Lock()
 	g.profileCache[key] = profile
 	g.profileCacheMu.Unlock()
 	return profile
@@ -390,10 +388,9 @@ func (g *DMTargetGenerator) targetsFromCandidates(ctx context.Context, post doma
 		if post.Platform == "reddit" && normalizeDMUsername(candidate.profile.Username) != "" {
 			profile := g.fetchProfileWithCache(ctx, candidate.profile.Username)
 			if profile != nil {
-				ps := ScoreProfile(profile)
-				candidate.profileScore = ps
+				candidate.profileScore = profile.ProfileScore
 				candidate.profileData = profile
-				adjusted := (10 + ps) / 10 * candidate.intentScore
+				adjusted := (10 + profile.ProfileScore) / 10 * candidate.intentScore
 				candidate.intentScore = clampDMScore(adjusted)
 			}
 		}

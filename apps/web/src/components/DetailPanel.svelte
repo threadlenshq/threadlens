@@ -36,6 +36,11 @@
     });
   }
 
+  $: parsedTargets = (post?.dm_targets || []).map(t => ({
+    ...t,
+    _profile: t.profile_signals ? parseProfile(t.profile_signals) : null,
+  }));
+
   function scoreColor(score) {
     if (score == null) return '#4a4a60';
     if (score >= 9) return '#e5c07b';
@@ -416,7 +421,7 @@
     {#if projectMode === 'marketing' && dmTargets.length > 0}
       <div class="dm-section">
         <h3 class="section-label">DM Targets <span class="dm-count">{dmTargets.length}</span></h3>
-        {#each dmTargets as target}
+        {#each parsedTargets as target}
           <div class="dm-card">
             <div class="dm-header">
               <a
@@ -441,7 +446,7 @@
               <p class="dm-approach"><strong>Approach:</strong> {target.approach}</p>
             {/if}
             {#if target.profile_signals}
-              {@const profile = parseProfile(target.profile_signals)}
+              {@const profile = target._profile}
               {#if profile}
                 <details class="profile-signals">
                   <summary class="profile-signals-summary">Profile Signals {#if target.profile_score != null}<span class="profile-score" class:negative={target.profile_score < 0} class:positive={target.profile_score > 0}>{target.profile_score}</span>{/if}</summary>

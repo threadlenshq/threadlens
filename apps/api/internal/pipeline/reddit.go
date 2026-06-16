@@ -400,16 +400,8 @@ func FetchRedditPosts(ctx context.Context, queryURLs []string, onProgress func(d
 // On network failure the function returns an empty RedditContext and the error
 // so that callers can decide whether to abort (500) or continue with partial data.
 func FetchRedditContext(ctx context.Context, postURL string) (RedditContext, error) {
-	lastRedditFetchMu.Lock()
-	wait := redditFetchMinInterval - time.Since(lastRedditFetch)
-	lastRedditFetch = time.Now()
-	lastRedditFetchMu.Unlock()
-	if wait > 0 {
-		select {
-		case <-ctx.Done():
-			return RedditContext{}, ctx.Err()
-		case <-time.After(wait):
-		}
+	if err := redditThrottle(ctx); err != nil {
+		return RedditContext{}, err
 	}
 
 	// Build the JSON endpoint URL.
