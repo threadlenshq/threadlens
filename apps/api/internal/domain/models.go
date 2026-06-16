@@ -95,25 +95,29 @@ type Post struct {
 }
 
 type DMTarget struct {
-	ID            int64   `json:"id"`
-	PostID        string  `json:"post_id"`
-	Username      string  `json:"username"`
-	IntentScore   float64 `json:"intent_score"`
-	Signal        string  `json:"signal"`
-	Context       string  `json:"context"`
-	Approach      string  `json:"approach"`
-	DraftDM       *string `json:"draft_dm"`
-	DraftProvider *string `json:"draft_provider"`
-	DMStatus      string  `json:"dm_status"`
+	ID             int64    `json:"id"`
+	PostID         string   `json:"post_id"`
+	Username       string   `json:"username"`
+	IntentScore    float64  `json:"intent_score"`
+	Signal         string   `json:"signal"`
+	Context        string   `json:"context"`
+	Approach       string   `json:"approach"`
+	DraftDM        *string  `json:"draft_dm"`
+	DraftProvider  *string  `json:"draft_provider"`
+	DMStatus       string   `json:"dm_status"`
+	ProfileScore   *float64 `json:"profile_score"`
+	ProfileSignals *string  `json:"profile_signals"`
 }
 
 type DMTargetInsert struct {
-	Username    string  `json:"username"`
-	IntentScore float64 `json:"intent_score"`
-	Signal      string  `json:"signal"`
-	Context     string  `json:"context"`
-	Approach    string  `json:"approach"`
-	DMStatus    string  `json:"dm_status"`
+	Username       string   `json:"username"`
+	IntentScore    float64  `json:"intent_score"`
+	Signal         string   `json:"signal"`
+	Context        string   `json:"context"`
+	Approach       string   `json:"approach"`
+	DMStatus       string   `json:"dm_status"`
+	ProfileScore   *float64 `json:"profile_score"`
+	ProfileSignals *string  `json:"profile_signals"`
 }
 
 type ScoutRun struct {
