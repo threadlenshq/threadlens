@@ -235,7 +235,7 @@ func (r *Repository) PatchDMTarget(ctx context.Context, projectID string, postID
 
 func (r *Repository) GetDMTarget(ctx context.Context, postID string, username string) (domain.DMTarget, error) {
 	row := r.DB.QueryRowContext(ctx,
-		"SELECT id, post_id, username, intent_score, signal, context, approach, draft_dm, draft_provider, dm_status FROM dm_targets WHERE post_id = ? AND username = ?",
+		"SELECT "+dmTargetColumns+" FROM dm_targets WHERE post_id = ? AND username = ?",
 		postID, username,
 	)
 	target, err := scanDMTarget(row)
@@ -266,7 +266,7 @@ func (r *Repository) InsertDMTargets(ctx context.Context, postID string, targets
 		return 0, err
 	}
 	stmt, err := tx.PrepareContext(ctx,
-		"INSERT INTO dm_targets (post_id, username, intent_score, signal, context, approach, dm_status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		"INSERT INTO dm_targets (post_id, username, intent_score, signal, context, approach, dm_status, profile_score, profile_signals) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 	)
 	if err != nil {
 		_ = tx.Rollback()
@@ -280,7 +280,7 @@ func (r *Repository) InsertDMTargets(ctx context.Context, postID string, targets
 		if status == "" {
 			status = "new"
 		}
-		res, err := stmt.ExecContext(ctx, postID, t.Username, t.IntentScore, t.Signal, t.Context, t.Approach, status)
+		res, err := stmt.ExecContext(ctx, postID, t.Username, t.IntentScore, t.Signal, t.Context, t.Approach, status, t.ProfileScore, t.ProfileSignals)
 		if err != nil {
 			_ = tx.Rollback()
 			return 0, err
@@ -295,14 +295,15 @@ func (r *Repository) InsertDMTargets(ctx context.Context, postID string, targets
 }
 
 // listDMTargets fetches dm_targets for a post ordered by intent_score DESC.
-const dmTargetColumns = "id, post_id, username, intent_score, signal, context, approach, draft_dm, draft_provider, dm_status"
+const dmTargetColumns = "id, post_id, username, intent_score, signal, context, approach, draft_dm, draft_provider, dm_status, profile_score, profile_signals"
 
 func scanDMTargetRows(rows *sql.Rows) ([]domain.DMTarget, error) {
 	var targets []domain.DMTarget
 	for rows.Next() {
 		var t domain.DMTarget
-		var draftDM, draftProvider sql.NullString
-		if err := rows.Scan(&t.ID, &t.PostID, &t.Username, &t.IntentScore, &t.Signal, &t.Context, &t.Approach, &draftDM, &draftProvider, &t.DMStatus); err != nil {
+		var draftDM, draftProvider, profileSignals sql.NullString
+		var profileScore sql.NullFloat64
+		if err := rows.Scan(&t.ID, &t.PostID, &t.Username, &t.IntentScore, &t.Signal, &t.Context, &t.Approach, &draftDM, &draftProvider, &t.DMStatus, &profileScore, &profileSignals); err != nil {
 			return nil, err
 		}
 		if draftDM.Valid {
@@ -310,6 +311,12 @@ func scanDMTargetRows(rows *sql.Rows) ([]domain.DMTarget, error) {
 		}
 		if draftProvider.Valid {
 			t.DraftProvider = &draftProvider.String
+		}
+		if profileScore.Valid {
+			t.ProfileScore = &profileScore.Float64
+		}
+		if profileSignals.Valid {
+			t.ProfileSignals = &profileSignals.String
 		}
 		targets = append(targets, t)
 	}
@@ -565,8 +572,9 @@ func scanPostRow(row postScanner) (domain.Post, error) {
 
 func scanDMTarget(row *sql.Row) (domain.DMTarget, error) {
 	var t domain.DMTarget
-	var draftDM, draftProvider sql.NullString
-	err := row.Scan(&t.ID, &t.PostID, &t.Username, &t.IntentScore, &t.Signal, &t.Context, &t.Approach, &draftDM, &draftProvider, &t.DMStatus)
+	var draftDM, draftProvider, profileSignals sql.NullString
+	var profileScore sql.NullFloat64
+	err := row.Scan(&t.ID, &t.PostID, &t.Username, &t.IntentScore, &t.Signal, &t.Context, &t.Approach, &draftDM, &draftProvider, &t.DMStatus, &profileScore, &profileSignals)
 	if err != nil {
 		return domain.DMTarget{}, err
 	}
@@ -575,6 +583,12 @@ func scanDMTarget(row *sql.Row) (domain.DMTarget, error) {
 	}
 	if draftProvider.Valid {
 		t.DraftProvider = &draftProvider.String
+	}
+	if profileScore.Valid {
+		t.ProfileScore = &profileScore.Float64
+	}
+	if profileSignals.Valid {
+		t.ProfileSignals = &profileSignals.String
 	}
 	return t, nil
 }
