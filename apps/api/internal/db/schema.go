@@ -60,6 +60,8 @@ func InitSchema(db *sql.DB) error {
 		{"google_results", "recovered_at", "ALTER TABLE google_results ADD COLUMN recovered_at DATETIME"},
 		{"google_results", "recovery_note", "ALTER TABLE google_results ADD COLUMN recovery_note TEXT"},
 		{"google_results", "source_identity_json", "ALTER TABLE google_results ADD COLUMN source_identity_json TEXT NOT NULL DEFAULT '{}'"},
+		{"dm_targets", "profile_score", "ALTER TABLE dm_targets ADD COLUMN profile_score REAL"},
+		{"dm_targets", "profile_signals", "ALTER TABLE dm_targets ADD COLUMN profile_signals TEXT"},
 	}
 	for _, m := range migrations {
 		if err = addColumnIfMissing(tx, m.table, m.column, m.alter); err != nil {
@@ -212,7 +214,9 @@ CREATE TABLE IF NOT EXISTS dm_targets (
   approach TEXT NOT NULL DEFAULT '',
   draft_dm TEXT,
   draft_provider TEXT,
-  dm_status TEXT NOT NULL DEFAULT 'new' CHECK (dm_status IN ('new', 'sent'))
+  dm_status TEXT NOT NULL DEFAULT 'new' CHECK (dm_status IN ('new', 'sent')),
+  profile_score REAL,
+  profile_signals TEXT
 );
 
 CREATE TABLE IF NOT EXISTS seen_posts (
