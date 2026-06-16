@@ -138,6 +138,15 @@
     window.open(`https://www.reddit.com/message/compose/?to=${username}`, '_blank', 'noopener,noreferrer');
   }
 
+  function parseProfile(signalsJSON) {
+    if (!signalsJSON) return null;
+    try {
+      return JSON.parse(signalsJSON);
+    } catch {
+      return null;
+    }
+  }
+
   function openInBrowser() {
     if (post.url) window.open(post.url, '_blank', 'noopener,noreferrer');
   }
@@ -430,6 +439,32 @@
             {/if}
             {#if target.approach}
               <p class="dm-approach"><strong>Approach:</strong> {target.approach}</p>
+            {/if}
+            {#if target.profile_signals}
+              {@const profile = parseProfile(target.profile_signals)}
+              {#if profile}
+                <details class="profile-signals">
+                  <summary class="profile-signals-summary">Profile Signals {#if target.profile_score != null}<span class="profile-score" class:negative={target.profile_score < 0} class:positive={target.profile_score > 0}>{target.profile_score}</span>{/if}</summary>
+                  <div class="profile-signals-grid">
+                    <span class="ps-label">Account age</span>
+                    <span class="ps-value">{profile.account_age_days} days</span>
+                    <span class="ps-label">Comment karma</span>
+                    <span class="ps-value">{profile.comment_karma}</span>
+                    <span class="ps-label">Post karma</span>
+                    <span class="ps-value">{profile.post_karma}</span>
+                    <span class="ps-label">Verified email</span>
+                    <span class="ps-value">{profile.has_verified_email ? '\u2713' : '\u2014'}</span>
+                    <span class="ps-label">Gold</span>
+                    <span class="ps-value">{profile.is_gold ? '\u2713' : '\u2014'}</span>
+                    <span class="ps-label">NSFW</span>
+                    <span class="ps-value">{profile.is_nsfw ? '\u2713' : '\u2014'}</span>
+                    <span class="ps-label">Self-promo ratio</span>
+                    <span class="ps-value">{(profile.self_promo_ratio * 100).toFixed(1)}%</span>
+                    <span class="ps-label">Subreddits</span>
+                    <span class="ps-value">{profile.subreddit_count}</span>
+                  </div>
+                </details>
+              {/if}
             {/if}
 
             <div class="dm-draft-area">
@@ -1128,6 +1163,80 @@
 
   .tooltip-wrap:hover .tooltip {
     opacity: 1;
+  }
+
+  .profile-signals {
+    margin-top: 4px;
+    border-top: 1px solid #2a2a3a;
+    padding-top: 6px;
+  }
+
+  .profile-signals-summary {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b6b80;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+  }
+
+  .profile-signals-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .profile-signals-summary::before {
+    content: '\25B6';
+    display: inline-block;
+    margin-right: 4px;
+    font-size: 9px;
+    transition: transform 0.15s;
+  }
+
+  .profile-signals[open] .profile-signals-summary::before {
+    transform: rotate(90deg);
+  }
+
+  .profile-score {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 6px;
+    color: #6b6b80;
+    background: #2a2a3a;
+  }
+
+  .profile-score.negative {
+    color: #e06c75;
+    background: #e06c7518;
+  }
+
+  .profile-score.positive {
+    color: #98c379;
+    background: #98c37918;
+  }
+
+  .profile-signals-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 10px;
+    margin-top: 6px;
+    padding: 6px 8px;
+    background: #0f0f13;
+    border-radius: 4px;
+  }
+
+  .ps-label {
+    font-size: 11px;
+    color: #4a4a60;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .ps-value {
+    font-size: 12px;
+    color: #9090a8;
+    text-align: right;
   }
 
 </style>
