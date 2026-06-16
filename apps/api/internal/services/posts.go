@@ -301,7 +301,7 @@ func (s *PostService) GenerateDMDraft(ctx context.Context, projectID string, pos
 		return domain.DMTarget{}, http.StatusBadRequest, "No DM prompt configured for reddit"
 	}
 
-	userMessage := strings.Join([]string{
+	messageParts := []string{
 		fmt.Sprintf("Username: u/%s", target.Username),
 		fmt.Sprintf("Intent score: %s", formatFloat(target.IntentScore)),
 		fmt.Sprintf("Signal: %s", target.Signal),
@@ -309,7 +309,14 @@ func (s *PostService) GenerateDMDraft(ctx context.Context, projectID string, pos
 		fmt.Sprintf("Approach: %s", target.Approach),
 		fmt.Sprintf("Post title: %s", post.Title),
 		fmt.Sprintf("Why this post: %s", post.Why),
-	}, "\n\n")
+	}
+	if target.ProfileSignals != nil {
+		messageParts = append(messageParts, fmt.Sprintf("Profile signals: %s", *target.ProfileSignals))
+	}
+	if target.ProfileScore != nil {
+		messageParts = append(messageParts, fmt.Sprintf("Profile score: %s", formatFloat(*target.ProfileScore)))
+	}
+	userMessage := strings.Join(messageParts, "\n\n")
 
 	raw, modelID, genErr := s.aiSvc.GenerateForTask(ctx, "draft_generation", prompt.PromptText, userMessage)
 	if genErr != nil {
