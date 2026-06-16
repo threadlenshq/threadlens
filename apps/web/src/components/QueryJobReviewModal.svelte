@@ -48,7 +48,7 @@
       selectedDisables = new Set(
         disableRecs
           .map((rec, i) => ({ rec, i }))
-          .filter(({ rec }) => rec.replaces_query_id != null && enabledIds.has(rec.replaces_query_id))
+          .filter(({ rec }) => rec.query?.id != null && enabledIds.has(rec.query.id))
           .map(({ i }) => i),
       );
     }
@@ -136,9 +136,9 @@
             }),
           ),
           ...toDisable
-            .filter(rec => rec.replaces_query_id != null)
+            .filter(rec => rec.query?.id != null)
             .map(rec =>
-              queriesApi.update(projectId, rec.replaces_query_id, { enabled: false }),
+              queriesApi.update(projectId, rec.query.id, { enabled: false }),
             ),
         ]);
       }
@@ -277,7 +277,7 @@
         </div>
         <ul class="item-list">
           {#each disableRecs as rec, i (rec.id ?? i)}
-            {@const matchedQuery = queries.find(q => q.id === rec.replaces_query_id)}
+            {@const matchedQuery = queries.find(q => q.id === rec.query?.id)}
             <li
               class="item-row"
               class:item-row-selected={selectedDisables.has(i)}
@@ -292,7 +292,7 @@
                 />
                 <div class="item-text">
                   <span class="item-query">
-                    {matchedQuery?.query_url ?? rec.query?.query_url ?? String(rec.replaces_query_id ?? '—')}
+                    {matchedQuery?.query_url ?? rec.query?.query_url ?? String(rec.query?.id ?? '—')}
                     {#if matchedQuery && !matchedQuery.enabled}
                       <span class="already-disabled">(already disabled)</span>
                     {/if}
