@@ -2,11 +2,14 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/domain"
@@ -192,21 +195,69 @@ func (f BlueskyReplyFetcherFunc) FetchBlueskyReplies(ctx context.Context, postUR
 	return f(ctx, postURI)
 }
 
-// DMTargetGenerator builds deterministic outreach targets after social scout storage.
-type DMTargetGenerator struct {
-	repo    DMTargetRepository
-	reddit  RedditDMContextFetcher
-	bluesky BlueskyReplyFetcher
+// RedditProfileFetcher fetches Reddit user profile signals for DM target enrichment.
+type RedditProfileFetcher interface {
+	FetchRedditProfile(ctx context.Context, username string) (*RedditProfile, error)
 }
 
-func NewDMTargetGenerator(repo DMTargetRepository, reddit RedditDMContextFetcher, bluesky BlueskyReplyFetcher) *DMTargetGenerator {
-	return &DMTargetGenerator{repo: repo, reddit: reddit, bluesky: bluesky}
+// RedditProfileFetcherFunc adapts FetchRedditProfile for injection.
+type RedditProfileFetcherFunc func(ctx context.Context, username string) (*RedditProfile, error)
+
+func (f RedditProfileFetcherFunc) FetchRedditProfile(ctx context.Context, username string) (*RedditProfile, error) {
+	return f(ctx, username)
+}
+
+// DMTargetGenerator builds deterministic outreach targets after social scout storage.
+type DMTargetGenerator struct {
+	repo            DMTargetRepository
+	reddit          RedditDMContextFetcher
+	bluesky         BlueskyReplyFetcher
+	profileFetcher  RedditProfileFetcher
+	profileCache    map[string]*RedditProfile
+	profileCacheMu  sync.Mutex
+}
+
+func NewDMTargetGenerator(repo DMTargetRepository, reddit RedditDMContextFetcher, bluesky BlueskyReplyFetcher, profile RedditProfileFetcher) *DMTargetGenerator {
+	return &DMTargetGenerator{repo: repo, reddit: reddit, bluesky: bluesky, profileFetcher: profile}
 }
 
 type dmCandidate struct {
-	profile     DMCandidateProfile
-	filter      DMCandidateFilterResult
-	intentScore float64
+	profile      DMCandidateProfile
+	filter       DMCandidateFilterResult
+	intentScore  float64
+	profileData  *RedditProfile
+	profileScore float64
+}
+
+// fetchProfileWithCache retrieves a RedditProfile for username, using an
+// in-memory per-run cache to deduplicate fetches across candidates and posts.
+// Returns nil if the fetcher is nil, username is empty, or the fetch fails.
+func (g *DMTargetGenerator) fetchProfileWithCache(ctx context.Context, username string) *RedditProfile {
+	if g == nil || g.profileFetcher == nil {
+		return nil
+	}
+	key := normalizeDMUsername(username)
+	if key == "" {
+		return nil
+	}
+	g.profileCacheMu.Lock()
+	if cached, ok := g.profileCache[key]; ok {
+		g.profileCacheMu.Unlock()
+		return cached // may be nil if a previous fetch already failed
+	}
+	g.profileCacheMu.Unlock()
+	profile, err := g.profileFetcher.FetchRedditProfile(ctx, username)
+	if err != nil {
+		log.Printf("[reddit-profile] %s fetch failed: %v", username, err)
+		g.profileCacheMu.Lock()
+		g.profileCache[key] = nil
+		g.profileCacheMu.Unlock()
+		return nil
+	}
+	g.profileCacheMu.Lock()
+	g.profileCache[key] = profile
+	g.profileCacheMu.Unlock()
+	return profile
 }
 
 // Generate creates DM targets for eligible posts and returns non-fatal warning lines.
@@ -214,6 +265,10 @@ func (g *DMTargetGenerator) Generate(ctx context.Context, project domain.Project
 	if g == nil || g.repo == nil || project.Mode != "marketing" || (platform != "reddit" && platform != "bluesky") {
 		return nil
 	}
+
+	g.profileCacheMu.Lock()
+	g.profileCache = map[string]*RedditProfile{}
+	g.profileCacheMu.Unlock()
 
 	var warnings []string
 	for _, post := range posts {
@@ -236,7 +291,7 @@ func (g *DMTargetGenerator) Generate(ctx context.Context, project domain.Project
 
 		candidates, candidateWarnings := g.buildCandidates(ctx, platform, post)
 		warnings = append(warnings, candidateWarnings...)
-		targets := targetsFromCandidates(post, candidates)
+		targets := g.targetsFromCandidates(ctx, post, candidates)
 		if len(targets) == 0 {
 			continue
 		}
@@ -315,7 +370,7 @@ func (g *DMTargetGenerator) buildCandidates(ctx context.Context, platform string
 	return candidates, warnings
 }
 
-func targetsFromCandidates(post domain.Post, candidates []dmCandidate) []domain.DMTargetInsert {
+func (g *DMTargetGenerator) targetsFromCandidates(ctx context.Context, post domain.Post, candidates []dmCandidate) []domain.DMTargetInsert {
 	filter := DMCandidateFilter{}
 	bestByUser := map[string]dmCandidate{}
 	for _, candidate := range candidates {
@@ -330,6 +385,19 @@ func targetsFromCandidates(post domain.Post, candidates []dmCandidate) []domain.
 			base = post.FinalScore - 1
 		}
 		candidate.intentScore = scoreDMCandidate(base, candidate.profile, candidate.filter.Penalty)
+
+		// Reddit profile enrichment: fetch, score, and multiplicatively adjust.
+		if post.Platform == "reddit" && normalizeDMUsername(candidate.profile.Username) != "" {
+			profile := g.fetchProfileWithCache(ctx, candidate.profile.Username)
+			if profile != nil {
+				ps := ScoreProfile(profile)
+				candidate.profileScore = ps
+				candidate.profileData = profile
+				adjusted := (10 + ps) / 10 * candidate.intentScore
+				candidate.intentScore = clampDMScore(adjusted)
+			}
+		}
+
 		key := normalizeDMUsername(candidate.profile.Username)
 		if existing, ok := bestByUser[key]; !ok || candidate.intentScore > existing.intentScore || (candidate.intentScore == existing.intentScore && candidate.profile.SourcePriority < existing.profile.SourcePriority) {
 			bestByUser[key] = candidate
@@ -356,14 +424,25 @@ func targetsFromCandidates(post domain.Post, candidates []dmCandidate) []domain.
 	}
 	targets := make([]domain.DMTargetInsert, 0, limit)
 	for _, candidate := range ranked[:limit] {
-		targets = append(targets, domain.DMTargetInsert{
+		insert := domain.DMTargetInsert{
 			Username:    candidate.profile.Username,
 			IntentScore: candidate.intentScore,
 			Signal:      truncateDMText(candidate.profile.Text, dmSignalMaxLength),
 			Context:     fmt.Sprintf("%s showed relevant pain or buying intent around this %s discussion.", candidate.profile.Username, post.Platform),
 			Approach:    "Open with the specific pain they described and ask whether solving that workflow is still a priority.",
 			DMStatus:    "new",
-		})
+		}
+		if candidate.profileData != nil {
+			ps := candidate.profileScore
+			insert.ProfileScore = &ps
+			if signalsJSON, err := json.Marshal(candidate.profileData); err == nil {
+				signalsStr := string(signalsJSON)
+				insert.ProfileSignals = &signalsStr
+			} else {
+				log.Printf("[reddit-profile] %s JSON marshal failed: %v", candidate.profile.Username, err)
+			}
+		}
+		targets = append(targets, insert)
 	}
 	return targets
 }

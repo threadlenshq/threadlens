@@ -62,6 +62,7 @@ func NewRunner(repo *repository.Repository, ai *ai.Service) *Runner {
 		repo,
 		RedditDMContextFetcherFunc(FetchRedditContext),
 		BlueskyReplyFetcherFunc(FetchBlueskyReplies),
+		RedditProfileFetcherFunc(FetchRedditProfile),
 	)
 	return r
 }

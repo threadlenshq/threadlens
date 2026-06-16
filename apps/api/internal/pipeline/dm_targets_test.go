@@ -125,7 +125,7 @@ func TestDMTargetGeneratorMarketingRedditGeneratesTopThreeTargets(t *testing.T) 
 			},
 		},
 	}}
-	generator := NewDMTargetGenerator(repo, fetcher, nil)
+	generator := NewDMTargetGenerator(repo, fetcher, nil, nil)
 
 	warnings := generator.Generate(context.Background(), marketingProject(), "reddit", []domain.Post{post})
 
@@ -164,7 +164,7 @@ func TestDMTargetGeneratorMarketingRedditGeneratesTopThreeTargets(t *testing.T) 
 func TestDMTargetGeneratorSkipsIneligiblePostsAndPreservesExistingTargets(t *testing.T) {
 	repo := newFakeDMRepo()
 	repo.existing["t3_existing"] = 1
-	generator := NewDMTargetGenerator(repo, fakeRedditContextFetcher{}, nil)
+	generator := NewDMTargetGenerator(repo, fakeRedditContextFetcher{}, nil, nil)
 	filtered := redditPost("t3_filtered", 8)
 	filtered.FilterState = domain.FilterStateFiltered
 
@@ -182,7 +182,7 @@ func TestDMTargetGeneratorSkipsIneligiblePostsAndPreservesExistingTargets(t *tes
 	}
 
 	repo = newFakeDMRepo()
-	generator = NewDMTargetGenerator(repo, fakeRedditContextFetcher{}, nil)
+	generator = NewDMTargetGenerator(repo, fakeRedditContextFetcher{}, nil, nil)
 	generator.Generate(context.Background(), researchProject(), "reddit", []domain.Post{redditPost("t3_research", 8)})
 	generator.Generate(context.Background(), marketingProject(), "google", []domain.Post{redditPost("t3_google", 8)})
 	if len(repo.inserted) != 0 {
@@ -193,7 +193,7 @@ func TestDMTargetGeneratorSkipsIneligiblePostsAndPreservesExistingTargets(t *tes
 func TestDMTargetGeneratorFetchFailureInsertsAuthorOnlyAndWarns(t *testing.T) {
 	repo := newFakeDMRepo()
 	post := redditPost("t3_fetch_error", 7)
-	generator := NewDMTargetGenerator(repo, fakeRedditContextFetcher{errors: map[string]error{post.URL: errors.New("reddit unavailable")}}, nil)
+	generator := NewDMTargetGenerator(repo, fakeRedditContextFetcher{errors: map[string]error{post.URL: errors.New("reddit unavailable")}}, nil, nil)
 
 	warnings := generator.Generate(context.Background(), marketingProject(), "reddit", []domain.Post{post})
 
@@ -215,7 +215,7 @@ func TestDMTargetGeneratorInsertErrorDoesNotStopOtherPosts(t *testing.T) {
 		bad.URL:  {TopComments: []RedditComment{{Author: "a", Body: "I need this", Score: 1}, {Author: "b", Body: "I want this", Score: 1}}},
 		good.URL: {TopComments: []RedditComment{{Author: "c", Body: "I need this", Score: 1}, {Author: "d", Body: "I want this", Score: 1}}},
 	}}
-	generator := NewDMTargetGenerator(repo, fetcher, nil)
+	generator := NewDMTargetGenerator(repo, fetcher, nil, nil)
 
 	warnings := generator.Generate(context.Background(), marketingProject(), "reddit", []domain.Post{bad, good})
 
@@ -236,7 +236,7 @@ func TestDMTargetGeneratorBlueskyUsesRepliesAndStableTieBreak(t *testing.T) {
 			{AuthorHandle: "alpha.bsky.social", Text: "I need a tool for this", LikeCount: 0, IndexedAt: "2026-06-01T12:00:00Z"},
 		},
 	}}
-	generator := NewDMTargetGenerator(repo, nil, fetcher)
+	generator := NewDMTargetGenerator(repo, nil, fetcher, nil)
 
 	generator.Generate(context.Background(), marketingProject(), "bluesky", []domain.Post{post})
 
@@ -329,7 +329,7 @@ func TestDMTargetGeneratorInsertsFewerThanThreeWhenOnlyValidCandidatesExist(t *t
 	fetcher := fakeRedditContextFetcher{contexts: map[string]RedditContext{
 		post.URL: {TopComments: []RedditComment{{Author: "helper", Body: "I need this too", Score: 2}, {Author: "automoderator", Body: "removed", Score: 100}}},
 	}}
-	generator := NewDMTargetGenerator(repo, fetcher, nil)
+	generator := NewDMTargetGenerator(repo, fetcher, nil, nil)
 
 	warnings := generator.Generate(context.Background(), marketingProject(), "reddit", []domain.Post{post})
 
@@ -349,7 +349,7 @@ func TestDMTargetGeneratorPreservesExistingPartialTargetSet(t *testing.T) {
 	fetcher := fakeRedditContextFetcher{contexts: map[string]RedditContext{
 		post.URL: {TopComments: []RedditComment{{Author: "a", Body: "I need this", Score: 2}, {Author: "b", Body: "I want this", Score: 2}, {Author: "c", Body: "I need this too", Score: 2}}},
 	}}
-	generator := NewDMTargetGenerator(repo, fetcher, nil)
+	generator := NewDMTargetGenerator(repo, fetcher, nil, nil)
 
 	generator.Generate(context.Background(), marketingProject(), "reddit", []domain.Post{post})
 

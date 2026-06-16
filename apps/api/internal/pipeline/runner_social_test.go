@@ -547,7 +547,7 @@ func TestSocialRunnerGeneratesDMTargetsAfterSuccessfulMarketingRun(t *testing.T)
 	runner.scorePosts = fakeScorer(map[string]ScoredPost{"t3_dm": scored("t3_dm", 8)})
 	runner.dmTargets = NewDMTargetGenerator(repo, fakeRedditContextFetcher{contexts: map[string]RedditContext{
 		"https://www.reddit.com/r/x/comments/dm": {TopComments: []RedditComment{{Author: "alice", Body: "Can someone recommend a tool?", Score: 4}, {Author: "bob", Body: "I need this too", Score: 3}}},
-	}}, nil)
+	}}, nil, nil)
 
 	runID, _ := repo.CreateScoutRun(ctx, "dmrun", "reddit")
 	res, err := runner.Run(ctx, "dmrun", "reddit", &runID)
@@ -585,7 +585,7 @@ func TestSocialRunnerDMTargetWarningsDoNotFailRun(t *testing.T) {
 	runner.scorePosts = fakeScorer(map[string]ScoredPost{"t3_warn": scored("t3_warn", 8)})
 	runner.dmTargets = NewDMTargetGenerator(repo, fakeRedditContextFetcher{errors: map[string]error{
 		"https://www.reddit.com/r/x/comments/warn": errors.New("context timeout"),
-	}}, nil)
+	}}, nil, nil)
 
 	runID, _ := repo.CreateScoutRun(ctx, "dmwarn", "reddit")
 	res, err := runner.Run(ctx, "dmwarn", "reddit", &runID)
