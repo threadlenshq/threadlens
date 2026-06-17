@@ -50,7 +50,7 @@
       if (reasonFilter) params.reason = reasonFilter;
       const result = await api.findings(projectId, params);
       if (ctrl.signal.aborted) return;
-      findings = result ?? [];
+      findings = result?.items ?? [];
       // Clear selection on reload
       selected = new Set();
     } catch (e) {
@@ -118,6 +118,15 @@
     } catch (e) {
       errorMsg = e?.message ?? 'Failed to recover finding.';
     }
+  }
+
+  function formatSourceIdentity(si) {
+    if (!si || typeof si !== 'object') return si ?? '—';
+    if (si.reddit_author) return `u/${si.reddit_author}`;
+    if (si.subreddit) return `r/${si.subreddit}`;
+    if (si.bluesky_cid) return si.bluesky_cid;
+    if (si.domain) return si.domain;
+    return '—';
   }
 
   function formatDate(val) {
@@ -211,11 +220,11 @@
                   type="checkbox"
                   checked={selected.has(rowKey(finding))}
                   onchange={() => toggleRow(finding)}
-                  aria-label={`Select ${finding.source_identity ?? finding.id}`}
+                  aria-label={`Select ${formatSourceIdentity(finding.source_identity)}`}
                 />
               </td>
               <td>{finding.platform ?? '—'}</td>
-              <td class="identity-cell">{finding.source_identity ?? '—'}</td>
+              <td class="identity-cell">{formatSourceIdentity(finding.source_identity)}</td>
               <td>{finding.score != null ? finding.score : '—'}</td>
               <td>{reasonLabel(finding.reason)}</td>
               <td>{finding.confidence != null ? `${Math.round(finding.confidence * 100)}%` : '—'}</td>
@@ -224,7 +233,7 @@
               <td>
                 <button
                   class="btn-restore"
-                  aria-label={`Restore ${finding.source_identity ?? finding.id}`}
+                  aria-label={`Restore ${formatSourceIdentity(finding.source_identity)}`}
                   onclick={() => { recoveryFinding = finding; }}
                 >
                   Restore…
@@ -265,6 +274,7 @@
     font-size: 1.125rem;
     font-weight: 600;
     margin: 0;
+    color: #e2e2e8;
   }
 
   .filters {
@@ -279,29 +289,40 @@
     flex-direction: column;
     font-size: 0.75rem;
     font-weight: 500;
-    color: var(--color-text-muted, #6b7280);
+    color: #9a9ab0;
     gap: 0.25rem;
   }
 
   .filter-label select {
-    font-size: 0.875rem;
-    padding: 0.25rem 0.5rem;
-    border: 1px solid var(--color-border, #e5e7eb);
-    border-radius: 4px;
-    background: var(--color-surface, #fff);
-    color: var(--color-text, #111);
+    font-size: 13px;
+    padding: 7px 10px;
+    border: 1px solid #2a2a3a;
+    border-radius: 6px;
+    background: #0f0f13;
+    color: #e2e2e8;
+    cursor: pointer;
+  }
+
+  .filter-label select:focus {
+    outline: none;
+    border-color: #7c6af5;
   }
 
   .btn-action {
-    padding: 0.4rem 0.9rem;
+    padding: 7px 16px;
     border-radius: 6px;
     border: none;
     cursor: pointer;
-    font-size: 0.875rem;
+    font-size: 13px;
     font-weight: 500;
-    background: var(--color-accent, #4f46e5);
+    background: #7c6af5;
     color: #fff;
     align-self: flex-end;
+    transition: background 0.15s;
+  }
+
+  .btn-action:hover:not(:disabled) {
+    background: #6a58e0;
   }
 
   .btn-action:disabled {
@@ -310,11 +331,11 @@
   }
 
   .status {
-    color: var(--color-text-muted, #6b7280);
+    color: #9a9ab0;
   }
 
   .error {
-    color: var(--color-danger, #dc2626);
+    color: #f87171;
   }
 
   .empty-state {
@@ -326,10 +347,11 @@
     font-weight: 600;
     font-size: 1rem;
     margin: 0 0 0.5rem;
+    color: #e2e2e8;
   }
 
   .empty-body {
-    color: var(--color-text-muted, #6b7280);
+    color: #9a9ab0;
     font-size: 0.875rem;
     max-width: 480px;
     margin: 0 auto;
@@ -342,27 +364,28 @@
   .findings-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.875rem;
+    font-size: 13px;
   }
 
   .findings-table th,
   .findings-table td {
     padding: 0.5rem 0.75rem;
     text-align: left;
-    border-bottom: 1px solid var(--color-border, #e5e7eb);
+    border-bottom: 1px solid #2a2a3a;
     white-space: nowrap;
+    color: #e2e2e8;
   }
 
   .findings-table th {
     font-weight: 600;
-    color: var(--color-text-muted, #6b7280);
+    color: #9a9ab0;
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
 
   .row-selected {
-    background: var(--color-surface-alt, #f9fafb);
+    background: #1a1a2e;
   }
 
   .identity-cell {
@@ -372,16 +395,17 @@
   }
 
   .btn-restore {
-    padding: 0.25rem 0.6rem;
-    border-radius: 4px;
-    border: 1px solid var(--color-border, #e5e7eb);
-    background: var(--color-surface, #fff);
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid #2a2a3a;
+    background: #0f0f13;
     cursor: pointer;
-    font-size: 0.8rem;
-    color: var(--color-text, #111);
+    font-size: 12px;
+    color: #e2e2e8;
   }
 
   .btn-restore:hover {
-    background: var(--color-surface-alt, #f3f4f6);
+    background: #1a1a2e;
+    border-color: #7c6af5;
   }
 </style>
