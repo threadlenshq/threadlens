@@ -213,11 +213,11 @@
             <th>Platform</th>
             <th>Title</th>
             <th>Source identity</th>
-            <th>Score</th>
             <th>Reason</th>
             <th>Confidence</th>
             <th>Filtered time</th>
             <th>Source</th>
+            <th>Score</th>
             <th></th>
           </tr>
         </thead>
@@ -247,7 +247,6 @@
                     {formatSourceIdentity(finding.source_identity).text}
                   {/if}
                 </td>
-              <td>{finding.score != null ? finding.score : '—'}</td>
               <td class="reason-cell">
                   <span class="reason-primary" title={finding.filter_explanation ?? ''}>{reasonLabel(finding.filter_reason)}</span>
                   {#if reasonDetails(finding).detailReasons.length > 0}
@@ -261,6 +260,7 @@
               <td>{finding.filter_confidence != null ? `${Math.round(finding.filter_confidence * 100)}%` : '—'}</td>
               <td>{formatDate(finding.filtered_at)}</td>
               <td>{finding.filter_source === 'ai' ? 'AI' : finding.filter_source === 'rules' ? 'Rules' : finding.filter_source ?? '—'}</td>
+              <td>{finding.score != null ? finding.score : '—'}</td>
               <td>
                 <button
                   class="btn-restore"
