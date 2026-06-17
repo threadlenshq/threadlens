@@ -121,12 +121,12 @@
   }
 
   function formatSourceIdentity(si) {
-    if (!si || typeof si !== 'object') return si ?? '—';
-    if (si.reddit_author) return `u/${si.reddit_author}`;
-    if (si.subreddit) return `r/${si.subreddit}`;
-    if (si.bluesky_cid) return si.bluesky_cid;
-    if (si.domain) return si.domain;
-    return '—';
+    if (!si || typeof si !== 'object') return { text: si ?? '—', url: null };
+    if (si.reddit_author) return { text: `u/${si.reddit_author}`, url: `https://reddit.com/user/${si.reddit_author}` };
+    if (si.subreddit) return { text: `r/${si.subreddit}`, url: `https://reddit.com/r/${si.subreddit}` };
+    if (si.bluesky_cid) return { text: si.bluesky_cid, url: null };
+    if (si.domain) return { text: si.domain, url: null };
+    return { text: '—', url: null };
   }
 
   function formatDate(val) {
@@ -228,11 +228,17 @@
                   type="checkbox"
                   checked={selected.has(rowKey(finding))}
                   onchange={() => toggleRow(finding)}
-                  aria-label={`Select ${formatSourceIdentity(finding.source_identity)}`}
+                  aria-label={`Select ${formatSourceIdentity(finding.source_identity).text}`}
                 />
               </td>
               <td>{finding.platform ?? '—'}</td>
-              <td class="identity-cell">{formatSourceIdentity(finding.source_identity)}</td>
+              <td class="identity-cell">
+                  {#if formatSourceIdentity(finding.source_identity).url}
+                    <a class="identity-link" href={formatSourceIdentity(finding.source_identity).url} target="_blank" rel="noopener">{formatSourceIdentity(finding.source_identity).text}</a>
+                  {:else}
+                    {formatSourceIdentity(finding.source_identity).text}
+                  {/if}
+                </td>
               <td>{finding.score != null ? finding.score : '—'}</td>
               <td class="reason-cell">
                   <span class="reason-primary" title={finding.filter_explanation ?? ''}>{reasonLabel(finding.filter_reason)}</span>
@@ -250,7 +256,7 @@
               <td>
                 <button
                   class="btn-restore"
-                  aria-label={`Restore ${formatSourceIdentity(finding.source_identity)}`}
+                  aria-label={`Restore ${formatSourceIdentity(finding.source_identity).text}`}
                   onclick={() => { recoveryFinding = finding; }}
                 >
                   Restore…
@@ -449,5 +455,14 @@
     font-size: 10px;
     color: #9a9ab0;
     white-space: nowrap;
+  }
+
+  .identity-link {
+    color: #7c6af5;
+    text-decoration: none;
+  }
+
+  .identity-link:hover {
+    text-decoration: underline;
   }
 </style>
