@@ -267,6 +267,7 @@
             </button>
             <span class="tooltip">Removed from analysis</span>
           </span>
+          <a class="doc-link" href="https://docs.threadlens.dev/user-guide/scoring-filtering-and-statuses/#statuses" target="_blank" rel="noopener" title="Learn about post statuses">?</a>
         </div>
       </div>
     {:else}
@@ -289,6 +290,7 @@
           >
             {post.status === 'skipped' ? 'Skipped' : 'Skip'}
           </button>
+          <a class="doc-link" href="https://docs.threadlens.dev/user-guide/scoring-filtering-and-statuses/#statuses" target="_blank" rel="noopener" title="Learn about post statuses">?</a>
         </div>
       </div>
     {/if}
@@ -302,7 +304,10 @@
     {/if}
 
     <div class="scoring-section">
-      <h3 class="section-label">Scoring</h3>
+      <h3 class="section-label">
+        Scoring
+        <a class="doc-link" href="https://docs.threadlens.dev/user-guide/scoring-filtering-and-statuses/" target="_blank" rel="noopener" title="How scoring and filtering work">?</a>
+      </h3>
       <div class="score-grid">
         {#if postScore != null}
           <div class="score-item">
@@ -325,8 +330,8 @@
           </div>
         {/if}
         {#if angle}
-          <div class="score-item">
-            <span class="score-label">Angle</span>
+           <div class="score-item">
+            <span class="score-label tooltip-wrap">Angle<span class="tooltip">Product angle selected from a report cluster. Guides marketing mode targeting.</span></span>
             <span class="score-val angle">{angle}</span>
           </div>
         {/if}
@@ -1191,6 +1196,11 @@
     text-transform: none;
     letter-spacing: normal;
     z-index: 10;
+  }
+
+  .score-label .tooltip {
+    text-transform: none;
+    letter-spacing: normal;
   }
 
   .doc-link {
