@@ -211,6 +211,7 @@
               />
             </th>
             <th>Platform</th>
+            <th>Title</th>
             <th>Source identity</th>
             <th>Score</th>
             <th>Reason</th>
@@ -232,6 +233,13 @@
                 />
               </td>
               <td>{finding.platform ?? '—'}</td>
+              <td class="title-cell">
+                  {#if finding.url}
+                    <a class="title-link" href={finding.url} target="_blank" rel="noopener" title={finding.title ?? ''}>{finding.title ?? finding.url}</a>
+                  {:else}
+                    {finding.title ?? '—'}
+                  {/if}
+                </td>
               <td class="identity-cell">
                   {#if formatSourceIdentity(finding.source_identity).url}
                     <a class="identity-link" href={formatSourceIdentity(finding.source_identity).url} target="_blank" rel="noopener">{formatSourceIdentity(finding.source_identity).text}</a>
@@ -415,6 +423,21 @@
     max-width: 180px;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .title-cell {
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .title-link {
+    color: #7c6af5;
+    text-decoration: none;
+  }
+
+  .title-link:hover {
+    text-decoration: underline;
   }
 
   .btn-restore {
