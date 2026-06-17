@@ -420,7 +420,10 @@
 
     {#if projectMode === 'marketing' && dmTargets.length > 0}
       <div class="dm-section">
-        <h3 class="section-label">DM Targets <span class="dm-count">{dmTargets.length}</span></h3>
+        <h3 class="section-label">
+          DM Targets <span class="dm-count">{dmTargets.length}</span>
+          <a class="doc-link" href="https://docs.threadlens.dev/user-guide/dm-targets-and-profile-scoring/" target="_blank" rel="noopener" title="Learn about DM targets and profile scoring">?</a>
+        </h3>
         {#each parsedTargets as target}
           <div class="dm-card">
             <div class="dm-header">
@@ -434,6 +437,7 @@
               </a>
               <span class="dm-intent" class:high={target.intent_score >= 7} class:medium={target.intent_score >= 5 && target.intent_score < 7}>
                 Intent: {target.intent_score}
+                <a class="doc-link" href="https://docs.threadlens.dev/user-guide/dm-targets-and-profile-scoring/" target="_blank" rel="noopener" title="Score adjusted by profile quality. Higher is better.">?</a>
               </span>
             </div>
             {#if target.signal}
@@ -449,23 +453,27 @@
               {@const profile = target._profile}
               {#if profile}
                 <details class="profile-signals">
-                  <summary class="profile-signals-summary">Profile Signals {#if target.profile_score != null}<span class="profile-score" class:negative={target.profile_score < 0} class:positive={target.profile_score > 0}>{target.profile_score}</span>{/if}</summary>
+                  <summary class="profile-signals-summary">
+                    Profile Signals
+                    <a class="doc-link" href="https://docs.threadlens.dev/user-guide/dm-targets-and-profile-scoring/#profile-scoring-rules" target="_blank" rel="noopener" title="How profile score is determined">?</a>
+                    {#if target.profile_score != null}<span class="profile-score" class:negative={target.profile_score < 0} class:positive={target.profile_score > 0}>{target.profile_score}</span>{/if}
+                  </summary>
                   <div class="profile-signals-grid">
-                    <span class="ps-label">Account age</span>
+                    <span class="ps-label tooltip-wrap">Account age<span class="tooltip">Accounts under 90 days are penalized. Under 30 days: -2 score penalty.</span></span>
                     <span class="ps-value">{profile.account_age_days} days</span>
-                    <span class="ps-label">Comment karma</span>
+                    <span class="ps-label tooltip-wrap">Comment karma<span class="tooltip">Negative karma: -2 score penalty.</span></span>
                     <span class="ps-value">{profile.comment_karma}</span>
-                    <span class="ps-label">Post karma</span>
+                    <span class="ps-label tooltip-wrap">Post karma<span class="tooltip">Zero post AND comment karma: -1 score penalty.</span></span>
                     <span class="ps-value">{profile.post_karma}</span>
-                    <span class="ps-label">Verified email</span>
+                    <span class="ps-label tooltip-wrap">Verified email<span class="tooltip">Verified email: +1 score bonus.</span></span>
                     <span class="ps-value">{profile.has_verified_email ? '\u2713' : '\u2014'}</span>
-                    <span class="ps-label">Gold</span>
+                    <span class="ps-label tooltip-wrap">Gold<span class="tooltip">Reddit Premium: +1 score bonus.</span></span>
                     <span class="ps-value">{profile.is_gold ? '\u2713' : '\u2014'}</span>
-                    <span class="ps-label">NSFW</span>
+                    <span class="ps-label tooltip-wrap">NSFW<span class="tooltip">NSFW flag recorded but does not affect score.</span></span>
                     <span class="ps-value">{profile.is_nsfw ? '\u2713' : '\u2014'}</span>
-                    <span class="ps-label">Self-promo ratio</span>
+                    <span class="ps-label tooltip-wrap">Self-promo ratio<span class="tooltip">Over 25%: -1 penalty. Over 50%: -3 penalty.</span></span>
                     <span class="ps-value">{(profile.self_promo_ratio * 100).toFixed(1)}%</span>
-                    <span class="ps-label">Subreddits</span>
+                    <span class="ps-label tooltip-wrap">Subreddits<span class="tooltip">Single subreddit activity with any self-promo: -1 penalty.</span></span>
                     <span class="ps-value">{profile.subreddit_count}</span>
                   </div>
                 </details>
@@ -945,6 +953,9 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+    position: relative;
+    z-index: 10;
+    overflow: visible;
   }
 
   .dm-header {
@@ -1168,6 +1179,40 @@
 
   .tooltip-wrap:hover .tooltip {
     opacity: 1;
+  }
+
+  .ps-label .tooltip {
+    bottom: auto;
+    top: 100%;
+    left: 0;
+    transform: none;
+    margin-top: 4px;
+    margin-bottom: 0;
+    text-transform: none;
+    letter-spacing: normal;
+    z-index: 10;
+  }
+
+  .doc-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #4a4a60;
+    background: #2a2a3a;
+    border-radius: 50%;
+    text-decoration: none;
+    margin-left: 5px;
+    vertical-align: middle;
+    transition: color 0.15s, background 0.15s;
+    cursor: help;
+  }
+  .doc-link:hover {
+    color: #61afef;
+    background: #61afef20;
   }
 
   .profile-signals {

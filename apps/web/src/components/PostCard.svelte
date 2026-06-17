@@ -135,7 +135,7 @@
         {post.status}
       </span>
       {#if projectMode === 'marketing' && dmCount > 0}
-        <span class="dm-badge">{dmCount} DM</span>
+        <span class="dm-badge" title="DM targets \u2014 how intent and profile scoring work">{dmCount} DM</span>
       {/if}
     </div>
     <div class="scores">
