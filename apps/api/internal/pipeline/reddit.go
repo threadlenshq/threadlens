@@ -45,14 +45,20 @@ type redditSession struct {
 	harvestedAt time.Time
 }
 
-const redditFetchMinInterval = 1500 * time.Millisecond
+const (
+	redditFetchMinInterval        = 1500 * time.Millisecond
+	redditRateLimitCooldownMin    = 60 * time.Second
+	redditRateLimitCooldownMax    = 120 * time.Second
+)
 
 var (
 	globalRedditSession = &redditSession{}
 	// Separate client without a jar used only for the harvest request.
-	redditHarvestClient  = &http.Client{Timeout: 15 * time.Second}
-	lastRedditFetch      time.Time
-	lastRedditFetchMu    sync.Mutex
+	redditHarvestClient       = &http.Client{Timeout: 15 * time.Second}
+	lastRedditFetch           time.Time
+	lastRedditFetchMu         sync.Mutex
+	redditRateLimitCooldown   time.Time
+	redditRateLimitMu         sync.Mutex
 )
 
 // redditClient returns an http.Client with a fresh-enough cookie jar.
@@ -295,12 +301,25 @@ func redditFetchWithRetry(ctx context.Context, fetchURL string) ([]byte, error) 
 		if (resp.StatusCode == 429 || resp.StatusCode == 503) && attempt < redditMaxRetries {
 			delay := time.Duration(1<<uint(attempt)) * 5 * time.Second
 			if resp.StatusCode == 429 {
+				cooldownDuration := redditRateLimitCooldownMin
 				if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
 					if seconds, err := strconv.Atoi(retryAfter); err == nil && seconds > 0 && seconds <= 120 {
-						delay = time.Duration(seconds) * time.Second
+						cooldownDuration = time.Duration(seconds) * time.Second
+						delay = cooldownDuration
 					}
 				}
-				log.Printf("[reddit] 429 on attempt %d, waiting %s before retry", attempt, delay)
+				if cooldownDuration > redditRateLimitCooldownMax {
+					cooldownDuration = redditRateLimitCooldownMax
+				}
+				// Set a global cooldown so ALL subsequent Reddit requests pause,
+				// preventing the cascade of 429s seen during DM target generation.
+				redditRateLimitMu.Lock()
+				candidate := time.Now().Add(cooldownDuration)
+				if candidate.After(redditRateLimitCooldown) {
+					redditRateLimitCooldown = candidate
+				}
+				redditRateLimitMu.Unlock()
+				log.Printf("[reddit] 429 on attempt %d, waiting %s before retry (global cooldown %s)", attempt, delay, cooldownDuration)
 			}
 			select {
 			case <-ctx.Done():

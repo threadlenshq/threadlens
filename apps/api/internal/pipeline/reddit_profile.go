@@ -155,9 +155,22 @@ func ScoreProfile(profile *RedditProfile) float64 {
 	return score
 }
 
-// redditThrottle enforces the shared minimum interval between Reddit fetches.
-// It mirrors the throttle pattern in FetchRedditContext.
+// redditThrottle enforces the shared minimum interval between Reddit fetches
+// and any active rate-limit cooldown. It mirrors the throttle pattern in
+// FetchRedditContext.
 func redditThrottle(ctx context.Context) error {
+	// Respect any active rate-limit cooldown first.
+	redditRateLimitMu.Lock()
+	cooldownWait := time.Until(redditRateLimitCooldown)
+	redditRateLimitMu.Unlock()
+	if cooldownWait > 0 {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(cooldownWait):
+		}
+	}
+
 	lastRedditFetchMu.Lock()
 	wait := redditFetchMinInterval - time.Since(lastRedditFetch)
 	lastRedditFetch = time.Now()

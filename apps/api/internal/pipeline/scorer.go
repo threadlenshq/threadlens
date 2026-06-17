@@ -68,8 +68,58 @@ type ScoreResult struct {
 	Stats  ScoreStats
 }
 
-// jsonArrayPattern extracts a JSON array from a response that may have surrounding text.
-var jsonArrayPattern = regexp.MustCompile(`(?s)\[.*\]`)
+// codeFencePattern strips markdown code fences from model output.
+var codeFencePattern = regexp.MustCompile(`(?s)^\x60\x60\x60(?:json)?\s*\n?(.+?)\n?\x60\x60\x60$`)
+
+// extractJSONArray finds the first complete JSON array in text that may have
+// surrounding descriptive content (e.g. "JSON array returned above." from models
+// that don't strictly follow instructions). Uses bracket-depth tracking to
+// correctly handle nested brackets inside strings.
+func extractJSONArray(response string) string {
+	cleaned := strings.TrimSpace(response)
+
+	// Strip markdown code fences if the entire response is wrapped in them.
+	if m := codeFencePattern.FindStringSubmatch(cleaned); len(m) > 1 {
+		cleaned = strings.TrimSpace(m[1])
+	}
+
+	// Find the first '[' that could be the start of a JSON array.
+	start := strings.Index(cleaned, "[")
+	if start < 0 {
+		return ""
+	}
+
+	depth := 0
+	inString := false
+	escaped := false
+	for i := start; i < len(cleaned); i++ {
+		c := cleaned[i]
+		if escaped {
+			escaped = false
+			continue
+		}
+		if c == '\\' && inString {
+			escaped = true
+			continue
+		}
+		if c == '"' {
+			inString = !inString
+			continue
+		}
+		if inString {
+			continue
+		}
+		if c == '[' {
+			depth++
+		} else if c == ']' {
+			depth--
+			if depth == 0 {
+				return cleaned[start : i+1]
+			}
+		}
+	}
+	return ""
+}
 
 // ScorePosts scores a slice of posts using the AI service and returns all scored results.
 // It mirrors scorePosts() from apps/api/server/pipeline/scorer.js.
@@ -162,20 +212,25 @@ func ScorePosts(
 			return nil, fmt.Errorf("ai: %w", err)
 		}
 
-		// Handle markdown-wrapped JSON.
+		// Extract a JSON array from the response, which may include
+		// markdown fences or descriptive text (e.g. models that add
+		// "JSON array returned above" instead of returning clean JSON).
 		var parsed []ScoredPost
-		m := jsonArrayPattern.FindString(response)
-		if m != "" {
-			err = json.Unmarshal([]byte(m), &parsed)
-		} else {
-			err = json.Unmarshal([]byte(response), &parsed)
+		jsonFragment := extractJSONArray(response)
+		parseErr := json.Unmarshal([]byte(jsonFragment), &parsed)
+		if parseErr != nil && jsonFragment == "" {
+			// No array found at all — try the raw response as a last resort.
+			parseErr = json.Unmarshal([]byte(response), &parsed)
 		}
-		if err != nil {
+		if parseErr != nil {
 			snippet := response
 			if len(snippet) > 200 {
 				snippet = snippet[:200]
 			}
 			return nil, fmt.Errorf("parse error - %s", snippet)
+		}
+		if len(parsed) == 0 {
+			return nil, fmt.Errorf("parse error - empty JSON array returned")
 		}
 		return parsed, nil
 	}
