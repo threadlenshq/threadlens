@@ -73,7 +73,7 @@
     <div class="error-msg">{pageError}</div>
   {:else if report}
     <div class="report-header">
-      <h2>Google Report #{report.id}</h2>
+      <h2>Google Report #{report.id} <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/#google-reports" target="_blank" rel="noopener" title="How Google reports work">?</a></h2>
       <div class="report-meta">
         <span>Run #{report.run_id}</span>
         <span>{formatDate(report.created_at)}</span>
@@ -82,7 +82,7 @@
 
     <div class="summary-grid">
       <div class="summary-card">
-        <h3>Top Insights</h3>
+        <h3>Top Insights <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/#google-reports" target="_blank" rel="noopener" title="AI-generated summary of key findings">?</a></h3>
         <ul>
           {#each report.executive_summary?.top_insights || [] as insight}
             <li>{insight}</li>
@@ -90,7 +90,7 @@
         </ul>
       </div>
       <div class="summary-card">
-        <h3>Opportunities</h3>
+        <h3>Opportunities <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/#google-reports" target="_blank" rel="noopener" title="AI-identified market opportunities">?</a></h3>
         {#if (report.opportunities || []).length === 0}
           <div class="empty-hint">No opportunities identified.</div>
         {:else}
@@ -128,7 +128,7 @@
         {/if}
       </div>
       <div class="summary-card">
-        <h3>Risks</h3>
+        <h3>Risks <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/#google-reports" target="_blank" rel="noopener" title="AI-flagged risks and concerns">?</a></h3>
         {#if (report.risks || []).length === 0}
           <div class="empty-hint">No risks flagged.</div>
         {:else}
@@ -148,7 +148,7 @@
         {/if}
       </div>
       <div class="summary-card">
-        <h3>Next Actions</h3>
+        <h3>Next Actions <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/#google-reports" target="_blank" rel="noopener" title="Suggested follow-up actions from the report">?</a></h3>
         {#if (report.next_actions || []).length === 0}
           <div class="empty-hint">No next actions suggested.</div>
         {:else}
@@ -172,7 +172,7 @@
         {/if}
       </div>
       <div class="summary-card">
-        <h3>Recurring Pain Themes</h3>
+        <h3>Recurring Pain Themes <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/#google-reports" target="_blank" rel="noopener" title="Repeated pain signals found across search results">?</a></h3>
         {#if (report.executive_summary?.strongest_recurring_pain_themes || []).length === 0}
           <div class="empty-hint">No recurring pain terms detected in summaries.</div>
         {:else}
@@ -187,7 +187,7 @@
         {/if}
       </div>
       <div class="summary-card">
-        <h3>Messaging Phrases</h3>
+        <h3>Messaging Phrases <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/#google-reports" target="_blank" rel="noopener" title="Audience-facing language and phrases worth adopting">?</a></h3>
         {#if (report.executive_summary?.interesting_phrases_for_messaging || []).length === 0}
           <div class="empty-hint">No phrases above frequency threshold.</div>
         {:else}
@@ -202,7 +202,7 @@
         {/if}
       </div>
       <div class="summary-card">
-        <h3>Mentioned Products</h3>
+        <h3>Mentioned Products <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/#google-reports" target="_blank" rel="noopener" title="Products and services referenced in search results">?</a></h3>
         {#if (report.executive_summary?.mentioned_products || []).length === 0}
           <div class="empty-hint">No competing products identified in results.</div>
         {:else}
@@ -219,7 +219,7 @@
     </div>
 
     <div class="keywords-section">
-      <h3>Keyword Summaries ({keywordSummaries.length})</h3>
+      <h3>Keyword Summaries ({keywordSummaries.length}) <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/#google-reports" target="_blank" rel="noopener" title="AI summary for each keyword">?</a></h3>
       <div class="keyword-list">
         {#each keywordSummaries as summary}
           <div class="keyword-card">
@@ -236,7 +236,7 @@
 
     <div class="results-section">
       <div class="results-header">
-        <h3>Ranked Results</h3>
+        <h3>Ranked Results <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/#google-reports" target="_blank" rel="noopener" title="Search results ranked by relevance for each mode">?</a></h3>
         <div class="mode-tabs">
           {#each modes as mode}
             <button class="mode-btn" class:active={selectedMode === mode} onclick={() => loadRanked(mode)}>
@@ -599,5 +599,27 @@
     color: #c0c0d0;
     font-size: 13px;
     line-height: 1.5;
+  }
+
+  .doc-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #4a4a60;
+    background: #2a2a3a;
+    border-radius: 50%;
+    text-decoration: none;
+    margin-left: 5px;
+    vertical-align: middle;
+    transition: color 0.15s, background 0.15s;
+    cursor: help;
+  }
+  .doc-link:hover {
+    color: #61afef;
+    background: #61afef20;
   }
 </style>
