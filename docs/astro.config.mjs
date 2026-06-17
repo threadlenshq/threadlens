@@ -34,6 +34,7 @@ export default defineConfig({
             { slug: 'user-guide/projects-and-modes' },
             { slug: 'user-guide/scouting-sources' },
             { slug: 'user-guide/scoring-filtering-and-statuses' },
+            { slug: 'user-guide/dm-targets-and-profile-scoring' },
             { slug: 'user-guide/reports' },
             { slug: 'user-guide/schedules' },
             { slug: 'user-guide/model-provider-configuration' },
