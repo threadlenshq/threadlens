@@ -120,7 +120,10 @@
 
 <div class="project-settings">
   <div class="settings-header">
-    <h2 class="settings-title">Project Settings</h2>
+    <h2 class="settings-title">
+      Project Settings
+      <a class="doc-link" href="https://docs.threadlens.dev/user-guide/projects-and-modes/" target="_blank" rel="noopener" title="How projects and modes work">?</a>
+    </h2>
     {#if project}
       <span class="project-name-label">{project.name}</span>
     {/if}
@@ -705,5 +708,27 @@
   .cancel-delete-btn:hover:not(:disabled) {
     color: #e2e2e8;
     border-color: #666;
+  }
+
+  .doc-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #4a4a60;
+    background: #2a2a3a;
+    border-radius: 50%;
+    text-decoration: none;
+    margin-left: 5px;
+    vertical-align: middle;
+    transition: color 0.15s, background 0.15s;
+    cursor: help;
+  }
+  .doc-link:hover {
+    color: #61afef;
+    background: #61afef20;
   }
 </style>
