@@ -103,7 +103,10 @@
 
 <div class="reports-tab">
   <div class="reports-header">
-    <h2>Research Reports</h2>
+    <h2>
+      Research Reports
+      <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/" target="_blank" rel="noopener" title="How reports work">?</a>
+    </h2>
     <div class="header-actions">
       <button
         class="options-toggle"
@@ -118,13 +121,14 @@
       >
         {running ? 'Analyzing...' : 'Run Analysis'}
       </button>
+      <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/#research-reports" target="_blank" rel="noopener" title="How reports analyze findings">?</a>
     </div>
   </div>
 
   {#if showOptions}
     <div class="options-bar">
       <label class="option-field">
-        <span class="option-label">Min Score</span>
+        <span class="option-label tooltip-wrap">Min Score<span class="tooltip">Only include posts scoring at or above this threshold in the report analysis.</span></span>
         <input type="number" bind:value={minScore} placeholder="0" min="0" max="10" step="0.5" />
       </label>
     </div>
@@ -441,6 +445,55 @@
     color: #888;
     background: #23233a;
     border: 1px solid #2a2a3a;
+  }
+
+  .doc-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #4a4a60;
+    background: #2a2a3a;
+    border-radius: 50%;
+    text-decoration: none;
+    margin-left: 5px;
+    vertical-align: middle;
+    transition: color 0.15s, background 0.15s;
+    cursor: help;
+  }
+  .doc-link:hover {
+    color: #61afef;
+    background: #61afef20;
+  }
+
+  .tooltip-wrap {
+    position: relative;
+  }
+
+  .tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a2e;
+    border: 1px solid #3a3a55;
+    color: #9090b0;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    margin-bottom: 4px;
+    z-index: 10;
+  }
+
+  .tooltip-wrap:hover .tooltip {
+    opacity: 1;
   }
 
   .council-badge--running {

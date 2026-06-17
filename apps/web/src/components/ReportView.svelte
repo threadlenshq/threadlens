@@ -132,7 +132,7 @@
     <div class="error-msg">{error}</div>
   {:else if report && report.status === 'running'}
     <div class="report-header">
-      <h2>Research Report</h2>
+      <h2>Research Report <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/" target="_blank" rel="noopener" title="How reports work">?</a></h2>
       <div class="report-meta">
         <span>Model: {report.model_used}</span>
       </div>
@@ -143,7 +143,7 @@
     </div>
   {:else if report}
     <div class="report-header">
-      <h2>{report.title || 'Research Report'}</h2>
+      <h2>{report.title || 'Research Report'} <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/" target="_blank" rel="noopener" title="How reports work">?</a></h2>
       <div class="report-meta">
         <span>{report.post_count} posts analyzed</span>
         <span>Model: {report.model_used}</span>
@@ -157,7 +157,7 @@
 
     {#if report.assessment}
       <div class="assessment">
-        <h3 class="section-label">Overall Assessment</h3>
+        <h3 class="section-label">Overall Assessment <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/#research-reports" target="_blank" rel="noopener" title="AI-generated summary of findings">?</a></h3>
         <div class="assessment-text">{@html renderAssessment(report.assessment)}</div>
       </div>
     {/if}
@@ -169,7 +169,7 @@
     {/if}
 
     <div class="clusters-section">
-      <h3 class="section-label">Pain Point Clusters ({(report.clusters || []).length})</h3>
+      <h3 class="section-label">Pain Point Clusters ({(report.clusters || []).length}) <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/#research-reports" target="_blank" rel="noopener" title="AI-identified groups of related pain points">?</a></h3>
       {#each report.clusters || [] as cluster, i (i)}
         <ClusterCard
           {cluster}
@@ -324,5 +324,27 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  .doc-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #4a4a60;
+    background: #2a2a3a;
+    border-radius: 50%;
+    text-decoration: none;
+    margin-left: 5px;
+    vertical-align: middle;
+    transition: color 0.15s, background 0.15s;
+    cursor: help;
+  }
+  .doc-link:hover {
+    color: #61afef;
+    background: #61afef20;
   }
 </style>
