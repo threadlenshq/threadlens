@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.13.0 - 2026-06-17
+
+Tag: `threadlens-v0.13.0`
+
+### Features
+
+- feat(db): add SQL migration for dm_targets profile_score and profile_signals columns (`0c07fbf`)
+- feat(web): add collapsible Profile Signals section to DM target cards (`08a3416`)
+- feat(services): extend GenerateDMDraft userMessage with profile signals and score (`66b9edc`)
+- feat(pipeline): integrate RedditProfileFetcher into DMTargetGenerator with per-run cache (`4da138d`)
+- feat(pipeline): add FetchRedditProfile with about.json and submitted.json parsing (`8b055e2`)
+- feat(db): add profile_score and profile_signals columns to dm_targets (`4568a9e`)
+- feat(repo): extend DMTarget persistence for profile_score and profile_signals (`8a2bdb5`)
+- feat(domain): add ProfileScore and ProfileSignals to DMTarget and DMTargetInsert (`4600481`)
+- feat(pipeline): add RedditProfile struct, DetectSelfPromotion, and ScoreProfile (`0f03279`)
+
+### Fixes
+
+- fix(pipeline): robust JSON parsing + global Reddit 429 cooldown (`1e9f40c`)
+- fix(queries): use rec.query.id for disable recommendations in refine modal (`a1b09ae`)
+
+### Documentation
+
+- docs: add sidebar entry for DM targets page (`8462dfa`)
+- docs: add DM targets and profile scoring guide (`16c2f04`)
+
+### Maintenance
+
+- web(filtered findings): add doc link to FilteredFindingsTab title (`6e4baa4`)
+- nav: add Filtered view item with funnel icon after Reports (`7eecd7a`)
+- filtered findings: move score column after source column (`c1abdd7`)
+- filtered findings: tighten title cell truncation to 180px (`5d623a2`)
+- filtered findings: add white-space: nowrap to title cell for proper truncation (`4989e5d`)
+- filtered findings: add linked title column opening the source post in a new tab (`d36ac3f`)
+- filtered findings: make source identity a clickable link for Reddit authors and subreddits (`8c6bdf9`)
+- fix filtered findings: fix field names and improve reason display with sub-reason badges and explanation tooltip (`24ad750`)
+- fix filtered findings: extract items array from paged response, format source identity, and apply dark theme styles (`cd34e20`)
+- web: add doc links to model config and privacy views (`fd32e5a`)
+- web(settings): add doc links to prompts, schedules, and advanced tabs; add prompts doc (`0d47e96`)
+- web(sources): add doc links to project settings and query editor (`2d1cf1a`)
+- web(google-reports): add doc links to Google reports views (`514c602`)
+- web(reports): add doc links and tooltips to reports view (`4cf4d83`)
+- web(scoring): add doc links and tooltips to scoring section, angle, and action buttons (`4bef536`)
+- web(DM targets): inline guidance with doc links and profile signal tooltips (`615a6d1`)
+- simplify: deduplicate throttle, remove redundant ScoreProfile call, fix profile cache TOCTOU, pre-parse Svelte profile signals (`7e8ccfe`)
+- test(pipeline): add integration tests for DMTargetGenerator profile fetcher (`62e8394`)
+- test(pipeline): add table-driven tests for ScoreProfile and DetectSelfPromotion (`cd4c912`)
+
 ## 0.12.0 - 2026-06-15
 
 Tag: `threadlens-v0.12.0`
