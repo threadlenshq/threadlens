@@ -426,7 +426,7 @@
   }
 
   .title-cell {
-    max-width: 320px;
+    max-width: 180px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
