@@ -198,7 +198,10 @@
     {:else if activeTab === 'advanced'}
       <div class="general-tab">
         <div class="field-group">
-          <div class="field-label">Mode</div>
+          <div class="field-label">
+            Mode
+            <a class="doc-link" href="https://docs.threadlens.dev/user-guide/projects-and-modes/" target="_blank" rel="noopener" title="Research vs marketing mode">?</a>
+          </div>
           <div class="mode-display">
             <span class="mode-badge" class:research={project?.mode === 'research'} class:marketing={project?.mode === 'marketing'}>
               {project?.mode === 'research' ? 'Research' : 'Marketing'}
@@ -213,7 +216,10 @@
 
         {#if project?.mode === 'research' && project?.selected_report_id}
           <div class="field-group">
-            <div class="field-label">Graduate to Marketing</div>
+            <div class="field-label">
+              Graduate to Marketing
+              <a class="doc-link" href="https://docs.threadlens.dev/user-guide/projects-and-modes/#marketing-mode" target="_blank" rel="noopener" title="Switch from research discovery to engagement workflows">?</a>
+            </div>
             <p class="field-hint">You have selected a product angle. Review the generated marketing config, then graduate this project to marketing mode.</p>
             {#if graduateError}
               <div class="error-msg">{graduateError}</div>

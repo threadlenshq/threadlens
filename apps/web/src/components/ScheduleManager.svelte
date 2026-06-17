@@ -138,7 +138,10 @@
 
 <div class="schedule-manager">
   <div class="section-header">
-    <h3 class="section-title">Schedules</h3>
+    <h3 class="section-title">
+      Schedules
+      <a class="doc-link" href="https://docs.threadlens.dev/user-guide/schedules/" target="_blank" rel="noopener" title="How recurring scout schedules work">?</a>
+    </h3>
     <span class="count">{activeCount} active</span>
   </div>
 
@@ -178,7 +181,10 @@
   {/if}
 
   <form class="add-form" onsubmit={(e) => { e.preventDefault(); addSchedule(); }}>
-    <div class="add-form-title">Add Schedule</div>
+    <div class="add-form-title">
+      Add Schedule
+      <a class="doc-link" href="https://docs.threadlens.dev/user-guide/schedules/" target="_blank" rel="noopener" title="Set up recurring scout runs">?</a>
+    </div>
     <div class="form-row">
       <select bind:value={newPlatform} class="platform-select">
         <option value="reddit">Reddit</option>
@@ -570,5 +576,27 @@
   .add-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .doc-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #4a4a60;
+    background: #2a2a3a;
+    border-radius: 50%;
+    text-decoration: none;
+    margin-left: 5px;
+    vertical-align: middle;
+    transition: color 0.15s, background 0.15s;
+    cursor: help;
+  }
+  .doc-link:hover {
+    color: #61afef;
+    background: #61afef20;
   }
 </style>

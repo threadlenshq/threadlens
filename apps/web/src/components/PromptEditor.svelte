@@ -71,7 +71,10 @@
 
 <div class="prompt-editor">
   <div class="section-header">
-    <h3 class="section-title">Prompts</h3>
+    <h3 class="section-title">
+      Prompts
+      <a class="doc-link" href="https://docs.threadlens.dev/user-guide/prompts/" target="_blank" rel="noopener" title="How prompts work in marketing mode">?</a>
+    </h3>
     <span class="section-sub">Click a header to expand and edit</span>
   </div>
 
@@ -315,5 +318,27 @@
 
   .create-btn:hover {
     background: #2a2a45;
+  }
+
+  .doc-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #4a4a60;
+    background: #2a2a3a;
+    border-radius: 50%;
+    text-decoration: none;
+    margin-left: 5px;
+    vertical-align: middle;
+    transition: color 0.15s, background 0.15s;
+    cursor: help;
+  }
+  .doc-link:hover {
+    color: #61afef;
+    background: #61afef20;
   }
 </style>
