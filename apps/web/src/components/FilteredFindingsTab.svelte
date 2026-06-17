@@ -138,6 +138,14 @@
     }
   }
 
+  function reasonDetails(finding) {
+    const primary = finding.filter_reason;
+    const all = finding.filter_reasons ?? [];
+    const detailReasons = all.filter(r => r !== primary);
+    const explanation = finding.filter_explanation;
+    return { primary, detailReasons, explanation };
+  }
+
   let allSelected = $derived(findings.length > 0 && selected.size === findings.length);
 </script>
 
@@ -226,8 +234,17 @@
               <td>{finding.platform ?? '—'}</td>
               <td class="identity-cell">{formatSourceIdentity(finding.source_identity)}</td>
               <td>{finding.score != null ? finding.score : '—'}</td>
-              <td>{reasonLabel(finding.reason)}</td>
-              <td>{finding.confidence != null ? `${Math.round(finding.confidence * 100)}%` : '—'}</td>
+              <td class="reason-cell">
+                  <span class="reason-primary" title={finding.filter_explanation ?? ''}>{reasonLabel(finding.filter_reason)}</span>
+                  {#if reasonDetails(finding).detailReasons.length > 0}
+                    <div class="sub-reasons">
+                      {#each reasonDetails(finding).detailReasons as r}
+                        <span class="reason-badge">{reasonLabel(r)}</span>
+                      {/each}
+                    </div>
+                  {/if}
+                </td>
+              <td>{finding.filter_confidence != null ? `${Math.round(finding.filter_confidence * 100)}%` : '—'}</td>
               <td>{formatDate(finding.filtered_at)}</td>
               <td>{finding.filter_source === 'ai' ? 'AI' : finding.filter_source === 'rules' ? 'Rules' : finding.filter_source ?? '—'}</td>
               <td>
@@ -407,5 +424,30 @@
   .btn-restore:hover {
     background: #1a1a2e;
     border-color: #7c6af5;
+  }
+
+  .reason-cell {
+    max-width: 200px;
+  }
+
+  .reason-primary {
+    cursor: help;
+  }
+
+  .sub-reasons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 3px;
+  }
+
+  .reason-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    background: #2a2a3a;
+    border-radius: 3px;
+    font-size: 10px;
+    color: #9a9ab0;
+    white-space: nowrap;
   }
 </style>

@@ -13,6 +13,11 @@ export function reasonLabel(reason) {
     low_quality_account: 'Low-quality account',
     ai_generated: 'Likely AI-generated',
     trusted_override: 'Trusted override',
+    promotional_launch_language: 'Promotional language',
+    disposable_author: 'Disposable author',
+    low_content: 'Low content',
+    ai_boilerplate_markers: 'AI boilerplate',
+    suspicious_domain_content: 'Suspicious domain',
   };
   return labels[reason] || reason || 'Filtered';
 }
