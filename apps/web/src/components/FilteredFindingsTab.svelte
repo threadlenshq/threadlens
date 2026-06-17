@@ -151,7 +151,7 @@
 
 <section class="filtered-findings-tab">
   <div class="tab-header">
-    <h2 class="tab-title">{FILTERED_FINDINGS_LABEL}</h2>
+    <h2 class="tab-title">{FILTERED_FINDINGS_LABEL}<a class="doc-link" href="https://docs.threadlens.dev/user-guide/scoring-filtering-and-statuses/#filtering" target="_blank" rel="noopener" title="How filtering works">?</a></h2>
 
     <div class="filters">
       <label class="filter-label">
@@ -488,5 +488,27 @@
 
   .identity-link:hover {
     text-decoration: underline;
+  }
+
+  .doc-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #4a4a60;
+    background: #2a2a3a;
+    border-radius: 50%;
+    text-decoration: none;
+    margin-left: 5px;
+    vertical-align: middle;
+    transition: color 0.15s, background 0.15s;
+    cursor: help;
+  }
+  .doc-link:hover {
+    color: #61afef;
+    background: #61afef20;
   }
 </style>
