@@ -139,6 +139,18 @@ var Tasks = []TaskEntry{
 			"gemini":     "gemini:2.5-flash",
 		},
 	},
+	{
+		ID: "prompt_suggestion", Label: "Prompt Suggestion", Complexity: "medium", Volume: "one-time", TimeoutMs: 60000,
+		Description: "Generates three complete prompt drafts for a given platform+type slot, seeded with project context and existing queries.",
+		Default:     "copilot:gpt-5-mini",
+		DefaultByProvider: map[string]string{
+			"copilot":    "copilot:claude-haiku-4.5",
+			"claude-cli": "claude-cli:sonnet",
+			"opencode":   "opencode-go:mimo-v2.5-pro",
+			"sdk":        "sdk:haiku",
+			"gemini":     "gemini:2.5-flash",
+		},
+	},
 }
 
 // GetModel returns the model entry with the given ID, or nil if not found.
