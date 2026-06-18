@@ -109,12 +109,40 @@
     }
   }
 
-  function applySuggestion(prompt, text) {
+  let reviewModal = $state(null);
+
+  function openReviewModal(prompt, index) {
+    const suggestions = aiSuggestions[prompt.id];
+    reviewModal = {
+      prompt,
+      selectedIndex: index,
+      editedText: suggestions[index]?.text || '',
+      suggestions,
+    };
+  }
+
+  function closeReviewModal() {
+    reviewModal = null;
+  }
+
+  async function approveReview() {
+    const { prompt, editedText } = reviewModal;
     promptList = promptList.map(p =>
-      p.id === prompt.id ? { ...p, prompt_text: text } : p
+      p.id === prompt.id ? { ...p, prompt_text: editedText } : p
     );
+    await savePrompt(prompt, editedText);
     localStorage.removeItem(storageKey(prompt.platform, prompt.type));
     aiSuggestions = { ...aiSuggestions, [prompt.id]: undefined };
+    reviewModal = null;
+  }
+
+  function switchReviewSuggestion(index) {
+    const suggestions = reviewModal.suggestions;
+    reviewModal = {
+      ...reviewModal,
+      selectedIndex: index,
+      editedText: suggestions[index]?.text || '',
+    };
   }
 
   function discardSuggestions(prompt) {
@@ -179,10 +207,10 @@
                 {/if}
                 {#if aiSuggestions[prompt.id]?.length > 0}
                   <div class="chip-row">
-                    {#each aiSuggestions[prompt.id] as suggestion}
+                    {#each aiSuggestions[prompt.id] as suggestion, i}
                       <button
                         class="suggestion-chip"
-                        onclick={() => applySuggestion(prompt, suggestion.text)}
+                        onclick={() => openReviewModal(prompt, i)}
                         title={suggestion.text}
                       >
                         {suggestion.label}
@@ -203,6 +231,44 @@
                   onblur={(e) => savePrompt(prompt, e.target.value)}
                 ></textarea>
                 <div class="prompt-hint">Changes are saved automatically when you click away.</div>
+
+                {#if reviewModal?.prompt.id === prompt.id}
+                  <div class="review-overlay" onclick={closeReviewModal} role="dialog" aria-modal="true">
+                    <div class="review-modal" onclick={(e) => e.stopPropagation()}>
+                      <h4 class="review-title">Review Suggestion</h4>
+
+                      <label class="review-label">Original</label>
+                      <textarea class="review-original" rows="4" readonly value={prompt.prompt_text || '(empty)'}></textarea>
+
+                      <label class="review-label">
+                        Suggestion ({reviewModal.suggestions[reviewModal.selectedIndex]?.label || ''})
+                      </label>
+                      <textarea
+                        class="review-suggestion"
+                        rows="10"
+                        value={reviewModal.editedText}
+                        oninput={(e) => reviewModal = { ...reviewModal, editedText: e.target.value }}
+                      ></textarea>
+
+                      <div class="review-chips">
+                        {#each reviewModal.suggestions as s, i}
+                          <button
+                            class="suggestion-chip"
+                            class:active={i === reviewModal.selectedIndex}
+                            onclick={() => switchReviewSuggestion(i)}
+                          >
+                            {s.label}
+                          </button>
+                        {/each}
+                      </div>
+
+                      <div class="review-actions">
+                        <button class="review-cancel" onclick={closeReviewModal}>Cancel</button>
+                        <button class="review-approve" onclick={approveReview}>Approve</button>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
               </div>
             {/if}
           {:else}
@@ -350,6 +416,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    position: relative;
   }
 
   .prompt-textarea {
@@ -506,5 +573,127 @@
 
   .suggestion-dismiss:hover {
     color: #f87171;
+  }
+
+  .review-overlay {
+    position: absolute;
+    inset: 0;
+    background: #000000dd;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 60px;
+    z-index: 10;
+    border-radius: 0 0 7px 7px;
+  }
+
+  .review-modal {
+    background: #1a1a24;
+    border: 1px solid #2a2a3a;
+    border-radius: 8px;
+    padding: 20px;
+    width: 90%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+  }
+
+  .review-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #e2e2e8;
+  }
+
+  .review-label {
+    font-size: 11px;
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .review-original {
+    width: 100%;
+    padding: 8px;
+    background: #12121a;
+    border: 1px solid #2a2a3a;
+    border-radius: 6px;
+    color: #777;
+    font-size: 12px;
+    font-family: monospace;
+    resize: none;
+    line-height: 1.5;
+  }
+
+  .review-suggestion {
+    width: 100%;
+    padding: 8px;
+    background: #12121a;
+    border: 1px solid #3a3a5a;
+    border-radius: 6px;
+    color: #e2e2e8;
+    font-size: 13px;
+    font-family: monospace;
+    resize: vertical;
+    line-height: 1.5;
+  }
+
+  .review-suggestion:focus {
+    outline: none;
+    border-color: #7c6af5;
+  }
+
+  .review-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .suggestion-chip.active {
+    background: #3a3a5a;
+    border-color: #7c6af5;
+    color: #e2e2e8;
+  }
+
+  .review-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .review-cancel {
+    padding: 6px 16px;
+    background: none;
+    border: 1px solid #3a3a5a;
+    border-radius: 5px;
+    color: #888;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .review-cancel:hover {
+    color: #e2e2e8;
+    border-color: #555;
+  }
+
+  .review-approve {
+    padding: 6px 16px;
+    background: #7c6af5;
+    border: none;
+    border-radius: 5px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .review-approve:hover {
+    background: #6a58e0;
   }
 </style>
