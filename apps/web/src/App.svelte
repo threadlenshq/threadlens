@@ -499,6 +499,25 @@
   }
 
   function handlePopState() {
+    if (window.__scoutPromptSuggesting) {
+      if (!confirm('AI is generating prompt suggestions. Leave anyway?')) {
+        writeUrlState({
+          view,
+          project: selectedProjectId,
+          reportSource,
+          report: activeReportId,
+          greport: activeGoogleReportId,
+          platform: filterPlatform,
+          status: filterStatus,
+          dm: filterDm,
+          score: filterScore,
+          page: postsPage,
+          limit: postsPageLimit,
+          post: selectedPost?.id || null,
+        }, 'push');
+        return;
+      }
+    }
     const urlState = readUrlState();
     view = urlState.view;
     reportSource = urlState.reportSource;
@@ -778,6 +797,9 @@
   }
 
   function navigateTo(nextView) {
+    if (window.__scoutPromptSuggesting) {
+      if (!confirm('AI is generating prompt suggestions. Leave anyway?')) return;
+    }
     view = nextView;
     if (nextView === 'posts') {
       writeUrlState({ view: 'posts', tab: 'general' }, 'push');

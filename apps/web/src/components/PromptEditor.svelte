@@ -150,6 +150,18 @@
     aiSuggestions = { ...aiSuggestions, [prompt.id]: undefined };
   }
 
+  $effect(() => {
+    if (suggestingFor !== null) {
+      window.__scoutPromptSuggesting = true;
+      const handler = (e) => { e.preventDefault(); };
+      window.addEventListener('beforeunload', handler);
+      return () => {
+        window.removeEventListener('beforeunload', handler);
+        window.__scoutPromptSuggesting = false;
+      };
+    }
+  });
+
   onMount(async () => {
     await loadPrompts();
     loadCachedSuggestions();
