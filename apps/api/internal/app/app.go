@@ -110,7 +110,7 @@ func New(cfg Config, db *sql.DB) *App {
 		InsightsService:   services.NewInsightsService(repo),
 		ProjectService:    services.NewProjectService(repo, cfg.RuntimeMode, entitlementResolver),
 		QueryService:      services.NewQueryService(repo, aiSvc),
-		PromptService:     services.NewPromptService(repo),
+		PromptService:     services.NewPromptService(repo, aiSvc),
 		PostService:       services.NewPostServiceFull(repo, aiSvc, redditContextFetcher{}, blueskyReplierAdapter{}),
 		ModelService:      modelSvc,
 		ReportService:     services.NewReportService(repo, db, aiSvc, cfg.RuntimeMode, entitlementResolver),

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/kyle/scout/open-core/apps/api/internal/ai"
 	"github.com/kyle/scout/open-core/apps/api/internal/entitlements"
 	"github.com/kyle/scout/open-core/apps/api/internal/handlers"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
@@ -18,7 +19,8 @@ func newPromptRouterWithProject(t *testing.T) http.Handler {
 	db := testingpkg.OpenTestDB(t)
 	repo := repository.New(db)
 	projSvc := services.NewProjectService(repo, entitlements.RuntimeModeSelfHosted, entitlements.NewLocalResolver(entitlements.RuntimeModeSelfHosted, nil))
-	promptSvc := services.NewPromptService(repo)
+	aiSvc := ai.NewServiceWithProviders([]ai.Provider{&fakeAIProvider{name: "copilot", result: "[]", err: nil}})
+	promptSvc := services.NewPromptService(repo, aiSvc)
 	r := chi.NewRouter()
 	handlers.MountProjectRoutes(r, projSvc)
 	handlers.MountPromptRoutes(r, promptSvc)
@@ -29,7 +31,8 @@ func newPromptRouter(t *testing.T) http.Handler {
 	t.Helper()
 	db := testingpkg.OpenTestDB(t)
 	repo := repository.New(db)
-	promptSvc := services.NewPromptService(repo)
+	aiSvc := ai.NewServiceWithProviders([]ai.Provider{&fakeAIProvider{name: "copilot", result: "[]", err: nil}})
+	promptSvc := services.NewPromptService(repo, aiSvc)
 	r := chi.NewRouter()
 	handlers.MountPromptRoutes(r, promptSvc)
 	return r
