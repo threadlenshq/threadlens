@@ -67,6 +67,7 @@ export const prompts = {
   create: (pid, body) => api(`/api/projects/${pid}/prompts`, { method: 'POST', body }),
   update: (pid, pid2, body) => api(`/api/projects/${pid}/prompts/${pid2}`, { method: 'PATCH', body }),
   delete: (pid, pid2) => api(`/api/projects/${pid}/prompts/${pid2}`, { method: 'DELETE' }),
+  suggest: (pid, body) => api(`/api/projects/${pid}/prompts/suggest`, { method: 'POST', body }),
 };
 
 export const posts = {
