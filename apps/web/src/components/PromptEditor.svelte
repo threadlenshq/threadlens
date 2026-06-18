@@ -81,6 +81,12 @@
       }
       if (resp.suggestions?.length > 0) {
         try { localStorage.setItem(storageKey(prompt.platform, prompt.type), JSON.stringify({ suggestions: resp.suggestions })); } catch {}
+        reviewModal = {
+          prompt,
+          selectedIndex: 0,
+          editedText: resp.suggestions[0].text,
+          suggestions: resp.suggestions,
+        };
       }
     } catch (e) {
       suggestError = e.message;
@@ -111,21 +117,15 @@
 
   let reviewModal = $state(null);
 
-  function openReviewModal(prompt, index) {
-    const suggestions = aiSuggestions[prompt.id];
-    reviewModal = {
-      prompt,
-      selectedIndex: index,
-      editedText: suggestions[index]?.text || '',
-      suggestions,
-    };
-  }
-
   function closeReviewModal() {
     reviewModal = null;
   }
 
   async function approveReview() {
+    if (reviewModal.selectedIndex === -1) {
+      reviewModal = null;
+      return;
+    }
     const { prompt, editedText } = reviewModal;
     promptList = promptList.map(p =>
       p.id === prompt.id ? { ...p, prompt_text: editedText } : p
@@ -137,12 +137,20 @@
   }
 
   function switchReviewSuggestion(index) {
-    const suggestions = reviewModal.suggestions;
-    reviewModal = {
-      ...reviewModal,
-      selectedIndex: index,
-      editedText: suggestions[index]?.text || '',
-    };
+    if (index === -1) {
+      reviewModal = {
+        ...reviewModal,
+        selectedIndex: -1,
+        editedText: reviewModal.prompt.prompt_text || '',
+      };
+    } else {
+      const suggestions = reviewModal.suggestions;
+      reviewModal = {
+        ...reviewModal,
+        selectedIndex: index,
+        editedText: suggestions[index]?.text || '',
+      };
+    }
   }
 
   function discardSuggestions(prompt) {
@@ -217,24 +225,6 @@
                 {#if suggestError && aiSuggestions[prompt.id]?.length === 0}
                   <div class="suggest-notice">{suggestError}</div>
                 {/if}
-                {#if aiSuggestions[prompt.id]?.length > 0}
-                  <div class="chip-row">
-                    {#each aiSuggestions[prompt.id] as suggestion, i}
-                      <button
-                        class="suggestion-chip"
-                        onclick={() => openReviewModal(prompt, i)}
-                        title={suggestion.text}
-                      >
-                        {suggestion.label}
-                      </button>
-                    {/each}
-                    <button
-                      class="suggestion-dismiss"
-                      onclick={() => discardSuggestions(prompt)}
-                      title="Discard suggestions"
-                    >&times;</button>
-                  </div>
-                {/if}
                 <textarea
                   class="prompt-textarea"
                   value={prompt.prompt_text || ''}
@@ -244,43 +234,6 @@
                 ></textarea>
                 <div class="prompt-hint">Changes are saved automatically when you click away.</div>
 
-                {#if reviewModal?.prompt.id === prompt.id}
-                  <div class="review-overlay" onclick={closeReviewModal} role="dialog" aria-modal="true">
-                    <div class="review-modal" onclick={(e) => e.stopPropagation()}>
-                      <h4 class="review-title">Review Suggestion</h4>
-
-                      <label class="review-label">Original</label>
-                      <textarea class="review-original" rows="4" readonly value={prompt.prompt_text || '(empty)'}></textarea>
-
-                      <label class="review-label">
-                        Suggestion ({reviewModal.suggestions[reviewModal.selectedIndex]?.label || ''})
-                      </label>
-                      <textarea
-                        class="review-suggestion"
-                        rows="10"
-                        value={reviewModal.editedText}
-                        oninput={(e) => reviewModal = { ...reviewModal, editedText: e.target.value }}
-                      ></textarea>
-
-                      <div class="review-chips">
-                        {#each reviewModal.suggestions as s, i}
-                          <button
-                            class="suggestion-chip"
-                            class:active={i === reviewModal.selectedIndex}
-                            onclick={() => switchReviewSuggestion(i)}
-                          >
-                            {s.label}
-                          </button>
-                        {/each}
-                      </div>
-
-                      <div class="review-actions">
-                        <button class="review-cancel" onclick={closeReviewModal}>Cancel</button>
-                        <button class="review-approve" onclick={approveReview}>Approve</button>
-                      </div>
-                    </div>
-                  </div>
-                {/if}
               </div>
             {/if}
           {:else}
@@ -300,6 +253,51 @@
     </div>
   {/if}
 </div>
+
+{#if reviewModal}
+  <div class="review-overlay" onclick={closeReviewModal} role="dialog" aria-modal="true">
+    <div class="review-modal" onclick={(e) => e.stopPropagation()}>
+      <h4 class="review-title">Review Suggestions</h4>
+
+      <div class="review-chips">
+        <button
+          class="suggestion-chip"
+          class:active={reviewModal.selectedIndex === -1}
+          onclick={() => switchReviewSuggestion(-1)}
+        >
+          Original
+        </button>
+        {#each reviewModal.suggestions as s, i}
+          <button
+            class="suggestion-chip"
+            class:active={i === reviewModal.selectedIndex}
+            onclick={() => switchReviewSuggestion(i)}
+          >
+            {s.label}
+          </button>
+        {/each}
+      </div>
+
+      {#if reviewModal.selectedIndex === -1}
+        <textarea class="review-original" rows="12" readonly value={reviewModal.prompt.prompt_text || '(empty)'}></textarea>
+      {:else}
+        <textarea
+          class="review-suggestion"
+          rows="12"
+          value={reviewModal.editedText}
+          oninput={(e) => reviewModal = { ...reviewModal, editedText: e.target.value }}
+        ></textarea>
+      {/if}
+
+      <div class="review-actions">
+        <button class="review-cancel" onclick={closeReviewModal}>Cancel</button>
+        {#if reviewModal.selectedIndex !== -1}
+          <button class="review-approve" onclick={approveReview}>Approve</button>
+        {/if}
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .prompt-editor {
@@ -545,12 +543,6 @@
     font-size: 12px;
   }
 
-  .chip-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
   .suggestion-chip {
     padding: 4px 10px;
     background: #2a2a45;
@@ -572,31 +564,14 @@
     color: #e2e2e8;
   }
 
-  .suggestion-dismiss {
-    padding: 0 6px;
-    background: none;
-    border: none;
-    color: #555;
-    font-size: 14px;
-    cursor: pointer;
-    line-height: 1;
-    transition: color 0.15s;
-  }
-
-  .suggestion-dismiss:hover {
-    color: #f87171;
-  }
-
   .review-overlay {
-    position: absolute;
+    position: fixed;
     inset: 0;
     background: #000000dd;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
-    padding-top: 60px;
-    z-index: 10;
-    border-radius: 0 0 7px 7px;
+    z-index: 500;
   }
 
   .review-modal {
@@ -618,13 +593,6 @@
     font-size: 14px;
     font-weight: 600;
     color: #e2e2e8;
-  }
-
-  .review-label {
-    font-size: 11px;
-    color: #777;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
   }
 
   .review-original {
