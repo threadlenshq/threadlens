@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -94,31 +93,21 @@ func (s *PromptService) Delete(ctx context.Context, projectID string, promptID i
 	return http.StatusNoContent, ""
 }
 
-const promptSuggestionSystemPrompt = `You are a social media outreach prompt engineer. You write system prompts that
-guide a downstream AI to generate Reddit and Bluesky marketing content for a
-specific project. The downstream AI will read your prompt and use it as
-instructions for finding pain points, writing karma-building comments, or
-drafting DMs.
+const promptSuggestionSystemPrompt = `Generate 3 distinct, concise prompts that guide a downstream AI to perform social media outreach for a specific product. The user message provides the product name, target platform, prompt type, and any existing prompt.
 
-The user message contains:
-- project name and short description
-- the target platform (reddit or bluesky) and prompt type (product, karma, dm)
-- the project's existing prompts (for tone and vocabulary, but you may diverge)
-- the project's existing search queries (for the topics the project cares about)
+Prompt type purposes:
+- product: find pain points where the product fits naturally
+- karma: write high-upvote comments that build credibility
+- dm: draft empathetic direct messages that lead with help, never pitch first
 
-Generate exactly 3 distinct, complete prompt drafts. Each must:
-- Be a self-contained instruction the downstream AI can act on directly
-- Match the platform's tone and format (Reddit is more conversational, Bluesky
-  is more terse and direct)
-- Match the prompt type's purpose:
-  - product: find pain points where the product fits naturally
-  - karma: write high-upvote comments that build community credibility
-  - dm: draft direct messages that lead with empathy and never pitch first
-- Reference the project's topics and vocabulary so suggestions feel project-specific
-- Be substantially different from each other (different angles or framings)
+Rules:
+- Match platform tone: Reddit = conversational, community-native; Bluesky = terse and direct
+- Use vocabulary from the existing prompt when available
+- Each prompt must take a substantially different angle
+- Keep each prompt to 3-5 sentences; be specific and actionable
 
-Return ONLY a valid JSON array, no markdown fencing, no commentary, no extra keys:
-[{"text":"<full prompt body>","label":"<2-5 word label>"}, ...]`
+Return ONLY valid JSON, no markdown, no extra text:
+[{"text":"<prompt body>","label":"<2-5 word label>"},...]`
 
 var validPromptPlatforms = map[string]bool{"reddit": true, "bluesky": true}
 var validPromptTypes = map[string]bool{"product": true, "karma": true, "dm": true}
@@ -145,24 +134,11 @@ func (s *PromptService) Suggest(ctx context.Context, projectID string, req Sugge
 		return SuggestPromptResponse{}, http.StatusInternalServerError, "Internal server error"
 	}
 
-	queries, err := s.repo.ListAllQueries(ctx, projectID)
-	if err != nil {
-		return SuggestPromptResponse{}, http.StatusInternalServerError, "Internal server error"
-	}
-
 	// Build existing-key dedup set from current prompts for the same (platform, type).
 	existingKeys := map[string]struct{}{}
 	var existingPromptText string
-	var allPromptSummaries []map[string]string
 	for _, p := range prompts {
 		normalized := strings.TrimSpace(p.PromptText)
-		if normalized != "" {
-			allPromptSummaries = append(allPromptSummaries, map[string]string{
-				"platform": p.Platform,
-				"type":     p.Type,
-				"text":     normalized,
-			})
-		}
 		if p.Platform == platform && p.Type == typ {
 			existingPromptText = normalized
 			if normalized != "" {
@@ -171,30 +147,9 @@ func (s *PromptService) Suggest(ctx context.Context, projectID string, req Sugge
 		}
 	}
 
-	// Build user message.
-	userMsg := fmt.Sprintf(`Project: "%s"`, project.Name)
-	if project.Description != nil && *project.Description != "" {
-		userMsg += "\nDescription: " + *project.Description
-	}
-	userMsg += fmt.Sprintf("\n\nTarget: platform=%s, type=%s", platform, typ)
+	userMsg := fmt.Sprintf("Product: %s\nPlatform: %s, Type: %s", project.Name, platform, typ)
 	if existingPromptText != "" {
-		userMsg += "\n\nCurrent prompt for this slot:\n" + existingPromptText
-	}
-	if len(allPromptSummaries) > 0 {
-		enc, _ := json.Marshal(allPromptSummaries)
-		userMsg += "\n\nAll existing prompts:\n" + string(enc)
-	}
-	if len(queries) > 0 {
-		var querySummaries []map[string]string
-		for _, q := range queries {
-			querySummaries = append(querySummaries, map[string]string{
-				"platform": q.Platform,
-				"query":    q.QueryURL,
-				"angle":    q.Angle,
-			})
-		}
-		enc, _ := json.Marshal(querySummaries)
-		userMsg += "\n\nExisting search queries:\n" + string(enc)
+		userMsg += "\nExisting prompt:\n" + existingPromptText
 	}
 
 	raw, _, err := s.ai.GenerateForTask(ctx, "prompt_suggestion", promptSuggestionSystemPrompt, userMsg)

@@ -79,6 +79,9 @@
       if (resp.notice) {
         suggestError = resp.notice;
       }
+      if (resp.suggestions?.length > 0) {
+        try { localStorage.setItem(storageKey(prompt.platform, prompt.type), JSON.stringify({ suggestions: resp.suggestions })); } catch {}
+      }
     } catch (e) {
       suggestError = e.message;
       aiSuggestions = { ...aiSuggestions, [prompt.id]: [] };
@@ -87,13 +90,42 @@
     }
   }
 
+  function storageKey(platform, type) {
+    return `scout_prompt_suggest_${projectId}_${platform}_${type}`;
+  }
+
+  function loadCachedSuggestions() {
+    for (const pt of PROMPT_TYPES) {
+      const cached = localStorage.getItem(storageKey(pt.platform, pt.type));
+      if (cached) {
+        try {
+          const data = JSON.parse(cached);
+          const prompt = findPrompt(pt.platform, pt.type);
+          if (prompt && data.suggestions?.length > 0) {
+            aiSuggestions = { ...aiSuggestions, [prompt.id]: data.suggestions };
+          }
+        } catch {}
+      }
+    }
+  }
+
   function applySuggestion(prompt, text) {
     promptList = promptList.map(p =>
       p.id === prompt.id ? { ...p, prompt_text: text } : p
     );
+    localStorage.removeItem(storageKey(prompt.platform, prompt.type));
+    aiSuggestions = { ...aiSuggestions, [prompt.id]: undefined };
   }
 
-  onMount(loadPrompts);
+  function discardSuggestions(prompt) {
+    localStorage.removeItem(storageKey(prompt.platform, prompt.type));
+    aiSuggestions = { ...aiSuggestions, [prompt.id]: undefined };
+  }
+
+  onMount(async () => {
+    await loadPrompts();
+    loadCachedSuggestions();
+  });
 </script>
 
 <div class="prompt-editor">
@@ -156,6 +188,11 @@
                         {suggestion.label}
                       </button>
                     {/each}
+                    <button
+                      class="suggestion-dismiss"
+                      onclick={() => discardSuggestions(prompt)}
+                      title="Discard suggestions"
+                    >&times;</button>
                   </div>
                 {/if}
                 <textarea
@@ -454,5 +491,20 @@
     background: #3a3a5a;
     border-color: #7c6af5;
     color: #e2e2e8;
+  }
+
+  .suggestion-dismiss {
+    padding: 0 6px;
+    background: none;
+    border: none;
+    color: #555;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.15s;
+  }
+
+  .suggestion-dismiss:hover {
+    color: #f87171;
   }
 </style>
