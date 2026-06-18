@@ -33,6 +33,18 @@ func MountPromptRoutes(r chi.Router, svc *services.PromptService) {
 		httpx.WriteJSON(w, status, prompt)
 	})
 
+	r.Post("/api/projects/{id}/prompts/suggest", func(w http.ResponseWriter, r *http.Request) {
+		projectID := chi.URLParam(r, "id")
+		var body services.SuggestPromptRequest
+		_ = httpx.DecodeJSON(r, &body)
+		resp, status, msg := svc.Suggest(r.Context(), projectID, body)
+		if msg != "" {
+			httpx.WriteError(w, status, msg)
+			return
+		}
+		httpx.WriteJSON(w, status, resp)
+	})
+
 	r.Patch("/api/projects/{id}/prompts/{pid}", func(w http.ResponseWriter, r *http.Request) {
 		projectID := chi.URLParam(r, "id")
 		pidStr := chi.URLParam(r, "pid")
