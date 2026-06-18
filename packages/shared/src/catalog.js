@@ -99,6 +99,16 @@ export const TASKS = [
       sdk: 'sdk:haiku',
       gemini: 'gemini:2.5-flash',
     } },
+  { id: 'prompt_suggestion', label: 'Prompt Suggestion',   complexity: 'medium',    volume: 'one-time', timeoutMs: 60000,
+    description: 'Generates three complete prompt drafts for a given platform+type slot, seeded with project context and existing queries.',
+    default: 'copilot:gpt-5-mini',
+    defaultByProvider: {
+      copilot: 'copilot:claude-haiku-4.5',
+      'claude-cli': 'claude-cli:sonnet',
+      opencode: 'opencode-go:mimo-v2.5-pro',
+      sdk: 'sdk:haiku',
+      gemini: 'gemini:2.5-flash',
+    } },
 ];
 
 const TIER_RANK = { low: 0, medium: 1, high: 2, reasoning: 3 };
