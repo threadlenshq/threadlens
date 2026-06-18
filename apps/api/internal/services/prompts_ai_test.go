@@ -141,13 +141,22 @@ func TestPromptSuggest_AllProvidersFailed_ReturnsNotice(t *testing.T) {
 	}
 }
 
-// Test 6: Generic AI error returns 500
-func TestPromptSuggest_GenericError_Returns500(t *testing.T) {
+// Test 6: Generic AI error returns 200 with notice (GenerateForTask wraps all provider errors into "all AI providers failed")
+func TestPromptSuggest_GenericError_ReturnsNotice(t *testing.T) {
 	svc, repo := newTestPromptService(t, "", errors.New("upstream timeout"))
 	repo.CreateProject(context.Background(), domain.Project{ID: "p1", Name: "Test", Mode: "research"})
-	_, status, msg := svc.Suggest(context.Background(), "p1", SuggestPromptRequest{Platform: "reddit", Type: "product"})
-	if status != 500 {
-		t.Fatalf("status = %d, want 500; msg = %q", status, msg)
+	resp, status, msg := svc.Suggest(context.Background(), "p1", SuggestPromptRequest{Platform: "reddit", Type: "product"})
+	if msg != "" {
+		t.Fatalf("unexpected error msg: %q", msg)
+	}
+	if status != 200 {
+		t.Fatalf("status = %d, want 200; msg = %q", status, msg)
+	}
+	if len(resp.Suggestions) != 0 {
+		t.Fatalf("expected 0 suggestions, got %d", len(resp.Suggestions))
+	}
+	if resp.Notice == "" {
+		t.Fatal("expected non-empty notice")
 	}
 }
 
