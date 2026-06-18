@@ -133,6 +133,31 @@
             </button>
             {#if expandedId === prompt.id}
               <div class="prompt-body">
+                <div class="suggest-row">
+                  <button
+                    class="suggest-btn"
+                    disabled={suggestingFor === prompt.id}
+                    onclick={() => loadSuggestions(prompt)}
+                  >
+                    {suggestingFor === prompt.id ? 'Suggesting...' : 'Suggest with AI'}
+                  </button>
+                </div>
+                {#if suggestError && aiSuggestions[prompt.id]?.length === 0}
+                  <div class="suggest-notice">{suggestError}</div>
+                {/if}
+                {#if aiSuggestions[prompt.id]?.length > 0}
+                  <div class="chip-row">
+                    {#each aiSuggestions[prompt.id] as suggestion}
+                      <button
+                        class="suggestion-chip"
+                        onclick={() => applySuggestion(prompt, suggestion.text)}
+                        title={suggestion.text}
+                      >
+                        {suggestion.label}
+                      </button>
+                    {/each}
+                  </div>
+                {/if}
                 <textarea
                   class="prompt-textarea"
                   value={prompt.prompt_text || ''}
@@ -367,5 +392,67 @@
   .doc-link:hover {
     color: #61afef;
     background: #61afef20;
+  }
+
+  .suggest-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .suggest-btn {
+    padding: 5px 12px;
+    background: none;
+    border: 1px solid #7c6af5;
+    border-radius: 5px;
+    color: #7c6af5;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .suggest-btn:hover:not(:disabled) {
+    background: #2a2a45;
+  }
+
+  .suggest-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .suggest-notice {
+    padding: 8px 10px;
+    background: #3a2a1a;
+    border: 1px solid #6a4a2a;
+    border-radius: 6px;
+    color: #f5a623;
+    font-size: 12px;
+  }
+
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .suggestion-chip {
+    padding: 4px 10px;
+    background: #2a2a45;
+    border: 1px solid #3a3a5a;
+    border-radius: 14px;
+    color: #c8c8e0;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .suggestion-chip:hover {
+    background: #3a3a5a;
+    border-color: #7c6af5;
+    color: #e2e2e8;
   }
 </style>
