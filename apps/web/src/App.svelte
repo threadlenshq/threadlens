@@ -60,6 +60,7 @@
   let projectList = $state([]);
   let selectedProjectId = $state(null);
   let view = $state('posts'); // 'posts' | 'settings' | 'sources' | 'reports' | 'models'
+  let settingsTab = $state('general');
   let activeReportId = $state(null);
   let activeGoogleReportId = $state(null);
   let reportSource = $state('social'); // 'social' | 'google'
@@ -520,6 +521,7 @@
     }
     const urlState = readUrlState();
     view = urlState.view;
+    settingsTab = urlState.tab;
     reportSource = urlState.reportSource;
     activeReportId = urlState.report;
     activeGoogleReportId = urlState.greport;
@@ -793,7 +795,8 @@
   }
 
   function projectSettingsTabForView(nextView) {
-    return nextView === 'sources' ? 'queries' : 'general';
+    if (nextView === 'sources') return 'queries';
+    return settingsTab;
   }
 
   function navigateTo(nextView) {
@@ -1076,6 +1079,9 @@
     if (!validReportSources.includes(urlState.reportSource)) urlState.reportSource = 'social';
     if (!validPlatforms.includes(urlState.platform)) urlState.platform = 'all';
     if (!validStatuses.includes(urlState.status)) urlState.status = 'new';
+
+    const validTabs = ['general', 'queries', 'prompts', 'schedules', 'advanced'];
+    settingsTab = validTabs.includes(urlState.tab) ? urlState.tab : 'general';
 
     const targetProject = urlState.project && projectList.find(p => p.id === urlState.project)
       ? urlState.project
@@ -1407,7 +1413,7 @@
             onQueriesChanged={handleQueriesChanged}
             onProjectDeleted={handleProjectDeleted}
             onProjectCloned={handleProjectCloned}
-            onTabChange={(tab) => writeUrlState({ tab })}
+            onTabChange={(tab) => { settingsTab = tab; writeUrlState({ tab }); }}
             queryReviewJob={activeQueryReviewJob}
             onQueryReviewJobStarted={handleQueryReviewJobStarted}
             onQueryReviewJobHandled={handleQueryReviewJobHandled}
