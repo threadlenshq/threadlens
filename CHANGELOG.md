@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.14.0 - 2026-06-18
+
+Tag: `threadlens-v0.14.0`
+
+### Features
+
+- feat(ui): block route navigation while AI prompt suggestions are loading (`4c49653`)
+- feat(ui): add review modal for AI prompt suggestions with side-by-side comparison (`f15f255`)
+- feat(ui): add AI suggestion chips and Suggest with AI button to PromptEditor (`6ff8109`)
+- feat(ui): add suggestion state and fetch logic to PromptEditor (`adf59a8`)
+- feat(api): add prompts.suggest client method (`dcc670e`)
+- feat(handlers): add POST /api/projects/{id}/prompts/suggest route (`d7333b1`)
+- feat(services): implement PromptService.Suggest with AI dedup and validation (`f94495a`)
+- feat(services): add AI types and constructor change to PromptService (`134eb78`)
+- feat(catalog): mirror prompt_suggestion in JS TASKS (`50cac22`)
+- feat(ai): add prompt_suggestion task to catalog (`1c4e9e8`)
+
+### Fixes
+
+- fix(ui): persist settings tab selection across navigations (`e125aae`)
+
+### Maintenance
+
+- refactor(ui): move prompt review modal to global fixed overlay with Original chip (`8545800`)
+- perf: tighten AI prompt suggestion system prompt, reduce context, add localStorage persistence with discard (`989654c`)
+- test(handlers): add integration tests for prompt suggest endpoint (`e485e05`)
+- test(services): add unit tests for PromptService.Suggest (`f9cc3bd`)
+- refactor: wire aiSvc into NewPromptService and update test helpers (`7478565`)
+
 ## 0.13.0 - 2026-06-17
 
 Tag: `threadlens-v0.13.0`
