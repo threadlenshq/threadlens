@@ -9,6 +9,9 @@
   let error = $state('');
   let savingId = $state(null);
   let expandedId = $state(null);
+  let suggestingFor = $state(null);
+  let suggestError = $state('');
+  let aiSuggestions = $state({});
 
   const PROMPT_TYPES = [
     { platform: 'reddit', type: 'product', label: 'Reddit Product' },
@@ -64,6 +67,30 @@
 
   function toggleExpand(id) {
     expandedId = expandedId === id ? null : id;
+    suggestError = '';
+  }
+
+  async function loadSuggestions(prompt) {
+    suggestingFor = prompt.id;
+    suggestError = '';
+    try {
+      const resp = await promptsApi.suggest(projectId, { platform: prompt.platform, type: prompt.type });
+      aiSuggestions = { ...aiSuggestions, [prompt.id]: resp.suggestions || [] };
+      if (resp.notice) {
+        suggestError = resp.notice;
+      }
+    } catch (e) {
+      suggestError = e.message;
+      aiSuggestions = { ...aiSuggestions, [prompt.id]: [] };
+    } finally {
+      suggestingFor = null;
+    }
+  }
+
+  function applySuggestion(prompt, text) {
+    promptList = promptList.map(p =>
+      p.id === prompt.id ? { ...p, prompt_text: text } : p
+    );
   }
 
   onMount(loadPrompts);
