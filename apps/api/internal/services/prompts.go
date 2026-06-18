@@ -5,22 +5,42 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/kyle/scout/open-core/apps/api/internal/ai"
 	"github.com/kyle/scout/open-core/apps/api/internal/domain"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
 )
 
 type PromptService struct {
 	repo *repository.Repository
+	ai   *ai.Service
 }
 
-func NewPromptService(repo *repository.Repository) *PromptService {
-	return &PromptService{repo: repo}
+func NewPromptService(repo *repository.Repository, aiSvc *ai.Service) *PromptService {
+	return &PromptService{repo: repo, ai: aiSvc}
 }
 
 type PromptRequest struct {
 	Type       string `json:"type"`
 	Platform   string `json:"platform"`
 	PromptText string `json:"prompt_text"`
+}
+
+// SuggestPromptRequest is the request body for POST /prompts/suggest.
+type SuggestPromptRequest struct {
+	Platform string `json:"platform"`
+	Type     string `json:"type"`
+}
+
+// PromptSuggestion is one AI-generated prompt suggestion.
+type PromptSuggestion struct {
+	Text  string `json:"text"`
+	Label string `json:"label"`
+}
+
+// SuggestPromptResponse is the response for POST /prompts/suggest.
+type SuggestPromptResponse struct {
+	Suggestions []PromptSuggestion `json:"suggestions"`
+	Notice      string             `json:"notice,omitempty"`
 }
 
 func (s *PromptService) List(ctx context.Context, projectID string) ([]domain.Prompt, int, string) {
@@ -70,4 +90,10 @@ func (s *PromptService) Delete(ctx context.Context, projectID string, promptID i
 		return mapError(err)
 	}
 	return http.StatusNoContent, ""
+}
+
+// Suggest generates AI-powered prompt suggestions for a given platform+type slot.
+// Stub: will be fully implemented in Task 5.
+func (s *PromptService) Suggest(ctx context.Context, projectID string, req SuggestPromptRequest) (SuggestPromptResponse, int, string) {
+	return SuggestPromptResponse{}, http.StatusNotImplemented, "Not implemented"
 }
