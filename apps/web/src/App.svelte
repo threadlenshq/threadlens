@@ -95,7 +95,6 @@
 
   // Query readiness state
   let enabledQueryCount = $state(null);
-  let hasGoogleQueries = $state(false);
 
   // Run-awareness state
   let activeRuns = $state([]);
@@ -692,7 +691,6 @@
     await loadPosts();
     await fetchInitialRunState();
     await loadEnabledQueryCount();
-    await loadGoogleReportPresence();
     await fetchQueryReviewJobs();
     await fetchFilterJobs();
   }
@@ -700,16 +698,13 @@
   async function loadEnabledQueryCount() {
     if (!selectedProjectId) {
       enabledQueryCount = null;
-      hasGoogleQueries = false;
       return;
     }
     try {
       const list = await queriesApi.list(selectedProjectId);
       enabledQueryCount = list.filter(q => q.enabled).length;
-      hasGoogleQueries = list.some(q => q.enabled && q.platform === 'google');
     } catch {
       enabledQueryCount = null;
-      hasGoogleQueries = false;
     }
   }
 
@@ -1104,7 +1099,6 @@
       selectedProjectId = targetProject;
       writeUrlState({ project: targetProject }, 'replace');
       await loadEnabledQueryCount();
-      await loadGoogleReportPresence();
       reportSource = urlState.reportSource;
       activeReportId = urlState.report;
       activeGoogleReportId = urlState.greport;
@@ -1128,6 +1122,12 @@
   $effect(() => {
     if (!appInitialized && typeof window !== 'undefined') {
       initializeApp();
+    }
+  });
+
+  $effect(() => {
+    if (showGoogleLockedNotice) {
+      loadGoogleReportPresence();
     }
   });
 </script>
