@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.15.0 - 2026-06-19
+
+Tag: `threadlens-v0.15.0`
+
+### Features
+
+- feat(posts): add recency filter to inbox (Today / Last 3/7/30 days) (`7b9ea65`)
+
+### Fixes
+
+- fix: auto-close project selector dropdown on click outside (`17a0780`)
+
+### Maintenance
+
+- refactor: split Sources into standalone view, remove from ProjectSettings, fix validTabs TDZ crash (`eae2ae7`)
+- perf: defer google report presence check, remove dead hasGoogleQueries state (`4b40524`)
+
 ## 0.14.0 - 2026-06-18
 
 Tag: `threadlens-v0.14.0`
