@@ -1,6 +1,5 @@
 <script>
   import { projects as projectsApi } from '../lib/api.js';
-  import QueryEditor from './QueryEditor.svelte';
   import PromptEditor from './PromptEditor.svelte';
   import ScheduleManager from './ScheduleManager.svelte';
 
@@ -9,14 +8,9 @@
     project,
     initialTab = 'general',
     onProjectUpdated,
-    onQueriesChanged,
     onProjectDeleted,
     onProjectCloned,
     onTabChange,
-    queryReviewJob = null,
-    onQueryReviewJobStarted,
-    onQueryReviewJobHandled,
-    onQueryReviewModalClosed,
   } = $props();
 
   let activeTab = $state(initialTab);
@@ -32,26 +26,30 @@
   let showDeleteConfirm = $state(false);
   let deleteConfirmInput = $state('');
 
+  const tabs = [
+    { id: 'general', label: 'General' },
+    { id: 'prompts', label: 'Prompts' },
+    { id: 'schedules', label: 'Schedules' },
+    { id: 'advanced', label: 'Advanced' },
+  ];
+
+  const validTabs = tabs.map(t => t.id);
   let lastProjectId = projectId;
   $effect(() => {
-    if (project && projectId !== lastProjectId) {
+    if (!project) return;
+    if (projectId !== lastProjectId) {
       lastProjectId = projectId;
       editName = project.name;
       editDescription = project.description || '';
+    }
+    if (!validTabs.includes(activeTab)) {
+      activeTab = 'general';
     }
   });
 
   let generalDirty = $derived(editName !== (project?.name || '') || editDescription !== (project?.description || ''));
   let projectSlug = $derived((project?.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
   let deleteConfirmed = $derived(deleteConfirmInput === projectSlug);
-
-  const tabs = [
-    { id: 'general', label: 'General' },
-    { id: 'queries', label: 'Queries' },
-    { id: 'prompts', label: 'Prompts' },
-    { id: 'schedules', label: 'Schedules' },
-    { id: 'advanced', label: 'Advanced' },
-  ];
 
   async function saveGeneral() {
     if (!editName.trim()) return;
@@ -294,16 +292,6 @@
           </div>
         </div>
       </div>
-
-    {:else if activeTab === 'queries'}
-      <QueryEditor
-        {projectId}
-        onQueriesChanged={(detail) => onQueriesChanged?.(detail)}
-        reviewJob={queryReviewJob}
-        onQueryReviewJobStarted={(job) => onQueryReviewJobStarted?.(job)}
-        onQueryReviewJobHandled={(job) => onQueryReviewJobHandled?.(job)}
-        onQueryReviewModalClosed={() => onQueryReviewModalClosed?.()}
-      />
 
     {:else if activeTab === 'prompts'}
       <PromptEditor {projectId} />

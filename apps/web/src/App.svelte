@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import ProjectSettings from './components/ProjectSettings.svelte';
+  import QueryEditor from './components/QueryEditor.svelte';
   import ScoutRunButton from './components/ScoutRunButton.svelte';
   import ActiveRunBanner from './components/ActiveRunBanner.svelte';
   import TopbarJobBanner from './components/TopbarJobBanner.svelte';
@@ -493,9 +494,8 @@
 
   function reviewQueryJob(job) {
     activeQueryReviewJobId = job.id;
-    // Navigate to Settings > Queries to surface the review modal
     view = 'sources';
-    writeUrlState({ view: 'sources', tab: 'queries' }, 'push');
+    writeUrlState({ view: 'sources' }, 'push');
   }
 
   function handlePopState() {
@@ -521,6 +521,10 @@
     const urlState = readUrlState();
     view = urlState.view;
     settingsTab = urlState.tab;
+    // Normalize legacy tab=queries URLs (queries now live under Sources)
+    if (view === 'settings' && settingsTab === 'queries') {
+      settingsTab = 'general';
+    }
     reportSource = urlState.reportSource;
     activeReportId = urlState.report;
     activeGoogleReportId = urlState.greport;
@@ -789,11 +793,6 @@
     writeUrlState({ reportSource: 'google', report: null, greport: null });
   }
 
-  function projectSettingsTabForView(nextView) {
-    if (nextView === 'sources') return 'queries';
-    return settingsTab;
-  }
-
   function navigateTo(nextView) {
     if (window.__scoutPromptSuggesting) {
       if (!confirm('AI is generating prompt suggestions. Leave anyway?')) return;
@@ -809,8 +808,8 @@
       writeUrlState({ view: 'reports', report: null, greport: null }, 'push');
       return;
     }
-    if (nextView === 'settings' || nextView === 'sources') {
-      writeUrlState({ view: nextView, tab: projectSettingsTabForView(nextView) }, 'push');
+    if (nextView === 'settings') {
+      writeUrlState({ view: 'settings', tab: settingsTab }, 'push');
       return;
     }
     writeUrlState({ view: nextView }, 'push');
@@ -1077,6 +1076,10 @@
 
     const validTabs = ['general', 'queries', 'prompts', 'schedules', 'advanced'];
     settingsTab = validTabs.includes(urlState.tab) ? urlState.tab : 'general';
+    // Normalize legacy tab=queries URLs (queries now live under Sources)
+    if (view === 'settings' && settingsTab === 'queries') {
+      settingsTab = 'general';
+    }
 
     const targetProject = urlState.project && projectList.find(p => p.id === urlState.project)
       ? urlState.project
@@ -1402,22 +1405,30 @@
         </div>
       </div>
 
-    {:else if view === 'settings' || view === 'sources'}
+    {:else if view === 'sources'}
+      <div class="full-width-view">
+        {#key `${selectedProjectId}:${view}`}
+          <QueryEditor
+            projectId={selectedProjectId}
+            reviewJob={activeQueryReviewJob}
+            onQueriesChanged={handleQueriesChanged}
+            onQueryReviewJobStarted={handleQueryReviewJobStarted}
+            onQueryReviewJobHandled={handleQueryReviewJobHandled}
+            onQueryReviewModalClosed={closeQueryReviewModal}
+          />
+        {/key}
+      </div>
+    {:else if view === 'settings'}
       <div class="full-width-view">
         {#key `${selectedProjectId}:${view}`}
           <ProjectSettings
             projectId={selectedProjectId}
             project={currentProject}
-            initialTab={projectSettingsTabForView(view)}
+            initialTab={settingsTab}
             onProjectUpdated={handleProjectUpdated}
-            onQueriesChanged={handleQueriesChanged}
             onProjectDeleted={handleProjectDeleted}
             onProjectCloned={handleProjectCloned}
             onTabChange={(tab) => { settingsTab = tab; writeUrlState({ tab }); }}
-            queryReviewJob={activeQueryReviewJob}
-            onQueryReviewJobStarted={handleQueryReviewJobStarted}
-            onQueryReviewJobHandled={handleQueryReviewJobHandled}
-            onQueryReviewModalClosed={closeQueryReviewModal}
           />
         {/key}
       </div>
