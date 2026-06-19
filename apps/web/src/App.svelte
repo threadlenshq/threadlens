@@ -511,6 +511,7 @@
           status: filterStatus,
           dm: filterDm,
           score: filterScore,
+          max_age: filterMaxAge,
           page: postsPage,
           limit: postsPageLimit,
           post: selectedPost?.id || null,
@@ -532,6 +533,7 @@
     filterStatus = urlState.status;
     filterDm = urlState.dm;
     filterScore = urlState.score;
+    filterMaxAge = urlState.max_age;
     postsPage = urlState.page;
     postsPageLimit = urlState.limit;
 
@@ -580,7 +582,8 @@
   let filterPlatform = $state('all'); // 'all' | 'reddit' | 'bluesky'
   let filterStatus = $state('new');   // 'new' | 'drafted' | 'commented' | 'all'
   let filterDm = $state(false);
-  let filterScore = $state('');        // '' | '3' | '5' | '7' | '9'
+  let filterScore = $state('');        // '' | 'lt3' | '3' | '5' | '7' | '9'
+  let filterMaxAge = $state('');       // '' | '1' | '3' | '7' | '30'
 
   // Bulk selection state
   let selectedIds = $state(new Set());
@@ -652,6 +655,9 @@
         params.max_score = '3';
       } else if (filterScore) {
         params.min_score = filterScore;
+      }
+      if (filterMaxAge) {
+        params.max_age = filterMaxAge;
       }
       params.page = String(postsPage);
       params.limit = String(postsPageLimit);
@@ -841,7 +847,7 @@
     selectedPost = null;
     selectedIds = new Set();
     postsPage = 1;
-    writeUrlState({ platform: filterPlatform, status: filterStatus, dm: filterDm, score: filterScore, post: null, page: postsPage, limit: postsPageLimit });
+    writeUrlState({ platform: filterPlatform, status: filterStatus, dm: filterDm, score: filterScore, max_age: filterMaxAge, post: null, page: postsPage, limit: postsPageLimit });
     await loadPosts();
   }
 
@@ -1069,10 +1075,12 @@
     const validReportSources = ['social', 'google'];
     const validPlatforms = ['all', 'reddit', 'bluesky'];
     const validStatuses = [...POST_STATUSES, 'all'];
+    const validMaxAge = ['', '1', '3', '7', '30'];
     if (!validViews.includes(urlState.view)) urlState.view = 'posts';
     if (!validReportSources.includes(urlState.reportSource)) urlState.reportSource = 'social';
     if (!validPlatforms.includes(urlState.platform)) urlState.platform = 'all';
     if (!validStatuses.includes(urlState.status)) urlState.status = 'new';
+    if (!validMaxAge.includes(urlState.max_age)) urlState.max_age = '';
 
     const validTabs = ['general', 'queries', 'prompts', 'schedules', 'advanced'];
     settingsTab = validTabs.includes(urlState.tab) ? urlState.tab : 'general';
@@ -1095,6 +1103,7 @@
       filterStatus = urlState.status;
       filterDm = urlState.dm;
       filterScore = urlState.score;
+      filterMaxAge = urlState.max_age;
       postsPage = urlState.page;
       postsPageLimit = urlState.limit;
       view = urlState.view;
@@ -1307,6 +1316,16 @@
               <option value="5">5+</option>
               <option value="7">7+</option>
               <option value="9">9+</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">When</span>
+            <select class="filter-select" bind:value={filterMaxAge} onchange={applyFilters}>
+              <option value="">Any time</option>
+              <option value="1">Today</option>
+              <option value="3">Last 3 days</option>
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
             </select>
           </div>
           {#if projectMode === 'marketing'}

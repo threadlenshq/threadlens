@@ -183,6 +183,11 @@ func ParseFilters(q map[string]string) repository.PostFilters {
 	if strings.EqualFold(q["dm"], "true") {
 		f.HasDMTargets = true
 	}
+	if v, ok := q["max_age"]; ok && v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+			f.MaxAgeDays = parsed
+		}
+	}
 	return f
 }
 

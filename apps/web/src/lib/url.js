@@ -8,6 +8,7 @@ const DEFAULTS = {
   status: 'new',
   dm: false,
   score: '',
+  max_age: '',
   page: 1,
   limit: 20,
   post: null,
@@ -30,6 +31,7 @@ export function readUrlState() {
     status: params.get('status') || DEFAULTS.status,
     dm: params.get('dm') === 'true',
     score: params.get('score') || DEFAULTS.score,
+    max_age: params.get('max_age') || DEFAULTS.max_age,
     page: params.get('page') ? Number(params.get('page')) : DEFAULTS.page,
     limit: params.get('limit') ? Number(params.get('limit')) : DEFAULTS.limit,
     post: params.get('post') ? Number(params.get('post')) : DEFAULTS.post,
@@ -60,6 +62,7 @@ export function writeUrlState(state, mode = 'replace') {
   if (merged.status && merged.status !== DEFAULTS.status) params.set('status', merged.status);
   if (merged.dm) params.set('dm', 'true');
   if (merged.score && merged.score !== DEFAULTS.score) params.set('score', merged.score);
+  if (merged.max_age && merged.max_age !== DEFAULTS.max_age) params.set('max_age', merged.max_age);
   if (merged.page && merged.page !== DEFAULTS.page) params.set('page', String(merged.page));
   if (merged.limit && merged.limit !== DEFAULTS.limit) params.set('limit', String(merged.limit));
   if (merged.post) params.set('post', String(merged.post));

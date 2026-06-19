@@ -110,3 +110,56 @@ func TestInsertSocialPosts_FilterMetadataRoundTrips(t *testing.T) {
 		t.Fatalf("expected filtered post excluded from default list, got %d posts", len(listed))
 	}
 }
+
+func TestListPosts_MaxAgeDays(t *testing.T) {
+	db := testhelpers.OpenTestDB(t)
+	repo := repository.New(db)
+	ctx := context.Background()
+	seedPostProject(t, repo, "proj-age")
+
+	old := "2026-05-01T12:00:00Z"
+	recent := "2026-06-18T12:00:00Z"
+	posts := []domain.Post{
+		{
+			ID:           "old-post",
+			ProjectID:    "proj-age",
+			Platform:     "reddit",
+			Title:        "Old post",
+			Body:         "body",
+			Author:       "user1",
+			URL:          "https://reddit.com/r/x/old",
+			PostScore:    5,
+			FinalScore:   5,
+			EngagementType: "karma",
+			Status:       "new",
+			FilterState:  domain.FilterStateVisible,
+			CreatedAt:    &old,
+		},
+		{
+			ID:           "recent-post",
+			ProjectID:    "proj-age",
+			Platform:     "reddit",
+			Title:        "Recent post",
+			Body:         "body",
+			Author:       "user2",
+			URL:          "https://reddit.com/r/x/recent",
+			PostScore:    5,
+			FinalScore:   5,
+			EngagementType: "karma",
+			Status:       "new",
+			FilterState:  domain.FilterStateVisible,
+			CreatedAt:    &recent,
+		},
+	}
+	if _, err := repo.InsertSocialPosts(ctx, posts); err != nil {
+		t.Fatalf("InsertSocialPosts: %v", err)
+	}
+
+	listed, err := repo.ListPosts(ctx, "proj-age", repository.PostFilters{MaxAgeDays: 1})
+	if err != nil {
+		t.Fatalf("ListPosts: %v", err)
+	}
+	if len(listed) != 1 || listed[0].ID != "recent-post" {
+		t.Fatalf("expected only recent post, got %v", listed)
+	}
+}

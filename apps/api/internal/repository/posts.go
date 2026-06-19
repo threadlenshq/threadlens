@@ -19,6 +19,7 @@ type PostFilters struct {
 	EngagementType string
 	SignalType     string
 	HasDMTargets   bool
+	MaxAgeDays     int
 }
 
 // PatchPostRequest contains mutable fields for a single post patch.
@@ -415,6 +416,10 @@ func buildPostFilterClauses(filters PostFilters) ([]string, []any) {
 	}
 	if filters.HasDMTargets {
 		clauses = append(clauses, "EXISTS (SELECT 1 FROM dm_targets WHERE dm_targets.post_id = posts.id)")
+	}
+	if filters.MaxAgeDays > 0 {
+		clauses = append(clauses, "datetime(COALESCE(created_at, found_at)) >= datetime('now', '-' || ? || ' days')")
+		params = append(params, filters.MaxAgeDays)
 	}
 
 	return clauses, params
