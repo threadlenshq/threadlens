@@ -4,6 +4,7 @@
   let { projects = [], selectedId = null, onSelect, onRequestCreate, collapsed = false } = $props();
 
   let open = $state(false);
+  let container = $state(null);
 
   let selectedProject = $derived(projects.find(p => p.id === selectedId) || null);
 
@@ -11,19 +12,29 @@
     open = !open;
   }
 
-  function selectProject(id) {
-    onSelect?.(id);
+  function close() {
     open = false;
   }
 
+  function selectProject(id) {
+    onSelect?.(id);
+    close();
+  }
+
   function requestCreate() {
-    open = false;
+    close();
     onRequestCreate?.();
   }
 
   function handleKeydown(e) {
     if (e.key === 'Escape') {
-      open = false;
+      close();
+    }
+  }
+
+  function handleOutsideClick(e) {
+    if (open && container && !container.contains(e.target)) {
+      close();
     }
   }
 
@@ -32,9 +43,9 @@
   }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} onclick={handleOutsideClick} />
 
-<div class="project-selector" data-testid="project-selector" class:collapsed>
+<div class="project-selector" data-testid="project-selector" class:collapsed bind:this={container}>
   <button class="selector-btn" onclick={toggle} title={collapsed && selectedProject ? selectedProject.name : "Select Project"}>
     {#if collapsed}
       <span class="project-initial">
