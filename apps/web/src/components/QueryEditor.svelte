@@ -631,7 +631,7 @@
     min-width: 0;
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 2.5rem;
   }
 
   .query-row-actions {
