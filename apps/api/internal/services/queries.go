@@ -35,7 +35,7 @@ type QueryRequest struct {
 	Enabled  *bool  `json:"enabled"`
 }
 
-func (s *QueryService) List(ctx context.Context, projectID string) ([]domain.Query, int, string) {
+func (s *QueryService) List(ctx context.Context, projectID string) ([]QueryWithQuality, int, string) {
 	// Verify project exists
 	if _, err := s.repo.GetProject(ctx, projectID); err != nil {
 		code, msg := mapError(err)
@@ -45,7 +45,31 @@ func (s *QueryService) List(ctx context.Context, projectID string) ([]domain.Que
 	if err != nil {
 		return nil, http.StatusInternalServerError, "Internal server error"
 	}
-	return queries, http.StatusOK, ""
+
+	socialRep, _, _ := s.repo.PickSocialReport(ctx, projectID, 0, 0)
+	socialCtx := buildSocialQualityContext(socialRep)
+
+	googleRep, _, _ := s.repo.PickGoogleReport(ctx, projectID, 0)
+	var gq googleQualityData
+	if googleRep != nil {
+		rows, _ := s.repo.ListGoogleKeywordRows(ctx, projectID, googleRep.RunID)
+		gq = buildGoogleQuality(rows, googleRep.ID)
+	}
+
+	result := make([]QueryWithQuality, 0, len(queries))
+	for _, q := range queries {
+		result = append(result, QueryWithQuality{
+			ID:        q.ID,
+			ProjectID: q.ProjectID,
+			Platform:  q.Platform,
+			QueryURL:  q.QueryURL,
+			Angle:     q.Angle,
+			Enabled:   q.Enabled,
+			CreatedAt: q.CreatedAt,
+			Quality:   buildQueryQuality(q.Platform, q.QueryURL, q.Angle, socialRep, socialCtx, gq),
+		})
+	}
+	return result, http.StatusOK, ""
 }
 
 func (s *QueryService) Create(ctx context.Context, projectID string, body QueryRequest) (domain.Query, int, string) {
