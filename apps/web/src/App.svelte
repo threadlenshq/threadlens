@@ -1094,11 +1094,6 @@
       : projectList[0]?.id || null;
 
     if (targetProject) {
-      const proj = projectList.find(p => p.id === targetProject);
-      if (urlState.view === 'reports' && proj?.mode !== 'research') {
-        urlState.view = 'posts';
-      }
-
       filterPlatform = urlState.platform;
       filterStatus = urlState.status;
       filterDm = urlState.dm;
@@ -1109,7 +1104,7 @@
       view = urlState.view;
 
       selectedProjectId = targetProject;
-      writeUrlState({ project: targetProject }, 'replace');
+      writeUrlState({ project: targetProject, view: urlState.view }, 'replace');
       await loadEnabledQueryCount();
       reportSource = urlState.reportSource;
       activeReportId = urlState.report;
