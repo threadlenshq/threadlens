@@ -67,6 +67,7 @@ func (s *GoogleService) ListGoogleKeywordSummaries(ctx context.Context, projectI
 // GoogleResultsResponse is the response shape for the results endpoint.
 type GoogleResultsResponse struct {
 	Mode    string                    `json:"mode"`
+	Total   int                       `json:"total"`
 	Results []repository.GoogleResult `json:"results"`
 }
 
@@ -104,16 +105,41 @@ func (s *GoogleService) GetGoogleResults(ctx context.Context, projectID string, 
 		return GoogleResultsResponse{}, http.StatusInternalServerError, "Internal server error"
 	}
 
-	ranked, rankErr := RankGoogleResults(results, mode, limit)
+	ranked, total, rankErr := RankGoogleResultsCounted(results, mode, limit)
 	if rankErr != nil {
 		return GoogleResultsResponse{}, http.StatusBadRequest, rankErr.Error()
 	}
 
-	return GoogleResultsResponse{Mode: mode, Results: ranked}, http.StatusOK, ""
+	return GoogleResultsResponse{Mode: mode, Total: total, Results: ranked}, http.StatusOK, ""
 }
 
 // RankGoogleResults filters and sorts results by mode, returning up to limit items.
 func RankGoogleResults(results []repository.GoogleResult, mode string, limit int) ([]repository.GoogleResult, error) {
+	filtered, err := rankGoogleResultsNoTrunc(results, mode)
+	if err != nil {
+		return nil, err
+	}
+	if limit > 0 && len(filtered) > limit {
+		filtered = filtered[:limit]
+	}
+	return filtered, nil
+}
+
+// RankGoogleResultsCounted is like RankGoogleResults but returns (results, totalPreTruncation).
+func RankGoogleResultsCounted(results []repository.GoogleResult, mode string, limit int) ([]repository.GoogleResult, int, error) {
+	filtered, err := rankGoogleResultsNoTrunc(results, mode)
+	if err != nil {
+		return nil, 0, err
+	}
+	total := len(filtered)
+	if limit > 0 && len(filtered) > limit {
+		filtered = filtered[:limit]
+	}
+	return filtered, total, nil
+}
+
+// rankGoogleResultsNoTrunc filters and sorts without truncating.
+func rankGoogleResultsNoTrunc(results []repository.GoogleResult, mode string) ([]repository.GoogleResult, error) {
 	validModes := map[string]bool{"seo": true, "messaging": true, "competitor": true, "outreach": true}
 	if !validModes[mode] {
 		return nil, &rankError{"mode must be one of seo, messaging, competitor, outreach"}
@@ -175,9 +201,6 @@ func RankGoogleResults(results []repository.GoogleResult, mode string, limit int
 
 	if filtered == nil {
 		filtered = []repository.GoogleResult{}
-	}
-	if limit > 0 && len(filtered) > limit {
-		filtered = filtered[:limit]
 	}
 	return filtered, nil
 }

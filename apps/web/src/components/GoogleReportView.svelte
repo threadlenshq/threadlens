@@ -10,6 +10,7 @@
   let keywordSummaries = $state([]);
   let selectedMode = $state('seo');
   let ranked = $state([]);
+  let rankedTotal = $state(0);
   let loading = $state(true);
   let loadingRanked = $state(false);
   let pageError = $state(null);
@@ -27,6 +28,7 @@
       report = reportData;
       keywordSummaries = summaryData;
       ranked = [];
+      rankedTotal = 0;
       await loadRanked(selectedMode);
     } catch (e) {
       pageError = e.message || 'Failed to load Google report';
@@ -42,9 +44,25 @@
       rankedError = null;
       const data = await googleApi.rankedResults(projectId, reportId, { mode });
       ranked = data.results || [];
+      rankedTotal = data.total || 0;
     } catch (e) {
       ranked = [];
       rankedError = e.message || 'Failed to load ranked results';
+    } finally {
+      loadingRanked = false;
+    }
+  }
+
+  async function loadMoreRanked() {
+    if (loadingRanked) return;
+    loadingRanked = true;
+    try {
+      rankedError = null;
+      const data = await googleApi.rankedResults(projectId, reportId, { mode: selectedMode, limit: 100 });
+      ranked = data.results || [];
+      rankedTotal = data.total || 0;
+    } catch (e) {
+      rankedError = e.message || 'Failed to load more results';
     } finally {
       loadingRanked = false;
     }
@@ -237,6 +255,9 @@
     <div class="results-section">
       <div class="results-header">
         <h3>Ranked Results <a class="doc-link" href="https://docs.threadlens.dev/user-guide/reports/#google-reports" target="_blank" rel="noopener" title="Search results ranked by relevance for each mode">?</a></h3>
+        {#if rankedTotal > 0}
+          <span class="ranked-count">Showing {ranked.length} of {rankedTotal}</span>
+        {/if}
         <div class="mode-tabs">
           {#each modes as mode}
             <button class="mode-btn" class:active={selectedMode === mode} onclick={() => loadRanked(mode)}>
@@ -270,6 +291,11 @@
               </a>
             {/each}
           </div>
+          {#if rankedTotal > ranked.length}
+            <button class="load-more-btn" onclick={loadMoreRanked} disabled={loadingRanked}>
+              {loadingRanked ? 'Loading...' : `Load all ${rankedTotal} results`}
+            </button>
+          {/if}
         {/if}
       {/if}
     </div>
@@ -599,6 +625,33 @@
     color: #c0c0d0;
     font-size: 13px;
     line-height: 1.5;
+  }
+
+  .load-more-btn {
+    margin-top: 12px;
+    padding: 8px 16px;
+    background: #23233a;
+    border: 1px solid #2a2a3a;
+    border-radius: 6px;
+    color: #c0c0d0;
+    font-size: 13px;
+    cursor: pointer;
+    width: 100%;
+  }
+
+  .load-more-btn:hover:not(:disabled) {
+    color: #e2e2e8;
+    border-color: #7c6af5;
+  }
+
+  .load-more-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .ranked-count {
+    font-size: 12px;
+    color: #888;
   }
 
   .doc-link {
