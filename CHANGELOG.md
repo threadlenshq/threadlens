@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.17.0 - 2026-06-23
+
+Tag: `threadlens-v0.17.0`
+
+### Fixes
+
+- fix(google): show total ranked result count and add Load More button for paginated results (`29fa9f9`)
+- fix: remove stale project-mode guard that reset view=reports to inbox on reload (`384fc92`)
+- fix: wire query quality computation into List endpoint so sources view shows real signal instead of fallback 'No signal yet' (`2cabe72`)
+- fix: wrap external link and angle tag together so gap only applies to query text (`c7ea8ea`)
+- fix: remove truncate wrapper, let CSS handle text-overflow ellipse (`f1c6483`)
+- fix: show Reddit search terms instead of query URL in QueryEditor (`74b63a7`)
+
+### Maintenance
+
+- style: increase query-row-main gap to 2.5rem (`d6606ce`)
+- style: increase gap between query text and external link for cleaner truncation (`ba056a5`)
+
 ## 0.16.0 - 2026-06-23
 
 Tag: `threadlens-v0.16.0`
