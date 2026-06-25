@@ -979,14 +979,25 @@
     writeUrlState({ post: selectedPost.id });
   }
 
-  function handleNavigateToPostFromManual(post) {
+  async function handleNavigateToPostFromManual(post) {
     view = 'posts';
-    selectedPost = post;
     filterStatus = 'all';
     generateError = null;
     postReplyResult = null;
     writeUrlState({ view: 'posts', post: post.id, status: 'all', tab: 'general' }, 'push');
-    loadPosts();
+
+    let fullPost = null;
+    try {
+      fullPost = await postsApi.get(selectedProjectId, post.id);
+      selectedPost = fullPost;
+    } catch {
+      selectedPost = post;
+    }
+
+    await loadPosts();
+    if (!selectedPost || selectedPost.id !== post.id) {
+      selectedPost = fullPost || post;
+    }
   }
 
   // --- Bulk selection handlers ---

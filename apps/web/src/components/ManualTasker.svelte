@@ -41,6 +41,8 @@
       result = await manualScout(projectId, url.trim(), platform);
       if (result.post_id) {
         await fetchPostDetails(result.post_id);
+      } else if (result.post?.id) {
+        await fetchPostDetails(result.post.id);
       }
     } catch (e) {
       error = e.message;
