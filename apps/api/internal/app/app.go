@@ -48,8 +48,9 @@ type App struct {
 	ReportService     *services.ReportService
 	GoogleService     *services.GoogleService
 	ScoutService      *services.ScoutService
-	ScheduleService   *services.ScheduleService
-	FilterClassifier  *pipeline.FilterClassifier
+	ScheduleService    *services.ScheduleService
+	ManualScoutService *services.ManualScoutService
+	FilterClassifier   *pipeline.FilterClassifier
 	TelemetryRecorder *telemetry.Recorder
 	SettingsRepo      *settings.Repository
 }
@@ -116,8 +117,9 @@ func New(cfg Config, db *sql.DB) *App {
 		ReportService:     services.NewReportService(repo, db, aiSvc, cfg.RuntimeMode, entitlementResolver),
 		GoogleService:     services.NewGoogleService(repo),
 		ScoutService:      services.NewScoutService(repo, runner, cfg.RuntimeMode, entitlementResolver),
-		ScheduleService:   services.NewScheduleService(repo, sched),
-		FilterClassifier:  filterClassifier,
+		ScheduleService:    services.NewScheduleService(repo, sched),
+		ManualScoutService: services.NewManualScoutService(repo, aiSvc, filterClassifier, cfg.RuntimeMode, entitlementResolver),
+		FilterClassifier:   filterClassifier,
 		TelemetryRecorder: telemetryRecorder,
 		SettingsRepo:      settingsRepo,
 	}
