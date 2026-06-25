@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -179,9 +180,13 @@ func (s *ManualScoutService) ScoutPost(ctx context.Context, projectID string, ur
 	if seenIDs[postID] {
 		existing, err := s.repo.GetPost(ctx, projectID, postID)
 		if err != nil {
-			return ManualScoutResult{}, http.StatusInternalServerError, "Internal server error"
+			if errors.Is(err, repository.ErrNotFound) {
+			} else {
+				return ManualScoutResult{}, http.StatusInternalServerError, "Internal server error"
+			}
+		} else {
+			return ManualScoutResult{Status: "already_scouted", Post: &existing}, http.StatusOK, ""
 		}
-		return ManualScoutResult{Status: "already_scouted", Post: &existing}, http.StatusOK, ""
 	}
 
 	filterDecision, err := s.filterClassifier.Classify(ctx, projectID, pipeline.NormalizeFetchedPostForFiltering(platform, projectID, *fetched))
