@@ -28,6 +28,7 @@
   import GoogleReportsTab from './components/GoogleReportsTab.svelte';
   import GoogleReportView from './components/GoogleReportView.svelte';
   import ModelConfig from './components/ModelConfig.svelte';
+  import ManualTasker from './components/ManualTasker.svelte';
   import NewProjectModal from './components/NewProjectModal.svelte';
   import GoogleLockedNotice from './components/GoogleLockedNotice.svelte';
   import { isGoogleScoutLocked } from './lib/capabilities.js';
@@ -1071,7 +1072,7 @@
 
     const urlState = readUrlState();
 
-    const validViews = ['posts', 'settings', 'sources', 'reports', 'models', 'filtered', 'privacy'];
+    const validViews = ['posts', 'settings', 'sources', 'reports', 'models', 'filtered', 'privacy', 'manual'];
     const validReportSources = ['social', 'google'];
     const validPlatforms = ['all', 'reddit', 'bluesky'];
     const validStatuses = [...POST_STATUSES, 'all'];
@@ -1222,6 +1223,8 @@
       <div class="full-width-view">
         <ModelConfig />
       </div>
+    {:else if view === 'manual'}
+      <ManualTasker projectId={selectedProjectId} />
     {:else if view === 'posts'}
       <!-- Filter bar / Bulk action bar -->
       {#if bulkMode}
