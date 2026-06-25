@@ -979,6 +979,16 @@
     writeUrlState({ post: selectedPost.id });
   }
 
+  function handleNavigateToPostFromManual(post) {
+    view = 'posts';
+    selectedPost = post;
+    filterStatus = 'all';
+    generateError = null;
+    postReplyResult = null;
+    writeUrlState({ view: 'posts', post: post.id, status: 'all', tab: 'general' }, 'push');
+    loadPosts();
+  }
+
   // --- Bulk selection handlers ---
   function handleBulkToggle(detail) {
     const postId = detail.id;
@@ -1225,7 +1235,7 @@
       </div>
     {:else if view === 'manual'}
       <div class="full-width-view">
-        <ManualTasker projectId={selectedProjectId} />
+        <ManualTasker projectId={selectedProjectId} onNavigateToPost={handleNavigateToPostFromManual} />
       </div>
     {:else if view === 'posts'}
       <!-- Filter bar / Bulk action bar -->

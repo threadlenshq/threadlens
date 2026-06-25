@@ -3,7 +3,7 @@
   import PostCard from './PostCard.svelte';
   import { scoreColor } from '../lib/format.js';
 
-  let { projectId } = $props();
+  let { projectId, onNavigateToPost } = $props();
 
   let url = $state('');
   let platform = $state('reddit');
@@ -146,7 +146,7 @@
         {#if postLoading}
           <div class="post-loading"><span class="spinner"></span> Loading post details...</div>
         {:else if fetchedPost}
-          <PostCard post={fetchedPost} />
+          <PostCard post={fetchedPost} onSelect={() => onNavigateToPost?.(fetchedPost)} />
         {:else if result.post}
           <div class="post-info">
             <a class="post-link" href={result.post.url} target="_blank" rel="noopener">
@@ -158,6 +158,9 @@
               </span>
             {/if}
           </div>
+          <button type="button" class="view-in-inbox-btn" onclick={() => onNavigateToPost?.(result.post)}>
+            View in Inbox
+          </button>
         {/if}
 
       {:else if result.status === 'already_scouted'}
@@ -168,7 +171,7 @@
         {#if postLoading}
           <div class="post-loading"><span class="spinner"></span> Loading post details...</div>
         {:else if fetchedPost}
-          <PostCard post={fetchedPost} />
+          <PostCard post={fetchedPost} onSelect={() => onNavigateToPost?.(fetchedPost)} />
         {:else if result.post}
           <div class="post-info">
             <a class="post-link" href={result.post.url} target="_blank" rel="noopener">
@@ -180,6 +183,9 @@
               </span>
             {/if}
           </div>
+          <button type="button" class="view-in-inbox-btn" onclick={() => onNavigateToPost?.(result.post)}>
+            View in Inbox
+          </button>
         {/if}
 
       {:else if result.status === 'needs_decision'}
@@ -190,7 +196,7 @@
         {#if postLoading}
           <div class="post-loading"><span class="spinner"></span> Loading post details...</div>
         {:else if fetchedPost}
-          <PostCard post={fetchedPost} />
+          <PostCard post={fetchedPost} onSelect={() => onNavigateToPost?.(fetchedPost)} />
         {:else if result.post}
           <div class="post-info">
             <a class="post-link" href={result.post.url} target="_blank" rel="noopener">
@@ -202,6 +208,9 @@
               </span>
             {/if}
           </div>
+          <button type="button" class="view-in-inbox-btn" onclick={() => onNavigateToPost?.(result.post)}>
+            View in Inbox
+          </button>
         {/if}
         <div class="decision-actions">
           <button
@@ -533,6 +542,27 @@
     font-size: 13px;
     color: #f87171;
     margin: 0;
+  }
+
+  .view-in-inbox-btn {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: #7c6af518;
+    border: 1px solid #7c6af530;
+    border-radius: 4px;
+    color: #7c6af5;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .view-in-inbox-btn:hover {
+    background: #7c6af528;
+    border-color: #7c6af5;
   }
 
   .reset-btn {
