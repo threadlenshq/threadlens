@@ -1224,7 +1224,9 @@
         <ModelConfig />
       </div>
     {:else if view === 'manual'}
-      <ManualTasker projectId={selectedProjectId} />
+      <div class="full-width-view">
+        <ManualTasker projectId={selectedProjectId} />
+      </div>
     {:else if view === 'posts'}
       <!-- Filter bar / Bulk action bar -->
       {#if bulkMode}

@@ -229,13 +229,14 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    max-width: 600px;
+    max-width: 900px;
   }
 
   .scout-form {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    width: 100%;
   }
 
   .field-group {
