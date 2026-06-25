@@ -62,6 +62,7 @@ type FetchedPost struct {
 	RepostCount       int
 	IndexedAt         string
 	PostURL           string
+	TopComments       []RedditComment // optional, populated by FetchSingleRedditPost
 }
 
 // IsPromotional returns true if the post matches promotional patterns.
