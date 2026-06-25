@@ -34,7 +34,7 @@ export function readUrlState() {
     max_age: params.get('max_age') || DEFAULTS.max_age,
     page: params.get('page') ? Number(params.get('page')) : DEFAULTS.page,
     limit: params.get('limit') ? Number(params.get('limit')) : DEFAULTS.limit,
-    post: params.get('post') ? Number(params.get('post')) : DEFAULTS.post,
+    post: params.get('post') || DEFAULTS.post,
     report: params.get('report') ? Number(params.get('report')) : DEFAULTS.report,
     greport: params.get('greport') ? Number(params.get('greport')) : DEFAULTS.greport,
     tab: params.get('tab') || DEFAULTS.tab,
