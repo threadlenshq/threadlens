@@ -1,5 +1,6 @@
 <script>
-  import { manualScout, manualScoutCommit } from '../lib/api.js';
+  import { manualScout, manualScoutCommit, posts } from '../lib/api.js';
+  import PostCard from './PostCard.svelte';
   import { scoreColor } from '../lib/format.js';
 
   let { projectId } = $props();
@@ -10,8 +11,22 @@
   let result = $state(null);
   let error = $state('');
   let decisionLoading = $state(false);
+  let postLoading = $state(false);
+  let fetchedPost = $state(null);
 
   let canSubmit = $derived(url.trim().length > 0 && !loading);
+
+  async function fetchPostDetails(postId) {
+    if (!postId) return;
+    postLoading = true;
+    try {
+      fetchedPost = await posts.get(projectId, postId);
+    } catch {
+      fetchedPost = null;
+    } finally {
+      postLoading = false;
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -20,9 +35,13 @@
     loading = true;
     error = '';
     result = null;
+    fetchedPost = null;
 
     try {
       result = await manualScout(projectId, url.trim(), platform);
+      if (result.post_id) {
+        await fetchPostDetails(result.post_id);
+      }
     } catch (e) {
       error = e.message;
       result = null;
@@ -40,6 +59,10 @@
     try {
       const commitResult = await manualScoutCommit(projectId, decision, result.post);
       result = commitResult;
+      fetchedPost = null;
+      if (commitResult.post_id) {
+        await fetchPostDetails(commitResult.post_id);
+      }
     } catch (e) {
       error = e.message;
     } finally {
@@ -54,6 +77,8 @@
     error = '';
     loading = false;
     decisionLoading = false;
+    postLoading = false;
+    fetchedPost = null;
   }
 </script>
 
@@ -118,7 +143,11 @@
           <span class="result-icon">&#10003;</span>
           <span class="result-title">Saved</span>
         </div>
-        {#if result.post}
+        {#if postLoading}
+          <div class="post-loading"><span class="spinner"></span> Loading post details...</div>
+        {:else if fetchedPost}
+          <PostCard post={fetchedPost} />
+        {:else if result.post}
           <div class="post-info">
             <a class="post-link" href={result.post.url} target="_blank" rel="noopener">
               {result.post.title || result.post.body || 'Untitled post'}
@@ -136,7 +165,11 @@
           <span class="result-icon">&#9432;</span>
           <span class="result-title">Already Scouted</span>
         </div>
-        {#if result.post}
+        {#if postLoading}
+          <div class="post-loading"><span class="spinner"></span> Loading post details...</div>
+        {:else if fetchedPost}
+          <PostCard post={fetchedPost} />
+        {:else if result.post}
           <div class="post-info">
             <a class="post-link" href={result.post.url} target="_blank" rel="noopener">
               {result.post.title || result.post.body || 'Untitled post'}
@@ -154,7 +187,11 @@
           <span class="result-icon">&#9888;</span>
           <span class="result-title">Needs Decision</span>
         </div>
-        {#if result.post}
+        {#if postLoading}
+          <div class="post-loading"><span class="spinner"></span> Loading post details...</div>
+        {:else if fetchedPost}
+          <PostCard post={fetchedPost} />
+        {:else if result.post}
           <div class="post-info">
             <a class="post-link" href={result.post.url} target="_blank" rel="noopener">
               {result.post.title || result.post.body || 'Untitled post'}
@@ -396,6 +433,14 @@
 
   .result-icon {
     font-size: 16px;
+  }
+
+  .post-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #888;
   }
 
   .post-info {

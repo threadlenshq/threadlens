@@ -2,11 +2,14 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/svelte';
 import ManualTasker from './ManualTasker.svelte';
-import { manualScout, manualScoutCommit } from '../lib/api.js';
+import { manualScout, manualScoutCommit, posts } from '../lib/api.js';
 
 vi.mock('../lib/api.js', () => ({
   manualScout: vi.fn(),
   manualScoutCommit: vi.fn(),
+  posts: {
+    get: vi.fn(),
+  },
 }));
 
 vi.mock('../lib/format.js', () => ({
@@ -41,7 +44,8 @@ describe('ManualTasker', () => {
   });
 
   it('calls manualScout on submit with valid URL and platform', async () => {
-    manualScout.mockResolvedValue({ status: 'saved', post: { title: 'Test Post', url: 'https://reddit.com/r/test' } });
+    manualScout.mockResolvedValue({ status: 'saved', post_id: 't3_test', post: { title: 'Test Post', url: 'https://reddit.com/r/test' } });
+    posts.get.mockResolvedValue({ title: 'Test Post', url: 'https://reddit.com/r/test', platform: 'reddit' });
 
     render(ManualTasker, { props: { projectId: TEST_PROJECT_ID } });
 
@@ -53,12 +57,13 @@ describe('ManualTasker', () => {
 
     expect(manualScout).toHaveBeenCalledTimes(1);
     expect(manualScout).toHaveBeenCalledWith(TEST_PROJECT_ID, 'https://reddit.com/r/test', 'reddit');
+    expect(posts.get).toHaveBeenCalledWith(TEST_PROJECT_ID, 't3_test');
   });
 
   it('shows loading state during submit', async () => {
-    let resolve;
-    const promise = new Promise((res) => { resolve = res; });
-    manualScout.mockReturnValue(promise);
+    let resolveScout;
+    const scoutPromise = new Promise((res) => { resolveScout = res; });
+    manualScout.mockReturnValue(scoutPromise);
 
     render(ManualTasker, { props: { projectId: TEST_PROJECT_ID } });
 
@@ -71,15 +76,21 @@ describe('ManualTasker', () => {
     expect(screen.getByText(/scouting.../i)).toBeTruthy();
     expect(screen.queryByText(/scout url/i)).toBeNull();
 
-    resolve({ status: 'saved', post: { title: 'Test' } });
+    posts.get.mockResolvedValue({ title: 'Test', platform: 'reddit' });
+    resolveScout({ status: 'saved', post_id: 't3_loading', post: { title: 'Test' } });
     await waitFor(() => expect(screen.queryByText(/scouting.../i)).toBeNull());
   });
 
   it('shows "saved" success state with green display', async () => {
     manualScout.mockResolvedValue({
       status: 'saved',
+      post_id: 't3_save',
       post: { title: 'Great Post', url: 'https://reddit.com/r/test', final_score: 7.5 },
       score: 7.5,
+    });
+    posts.get.mockResolvedValue({
+      title: 'Great Post', url: 'https://reddit.com/r/test', final_score: 7.5,
+      platform: 'reddit', status: 'new', body: 'Great content',
     });
 
     render(ManualTasker, { props: { projectId: TEST_PROJECT_ID } });
@@ -91,13 +102,19 @@ describe('ManualTasker', () => {
     await fireEvent.click(submitBtn);
 
     await waitFor(() => expect(screen.getByText('Saved')).toBeTruthy());
-    expect(screen.getByText('Great Post')).toBeTruthy();
+    expect(posts.get).toHaveBeenCalledWith(TEST_PROJECT_ID, 't3_save');
+    await waitFor(() => expect(screen.getByText('Great Post')).toBeTruthy());
   });
 
   it('shows "already_scouted" state with blue info display', async () => {
     manualScout.mockResolvedValue({
       status: 'already_scouted',
+      post_id: 't3_old',
       post: { title: 'Old Post', url: 'https://reddit.com/r/test', final_score: 5.0 },
+    });
+    posts.get.mockResolvedValue({
+      title: 'Old Post', url: 'https://reddit.com/r/test', final_score: 5.0,
+      platform: 'reddit', status: 'reviewed',
     });
 
     render(ManualTasker, { props: { projectId: TEST_PROJECT_ID } });
@@ -109,14 +126,20 @@ describe('ManualTasker', () => {
     await fireEvent.click(submitBtn);
 
     await waitFor(() => expect(screen.getByText('Already Scouted')).toBeTruthy());
-    expect(screen.getByText('Old Post')).toBeTruthy();
+    expect(posts.get).toHaveBeenCalledWith(TEST_PROJECT_ID, 't3_old');
+    await waitFor(() => expect(screen.getByText('Old Post')).toBeTruthy());
   });
 
   it('shows "needs_decision" with Keep/Exclude buttons and post data', async () => {
     manualScout.mockResolvedValue({
       status: 'needs_decision',
+      post_id: 't3_decide',
       post: { title: 'Borderline Post', url: 'https://reddit.com/r/test', post_score: 1.5 },
       score: 1.5,
+    });
+    posts.get.mockResolvedValue({
+      title: 'Borderline Post', url: 'https://reddit.com/r/test', post_score: 1.5,
+      platform: 'reddit', status: 'drafted',
     });
 
     render(ManualTasker, { props: { projectId: TEST_PROJECT_ID } });
@@ -128,7 +151,8 @@ describe('ManualTasker', () => {
     await fireEvent.click(submitBtn);
 
     await waitFor(() => expect(screen.getByText('Needs Decision')).toBeTruthy());
-    expect(screen.getByText('Borderline Post')).toBeTruthy();
+    expect(posts.get).toHaveBeenCalledWith(TEST_PROJECT_ID, 't3_decide');
+    await waitFor(() => expect(screen.getByText('Borderline Post')).toBeTruthy());
     expect(screen.getByRole('button', { name: /keep/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /exclude/i })).toBeTruthy();
   });
@@ -178,10 +202,19 @@ describe('ManualTasker', () => {
     const postData = { title: 'Borderline Post', url: 'https://reddit.com/r/test', post_score: 1.5 };
     manualScout.mockResolvedValue({
       status: 'needs_decision',
+      post_id: 't3_commit',
       post: postData,
       score: 1.5,
     });
+    posts.get.mockResolvedValueOnce({
+      title: 'Borderline Post', url: 'https://reddit.com/r/test', post_score: 1.5,
+      platform: 'reddit', status: 'drafted',
+    });
     manualScoutCommit.mockResolvedValue({ status: 'saved', post: postData });
+    posts.get.mockResolvedValueOnce({
+      title: 'Borderline Post', url: 'https://reddit.com/r/test', post_score: 1.5,
+      platform: 'reddit', status: 'drafted',
+    });
 
     render(ManualTasker, { props: { projectId: TEST_PROJECT_ID } });
 
