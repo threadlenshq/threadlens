@@ -39,6 +39,7 @@ func (a *App) mountRoutes() {
 	handlers.MountReportRoutes(a.Router, a.ReportService, a.TelemetryRecorder)
 	handlers.MountGoogleRoutes(a.Router, a.GoogleService)
 	handlers.MountScoutRoutes(a.Router, a.ScoutService, a.TelemetryRecorder)
+	handlers.MountManualScoutRoutes(a.Router, a.ManualScoutService)
 	handlers.MountScheduleRoutes(a.Router, a.ScheduleService, a.TelemetryRecorder)
 
 	distDir := a.Config.FrontendDist
