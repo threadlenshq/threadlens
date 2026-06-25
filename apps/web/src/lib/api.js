@@ -174,5 +174,5 @@ export async function manualScout(projectId, url, platform) {
 }
 
 export async function manualScoutCommit(projectId, decision, postData) {
-  return api(`/api/projects/${projectId}/manual-scout/commit`, { method: 'POST', body: { decision, postData } });
+  return api(`/api/projects/${projectId}/manual-scout/commit`, { method: 'POST', body: { decision, post: postData } });
 }

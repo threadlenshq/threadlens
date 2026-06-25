@@ -60,7 +60,7 @@
       const commitResult = await manualScoutCommit(projectId, decision, result.post);
       result = commitResult;
       fetchedPost = null;
-      if (commitResult.post_id) {
+      if (commitResult.post_id && commitResult.status === 'saved') {
         await fetchPostDetails(commitResult.post_id);
       }
     } catch (e) {
@@ -239,6 +239,12 @@
         {#if result.explanation}
           <p class="filter-explanation">{result.explanation}</p>
         {/if}
+
+      {:else if result.status === 'excluded'}
+        <div class="result-header filtered">
+          <span class="result-icon">&#128683;</span>
+          <span class="result-title">Excluded</span>
+        </div>
 
       {:else if result.status === 'error'}
         <div class="result-header error">
