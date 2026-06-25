@@ -168,3 +168,11 @@ export const telemetry = {
   popupDismissed: () => api('/api/telemetry/popup-dismissed', { method: 'POST' }),
   resetConsent: () => api('/api/telemetry/reset-consent', { method: 'POST' }),
 };
+
+export async function manualScout(projectId, url, platform) {
+  return api(`/api/projects/${projectId}/manual-scout`, { method: 'POST', body: { url, platform } });
+}
+
+export async function manualScoutCommit(projectId, decision, postData) {
+  return api(`/api/projects/${projectId}/manual-scout/commit`, { method: 'POST', body: { decision, postData } });
+}
