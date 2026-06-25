@@ -41,49 +41,49 @@ type FilterInfo struct {
 
 // PostData is a round-trip payload for commit with all fields as pointers.
 type PostData struct {
-	ID                *string
-	ProjectID         *string
-	Platform          *string
-	Title             *string
-	Body              *string
-	Author            *string
-	URL               *string
-	Subreddit         *string
-	RedditScore       *int64
-	NumComments       *int64
-	LikeCount         *int64
-	ReplyCount        *int64
-	RepostCount       *int64
-	BlueskyURI        *string
-	BlueskyCID        *string
-	PostScore         *float64
-	CommentScore      *float64
-	FinalScore        *float64
-	Angle             *string
-	Why               *string
-	EngagementType    *string
-	KarmaTopic        *string
-	TopCommentSignals *string
-	Status            *string
-	DraftComment      *string
-	DraftProvider     *string
-	SignalType        *string
-	FilterState       *string
-	FilterReason      *string
-	FilterReasons     *[]string
-	FilterExplanation *string
-	FilterConfidence  *float64
-	FilterSource      *string
-	FilterSignature   *string
-	FilterJobID       *int64
-	FilteredAt        *string
-	RecoveredAt       *string
-	RecoveryNote      *string
-	SourceIdentity    *domain.SourceIdentity
-	CreatedAt         *string
-	FoundAt           *string
-	ScoutedAt         *string
-	DMTargets         *[]domain.DMTarget
+	ID                *string                `json:"id"`
+	ProjectID         *string                `json:"project_id"`
+	Platform          *string                `json:"platform"`
+	Title             *string                `json:"title"`
+	Body              *string                `json:"body"`
+	Author            *string                `json:"author"`
+	URL               *string                `json:"url"`
+	Subreddit         *string                `json:"subreddit"`
+	RedditScore       *int64                 `json:"reddit_score"`
+	NumComments       *int64                 `json:"num_comments"`
+	LikeCount         *int64                 `json:"like_count"`
+	ReplyCount        *int64                 `json:"reply_count"`
+	RepostCount       *int64                 `json:"repost_count"`
+	BlueskyURI        *string                `json:"bluesky_uri"`
+	BlueskyCID        *string                `json:"bluesky_cid"`
+	PostScore         *float64               `json:"post_score"`
+	CommentScore      *float64               `json:"comment_score"`
+	FinalScore        *float64               `json:"final_score"`
+	Angle             *string                `json:"angle"`
+	Why               *string                `json:"why"`
+	EngagementType    *string                `json:"engagement_type"`
+	KarmaTopic        *string                `json:"karma_topic"`
+	TopCommentSignals *string                `json:"top_comment_signals"`
+	Status            *string                `json:"status"`
+	DraftComment      *string                `json:"draft_comment"`
+	DraftProvider     *string                `json:"draft_provider"`
+	SignalType        *string                `json:"signal_type"`
+	FilterState       *string                `json:"filter_state"`
+	FilterReason      *string                `json:"filter_reason"`
+	FilterReasons     *[]string              `json:"filter_reasons"`
+	FilterExplanation *string                `json:"filter_explanation"`
+	FilterConfidence  *float64               `json:"filter_confidence"`
+	FilterSource      *string                `json:"filter_source"`
+	FilterSignature   *string                `json:"filter_signature"`
+	FilterJobID       *int64                 `json:"filter_job_id"`
+	FilteredAt        *string                `json:"filtered_at"`
+	RecoveredAt       *string                `json:"recovered_at"`
+	RecoveryNote      *string                `json:"recovery_note"`
+	SourceIdentity    *domain.SourceIdentity `json:"source_identity"`
+	CreatedAt         *string                `json:"created_at"`
+	FoundAt           *string                `json:"found_at"`
+	ScoutedAt         *string                `json:"scouted_at"`
+	DMTargets         *[]domain.DMTarget     `json:"dm_targets"`
 }
 
 // ManualScoutService handles manual scouting of individual posts.
@@ -280,7 +280,20 @@ func (s *ManualScoutService) CommitDecision(ctx context.Context, projectID strin
 	}
 	platform := *postData.Platform
 
-	_, err := s.repo.GetProject(ctx, projectID)
+	entDecision, err := s.resolver.Check(ctx, entitlements.CheckRequest{
+		Subject:    tenant.SubjectFromContext(ctx, s.mode),
+		Capability: entitlements.CapabilityForScoutPlatform(platform),
+		ProjectID:  projectID,
+		Action:     "scout.manual",
+	})
+	if err != nil {
+		return ManualScoutResult{}, http.StatusInternalServerError, "Internal server error"
+	}
+	if err := entitlements.EnsureAllowed(entDecision); err != nil {
+		return ManualScoutResult{}, entitlements.StatusCode(err), err.Error()
+	}
+
+	_, err = s.repo.GetProject(ctx, projectID)
 	if err != nil {
 		code, msg := mapError(err)
 		if msg == "not found" {
