@@ -19,6 +19,7 @@ var opencodeGoModels = map[string]struct{}{
 	"minimax-m2.5":      {},
 	"glm-5":             {},
 	"glm-5.1":           {},
+	"glm-5.2":           {},
 	"mimo-v2.5-pro":     {},
 	"minimax-m2.7":      {},
 	"qwen3.6-plus":      {},
@@ -28,12 +29,16 @@ var opencodeGoModels = map[string]struct{}{
 	"qwen3.7-max":       {},
 	"kimi-k2.5":         {},
 	"kimi-k2.6":         {},
+	"kimi-k2.7-code":    {},
 }
 
 // opencodeFreeModels is the set of model suffixes that use the "opencode/" CLI prefix.
 var opencodeFreeModels = map[string]struct{}{
 	"big-pickle":             {},
 	"deepseek-v4-flash-free": {},
+	"mimo-v2.5-free":         {},
+	"nemotron-3-ultra-free":  {},
+	"north-mini-code-free":   {},
 }
 
 // OpencodeRuntime implements Runtime by invoking the opencode CLI with positional
