@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"sync"
@@ -51,6 +52,64 @@ type Service struct {
 
 	mu             sync.Mutex
 	cachedProvider Provider // last known-good provider for GenerateAuto
+
+	cbMu     sync.Mutex              // guards cbHealth
+	cbHealth map[string]*modelHealth // per-model circuit-breaker state
+}
+
+// circuit-breaker tuning. After cbFailThreshold consecutive failures a model is
+// skipped for cbCooldown so a dead or out-of-credits provider does not burn a full
+// timeout on every call (e.g. each chunk of a multi-chunk report).
+const (
+	cbFailThreshold = 3
+	cbCooldown      = 2 * time.Minute
+)
+
+// modelHealth tracks consecutive failures and the time a model is skipped until.
+type modelHealth struct {
+	fails        int
+	trippedUntil time.Time
+}
+
+// isModelTripped reports whether the circuit breaker is currently open for a model.
+func (s *Service) isModelTripped(id string) bool {
+	s.cbMu.Lock()
+	defer s.cbMu.Unlock()
+	h := s.cbHealth[id]
+	if h == nil {
+		return false
+	}
+	return time.Now().Before(h.trippedUntil)
+}
+
+// recordFailure increments a model's consecutive-failure count and trips the
+// breaker once the threshold is reached.
+func (s *Service) recordFailure(id string) {
+	s.cbMu.Lock()
+	defer s.cbMu.Unlock()
+	if s.cbHealth == nil {
+		s.cbHealth = make(map[string]*modelHealth)
+	}
+	h := s.cbHealth[id]
+	if h == nil {
+		h = &modelHealth{}
+		s.cbHealth[id] = h
+	}
+	h.fails++
+	if h.fails >= cbFailThreshold && time.Now().After(h.trippedUntil) {
+		h.trippedUntil = time.Now().Add(cbCooldown)
+		log.Printf("ai: circuit breaker tripped for %s after %d consecutive failures (skipping for %s)", id, h.fails, cbCooldown)
+	}
+}
+
+// recordSuccess clears a model's failure state.
+func (s *Service) recordSuccess(id string) {
+	s.cbMu.Lock()
+	defer s.cbMu.Unlock()
+	if h := s.cbHealth[id]; h != nil {
+		h.fails = 0
+		h.trippedUntil = time.Time{}
+	}
 }
 
 // NewService creates a new Service backed by the given settings getter and the
@@ -144,6 +203,29 @@ func (s *Service) invokeModelWithBridge(ctx context.Context, m *ModelEntry, syst
 	return s.invokeModel(ctx, m, systemPrompt, userMessage, timeout)
 }
 
+// invokeModelWithBridgeLogged is the same as invokeModelWithBridge but logs the
+// bridge error before falling through. Use in GenerateForTask so failures are
+// visible in server logs without leaking bridge internals to API responses.
+func (s *Service) invokeModelWithBridgeLogged(ctx context.Context, m *ModelEntry, systemPrompt, userMessage string, timeout time.Duration) (string, error) {
+	if isBridgeCompatible(m.Provider) {
+		if bp := s.bridgeProvider(); bp != nil {
+			bridgeProvider := m.Provider
+			if bridgeProvider == "opencode-go" {
+				bridgeProvider = "opencode"
+			}
+			result, err := bp.GenerateWithProvider(ctx, bridgeProvider, m.Model, systemPrompt, userMessage, timeout)
+			if err == nil {
+				return result, nil
+			}
+			// Log the bridge error so it surfaces in server logs for debugging.
+			// Don't include it in the returned error — it may contain secrets or
+			// internal paths and is not safe for API responses.
+			log.Printf("ai: bridge failed for %s (%s): %v", m.ID, bridgeProvider, err)
+		}
+	}
+	return s.invokeModel(ctx, m, systemPrompt, userMessage, timeout)
+}
+
 // invokeModel calls the right provider for a ModelEntry with the given timeout.
 func (s *Service) invokeModel(ctx context.Context, m *ModelEntry, systemPrompt, userMessage string, timeout time.Duration) (string, error) {
 	p := s.providerFor(m.Provider)
@@ -216,8 +298,23 @@ func (s *Service) generateForTaskInner(ctx context.Context, taskID string, syste
 		}
 	}
 
+	// If at least one candidate is healthy, skip the circuit-broken ones so a dead
+	// provider (down, or out of credits) does not cost a full timeout on every call.
+	// If every candidate is tripped, fall back to trying them all so we never stall.
+	anyHealthy := false
+	for _, candidate := range candidates {
+		if !s.isModelTripped(candidate.ID) {
+			anyHealthy = true
+			break
+		}
+	}
+
 	var attempted []string
 	for i, candidate := range candidates {
+		if anyHealthy && s.isModelTripped(candidate.ID) {
+			continue
+		}
+
 		// First candidate is always tried without an availability check.
 		// For subsequent candidates:
 		//  - Bridge-compatible providers are gated by the bridge being available OR the direct
@@ -234,10 +331,13 @@ func (s *Service) generateForTaskInner(ctx context.Context, taskID string, syste
 			}
 		}
 
-		result, err := s.invokeModelWithBridge(ctx, candidate, systemPrompt, userMessage, timeout)
+		result, err := s.invokeModelWithBridgeLogged(ctx, candidate, systemPrompt, userMessage, timeout)
 		if err == nil {
+			s.recordSuccess(candidate.ID)
 			return result, candidate.ID, nil
 		}
+		s.recordFailure(candidate.ID)
+		log.Printf("ai: %s failed: %v", candidate.ID, err)
 		attempted = append(attempted, candidate.ID)
 	}
 

@@ -32,6 +32,24 @@ func (f *fakeProvider) Generate(_ context.Context, _ string, _ string, _ string,
 	return f.result, f.err
 }
 
+// recoveringProvider fails its first failFirst calls, then returns result.
+type recoveringProvider struct {
+	name      string
+	failFirst int
+	result    string
+	calls     *int
+}
+
+func (r *recoveringProvider) Name() string    { return r.name }
+func (r *recoveringProvider) Available() bool { return true }
+func (r *recoveringProvider) Generate(_ context.Context, _ string, _ string, _ string, _ time.Duration) (string, error) {
+	*r.calls++
+	if *r.calls <= r.failFirst {
+		return "", errors.New("transient failure")
+	}
+	return r.result, nil
+}
+
 // ---------------------------------------------------------------------------
 // fakeSettingsGetter – minimal settings test double
 // ---------------------------------------------------------------------------
@@ -196,6 +214,61 @@ func TestGenerateForTask_SkipsUnavailableFallbacks(t *testing.T) {
 	}
 	if result != "gemini-ok" {
 		t.Errorf("expected 'gemini-ok', got %q", result)
+	}
+}
+
+func TestGenerateForTask_CircuitBreakerSkipsDeadPrimary(t *testing.T) {
+	// post_scoring primary is copilot:gpt-5-mini. Simulate copilot being dead
+	// (down / out of credits) and claude as the working fallback.
+	copilot := &fakeProvider{name: "copilot", available: true, err: errors.New("out of credits")}
+	claude := &fakeProvider{name: "claude", available: true, result: "ok"}
+	svc := newTestService([]Provider{copilot, claude})
+
+	// Drive enough calls to trip the breaker on copilot.
+	for i := 0; i < cbFailThreshold; i++ {
+		if _, _, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg"); err != nil {
+			t.Fatalf("call %d: unexpected error: %v", i+1, err)
+		}
+	}
+	if copilot.calls != cbFailThreshold {
+		t.Fatalf("expected copilot to be tried %d times before tripping, got %d", cbFailThreshold, copilot.calls)
+	}
+
+	// Next call must skip the tripped primary entirely and go straight to the fallback.
+	callsBefore := copilot.calls
+	result, usedID, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg")
+	if err != nil {
+		t.Fatalf("unexpected error after trip: %v", err)
+	}
+	if copilot.calls != callsBefore {
+		t.Errorf("expected tripped primary to be skipped, but it was called again (calls=%d, was %d)", copilot.calls, callsBefore)
+	}
+	if usedID != "claude-cli:haiku" || result != "ok" {
+		t.Errorf("expected fallback claude-cli:haiku result 'ok', got %q / %q", usedID, result)
+	}
+}
+
+func TestGenerateForTask_CircuitBreakerResetsOnSuccess(t *testing.T) {
+	// A primary that fails twice then recovers must not trip (threshold is 3
+	// consecutive failures; a success resets the counter).
+	calls := 0
+	flaky := &recoveringProvider{name: "copilot", failFirst: 2, result: "recovered", calls: &calls}
+	claude := &fakeProvider{name: "claude", available: true, result: "fallback"}
+	svc := newTestService([]Provider{flaky, claude})
+
+	for i := 0; i < 5; i++ {
+		if _, _, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg"); err != nil {
+			t.Fatalf("call %d: unexpected error: %v", i+1, err)
+		}
+	}
+	// After the 2 initial failures it recovers; the primary should still be in use
+	// (not tripped), so the last call used copilot, not the claude fallback.
+	_, usedID, err := svc.GenerateForTask(context.Background(), "post_scoring", "sys", "msg")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if usedID != "copilot:gpt-5-mini" {
+		t.Errorf("expected recovered primary copilot:gpt-5-mini to be used, got %q", usedID)
 	}
 }
 
