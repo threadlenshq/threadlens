@@ -41,9 +41,9 @@ export const TASKS = [
     } },
   { id: 'query_suggestion',  label: 'Query Suggestion',       complexity: 'medium',    volume: 'one-time', timeoutMs: 60000,
     description: 'Generates 10 search URLs and angles when adding queries.',
-    default: 'copilot:gpt-5-mini',
+    default: 'copilot:gpt-5.4-mini',
     defaultByProvider: {
-      copilot: 'copilot:claude-haiku-4.5',
+      copilot: 'copilot:gpt-5.4-mini',
       'claude-cli': 'claude-cli:sonnet',
       opencode: 'opencode-go:mimo-v2.5-pro',
       sdk: 'sdk:haiku',
@@ -71,7 +71,7 @@ export const TASKS = [
     } },
   { id: 'draft_generation',  label: 'Draft Comment / DM',     complexity: 'medium',    volume: 'per-post', timeoutMs: 60000,
     description: 'Drafts contextual replies and direct messages for outreach.',
-    default: 'claude-cli:haiku',
+    default: 'claude-cli:sonnet',
     defaultByProvider: {
       copilot: 'copilot:claude-sonnet-4.6',
       'claude-cli': 'claude-cli:sonnet',
@@ -101,9 +101,9 @@ export const TASKS = [
     } },
   { id: 'prompt_suggestion', label: 'Prompt Suggestion',   complexity: 'medium',    volume: 'one-time', timeoutMs: 60000,
     description: 'Generates three complete prompt drafts for a given platform+type slot, seeded with project context and existing queries.',
-    default: 'copilot:gpt-5-mini',
+    default: 'copilot:gpt-5.4-mini',
     defaultByProvider: {
-      copilot: 'copilot:claude-haiku-4.5',
+      copilot: 'copilot:gpt-5.4-mini',
       'claude-cli': 'claude-cli:sonnet',
       opencode: 'opencode-go:mimo-v2.5-pro',
       sdk: 'sdk:haiku',

@@ -426,7 +426,7 @@ func TestGenerateForTask_ClaudeCLIModelRoutedThroughBridge(t *testing.T) {
 	directClaude := &fakeProvider{name: "claude", available: true, result: "direct-claude"}
 	svc := NewServiceWithProviders([]Provider{bridge, directClaude})
 
-	// draft_generation default is claude-cli:haiku
+	// draft_generation default is claude-cli:sonnet
 	result, usedID, err := svc.GenerateForTask(context.Background(), "draft_generation", "sys", "msg")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -434,8 +434,8 @@ func TestGenerateForTask_ClaudeCLIModelRoutedThroughBridge(t *testing.T) {
 	if result != "bridge-claude-result" {
 		t.Errorf("expected 'bridge-claude-result', got %q", result)
 	}
-	if usedID != "claude-cli:haiku" {
-		t.Errorf("expected catalog model ID 'claude-cli:haiku', got %q", usedID)
+	if usedID != "claude-cli:sonnet" {
+		t.Errorf("expected catalog model ID 'claude-cli:sonnet', got %q", usedID)
 	}
 	if directClaude.calls != 0 {
 		t.Errorf("expected direct claude not called, got %d calls", directClaude.calls)
