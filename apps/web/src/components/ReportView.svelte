@@ -2,28 +2,11 @@
   import { onDestroy } from 'svelte';
   import { reports as reportsApi, posts as postsApi } from '../lib/api.js';
   import { formatDate } from '../lib/format.js';
+  import { renderAssessment } from '../lib/assessment.js';
   import ClusterCard from './ClusterCard.svelte';
   import AdvisorCouncilView from './AdvisorCouncilView.svelte';
 
   let { projectId, reportId, onBack, onSelectAngle } = $props();
-
-  function renderAssessment(text) {
-    if (!text) return '';
-    // Escape first, then apply markup so AI content can't inject HTML
-    let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    const paragraphs = html.split(/\n{2,}/);
-    return paragraphs.map(p => {
-      const trimmed = p.trim();
-      const lines = trimmed.split('\n');
-      const isNumberedList = lines.every(l => /^\d+\.\s/.test(l.trim()));
-      if (isNumberedList) {
-        const items = lines.map(l => `<li>${l.replace(/^\d+\.\s*/, '').trim()}</li>`).join('');
-        return `<ol>${items}</ol>`;
-      }
-      return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`;
-    }).join('');
-  }
 
   let report = $state(null);
   let reportPosts = $state([]);

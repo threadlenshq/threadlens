@@ -45,6 +45,13 @@ type analyzerResult struct {
 	Assessment string            `json:"assessment"`
 }
 
+// assessmentFormatGuidance tells the model to emit the overall assessment as
+// structured markdown (lead paragraph + numbered list + closing paragraph) so
+// the web client's renderAssessment (lib/assessment.js) shows it as a scannable
+// list rather than one dense block. \n\n stays literal here on purpose - it is
+// instruction text the model should reproduce inside the JSON string value.
+const assessmentFormatGuidance = `   - Format the assessment as markdown for readability: open with a 1-2 sentence lead paragraph, then a numbered list with one "N. **Opportunity Name** - why it ranks here" per line, then a brief closing paragraph. Separate the lead, list, and closing paragraphs with blank lines (use \n\n between them in the JSON string), and use **bold** for opportunity names.`
+
 // buildSystemPrompt mirrors analyzer.js buildSystemPrompt().
 func buildSystemPrompt(hasStarredPosts bool) string {
 	step2 := "2. Group posts into 3-7 clusters by theme"
@@ -76,6 +83,7 @@ Your task:
      * NOT broad ideas like "build a habit tracker"
      * Instead: "A daily accountability check-in bot for r/selfimprovement users who quit after day 3"
 ` + step4 + `
+` + assessmentFormatGuidance + `
 5. Generate a descriptive title for this research report
 
 Respond with ONLY valid JSON in this exact format:
@@ -171,6 +179,7 @@ Your task:
 5. For any cluster that is UNIQUE to one chunk (no overlapping theme), keep it as-is.
 6. Generate a descriptive report title that captures the overall research findings.
 7. Provide an overall assessment ranking all merged clusters by opportunity.
+` + assessmentFormatGuidance + `
 
 Respond with ONLY valid JSON in this exact format:
 {
