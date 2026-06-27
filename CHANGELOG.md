@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.18.0 - 2026-06-27
+
+Tag: `threadlens-v0.18.0`
+
+### Features
+
+- feat(reports): render overall assessment as structured list (`817880a`)
+- feat(ai): circuit-break dead providers in task fallback (`5a9143a`)
+- feat(ai): sync catalog with live opencode models, close tier gaps (`6ce3721`)
+- feat(web): add View in Inbox navigation from Manual Tasker results (`1bd2d93`)
+- feat(web): show full post details after manual scout via PostCard (`9fc562c`)
+- feat(web): add Manual nav item and wire ManualTasker into App (`d58fb74`)
+- feat(web): add ManualTasker.svelte component (`b18ebe4`)
+- feat(web): add manualScout and manualScoutCommit api helpers (`b3a6ecd`)
+- feat(app): mount manual scout routes (`b30d9eb`)
+- feat(app): wire ManualScoutService into App struct (`a0849db`)
+- feat(handlers): add MountManualScoutRoutes handler (`71f64ea`)
+- feat(services): add ManualScoutService with ScoutPost and CommitDecision (`9862b17`)
+- feat(pipeline): add FetchSingleRedditPost and FetchSingleBlueskyPost (`c81515c`)
+- feat(pipeline): add TopComments field to FetchedPost for manual fetcher (`6d53b50`)
+
+### Fixes
+
+- fix(pipeline): make report clustering resilient to bad chunks (`eac2e34`)
+- fix(bridge): sync opencode model allowlist with catalog (`c10bda9`)
+- fix(ai): clear underkill defaults on medium-complexity tasks (`0148027`)
+- fix(web): fix ManualTasker already_scouted display and View in Inbox nav (`94ae871`)
+- fix(api): handle stale seen_posts entry in manual scout (`daa2ac0`)
+- fix(web): read post param as string so Reddit post IDs survive reload (`b0fbf36`)
+- fix(web): fix manual scout commit JSON key and exclude UX (`3bffcda`)
+- fix(web): match ManualTasker page layout to ModelConfig (`0da1a9e`)
+
+### Maintenance
+
+- refactor(ai): rebase model tiers on AA Intelligence Index v4.1 (`d47e535`)
+- refactor(ai): retier model catalog from benchmark data (`6433c5f`)
+- refactor(web): regroup rail nav items into logical sections (`61c094e`)
+- test(web): add ManualTasker component tests (`4667c40`)
+- test(services): add unit tests for ManualScoutService (`dd574de`)
+- test(pipeline): add unit tests for single-post fetchers (`86f5ab1`)
+
 ## 0.17.0 - 2026-06-23
 
 Tag: `threadlens-v0.17.0`
