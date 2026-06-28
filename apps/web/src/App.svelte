@@ -1095,7 +1095,7 @@
 
     const validViews = ['posts', 'settings', 'sources', 'reports', 'models', 'filtered', 'privacy', 'manual'];
     const validReportSources = ['social', 'google'];
-    const validPlatforms = ['all', 'reddit', 'bluesky'];
+    const validPlatforms = ['all', 'reddit', 'bluesky', 'hackernews'];
     const validStatuses = [...POST_STATUSES, 'all'];
     const validMaxAge = ['', '1', '3', '7', '30'];
     if (!validViews.includes(urlState.view)) urlState.view = 'posts';
@@ -1306,6 +1306,7 @@
               <option value="all">All</option>
               <option value="reddit">Reddit</option>
               <option value="bluesky">Bluesky</option>
+              <option value="hackernews">Hacker News</option>
             </select>
           </div>
           <div class="filter-group">

@@ -161,6 +161,7 @@
           <option value="reddit">Reddit</option>
           <option value="bluesky">Bluesky</option>
           <option value="google">Google</option>
+          <option value="hackernews">Hacker News</option>
         </select>
       </label>
 

@@ -14,7 +14,7 @@
 
   const MIN_RECOMMENDED_QUERIES = 8;
   const MIN_RECOMMENDED_ANGLES = 3;
-  const PLATFORM_LABELS = { reddit: 'Reddit', bluesky: 'Bluesky', google: 'Google' };
+  const PLATFORM_LABELS = { reddit: 'Reddit', bluesky: 'Bluesky', google: 'Google', hackernews: 'Hacker News' };
   const QUALITY_LABEL_FALLBACK = 'No signal yet';
   const QUALITY_SUMMARY_FALLBACK = 'No completed social or Google reports yet.';
   const QUERY_VISIBILITY_OPTIONS = [
@@ -89,6 +89,11 @@
     visibleQueries
       .filter(q => q.platform === 'google')
       .sort((a, b) => `${a.query_url}:${a.angle || ''}:${a.id}`.localeCompare(`${b.query_url}:${b.angle || ''}:${b.id}`))
+  );
+  let hackernewsQueries = $derived(
+    visibleQueries
+      .filter(q => q.platform === 'hackernews')
+      .sort((a, b) => `${extractKeyword(a)}:${a.angle || ''}:${a.id}`.localeCompare(`${extractKeyword(b)}:${b.angle || ''}:${b.id}`))
   );
   let error = $state('');
 
@@ -241,6 +246,9 @@
     if (query.platform === 'google') {
       return `https://www.google.com/search?q=${encodeURIComponent(query.query_url)}`;
     }
+    if (query.platform === 'hackernews') {
+      return `https://hn.algolia.com/?dateRange=all&type=all&query=${encodeURIComponent(query.query_url)}`;
+    }
     return query.query_url;
   }
 
@@ -321,7 +329,7 @@
     <div class="empty-msg">{emptyMessage}</div>
   {:else}
     <div class="platform-sections">
-      {#each [{ key: 'reddit', label: 'Reddit', items: redditQueries }, { key: 'bluesky', label: 'Bluesky', items: blueskyQueries }, { key: 'google', label: 'Google Search', items: googleQueries }] as platform (platform.key)}
+      {#each [{ key: 'reddit', label: 'Reddit', items: redditQueries }, { key: 'bluesky', label: 'Bluesky', items: blueskyQueries }, { key: 'google', label: 'Google Search', items: googleQueries }, { key: 'hackernews', label: PLATFORM_LABELS.hackernews, items: hackernewsQueries }] as platform (platform.key)}
         {#if platform.items.length > 0}
           <Surface elevation="base" padding="none">
             <div class="platform-section">
