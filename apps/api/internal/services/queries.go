@@ -14,10 +14,10 @@ import (
 var httpURLRegexp = regexp.MustCompile(`(?i)^https?://`)
 
 var validPlatforms = map[string]bool{
-	"reddit":      true,
-	"bluesky":     true,
-	"google":      true,
-	"hackernews":  true,
+	"reddit":     true,
+	"bluesky":    true,
+	"google":     true,
+	"hackernews": true,
 }
 
 type QueryService struct {
