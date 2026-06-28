@@ -26,6 +26,7 @@ const (
 	CapabilityScoutRunReddit       Capability = "core.scout.run.reddit"
 	CapabilityScoutRunBluesky      Capability = "core.scout.run.bluesky"
 	CapabilityScoutRunGoogle       Capability = "core.scout.run.google"
+	CapabilityScoutRunHackerNews   Capability = "core.scout.run.hackernews"
 	CapabilityReportsCreate        Capability = "core.reports.create"
 	CapabilityModelsConfigure      Capability = "core.models.configure"
 	CapabilityManagedAIUse         Capability = "ai.managed_provider.use"
@@ -42,6 +43,7 @@ var CoreCapabilities = []Capability{
 	CapabilityScoutRunReddit,
 	CapabilityScoutRunBluesky,
 	CapabilityScoutRunGoogle,
+	CapabilityScoutRunHackerNews,
 	CapabilityReportsCreate,
 	CapabilityModelsConfigure,
 	CapabilityPromptTemplatesList,
@@ -249,6 +251,8 @@ func CapabilityForScoutPlatform(platform string) Capability {
 		return CapabilityScoutRunBluesky
 	case "google":
 		return CapabilityScoutRunGoogle
+	case "hackernews":
+		return CapabilityScoutRunHackerNews
 	default:
 		return Capability("core.scout.run." + platform)
 	}

@@ -133,3 +133,17 @@ func TestEnsureAllowedReturnsDeniedError(t *testing.T) {
 		t.Fatalf("Capability = %q, want %q", denied.Decision.Capability, CapabilityManagedAIUse)
 	}
 }
+
+func TestLocalResolverGrantsHackerNewsScout(t *testing.T) {
+	resolver := NewLocalResolver(RuntimeModeSelfHosted, nil)
+	snapshot, err := resolver.Snapshot(context.Background(), Subject{})
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	if !snapshot.Capabilities[CapabilityScoutRunHackerNews] {
+		t.Fatal("hackernews scout capability must be granted by the local resolver")
+	}
+	if got := CapabilityForScoutPlatform("hackernews"); got != CapabilityScoutRunHackerNews {
+		t.Fatalf("CapabilityForScoutPlatform(hackernews) = %q, want %q", got, CapabilityScoutRunHackerNews)
+	}
+}
