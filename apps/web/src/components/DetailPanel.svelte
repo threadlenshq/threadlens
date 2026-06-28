@@ -15,6 +15,7 @@
   const PLATFORM_COLORS = {
     reddit: '#FF4500',
     bluesky: '#0085FF',
+    hackernews: '#FF6600',
   };
 
   let draftValue = '';
@@ -224,7 +225,7 @@
     <div class="panel-header">
       <div class="post-meta">
         <span class="platform-label" style="color: {platformColor}">
-          {post.platform === 'reddit' ? 'Reddit' : 'Bluesky'}
+          {post.platform === 'reddit' ? 'Reddit' : post.platform === 'hackernews' ? 'Hacker News' : 'Bluesky'}
         </span>
         <span class="author">by {post.author}</span>
         <span class="date">{formatDate(post.created_at)}</span>
@@ -350,7 +351,7 @@
       <div class="engagement-metrics">
         {#if upvotes != null}
           <span class="eng-metric">
-            {post.platform === 'reddit' ? '\u25B2' : '\u2661'} {upvotes}
+            {post.platform === 'reddit' || post.platform === 'hackernews' ? '\u25B2' : '\u2661'} {upvotes}
           </span>
         {/if}
         {#if numComments != null}

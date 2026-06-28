@@ -79,7 +79,7 @@
             {#each clusterPosts as post}
               <div class="supporting-post">
                 <div class="sp-header">
-                  <span class="sp-platform" class:reddit={post.platform === 'reddit'} class:bluesky={post.platform === 'bluesky'}>
+                  <span class="sp-platform" class:reddit={post.platform === 'reddit'} class:bluesky={post.platform === 'bluesky'} class:hackernews={post.platform === 'hackernews'}>
                     {post.platform}
                   </span>
                   <span class="sp-score" style="color: {scoreColor(post.final_score)}">{post.final_score?.toFixed(1)}</span>
@@ -289,6 +289,7 @@
 
   .sp-platform.reddit { color: #FF4500; }
   .sp-platform.bluesky { color: #0085FF; }
+  .sp-platform.hackernews { color: #ff6600; }
 
   .sp-score {
     font-size: 14px;

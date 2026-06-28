@@ -12,6 +12,7 @@
   const PLATFORM_COLORS = {
     reddit: '#FF4500',
     bluesky: '#0085FF',
+    hackernews: '#ff6600',
   };
 
   const STATUS_COLORS = {
@@ -120,7 +121,7 @@
     {/if}
     <div class="badges">
       <span class="platform-badge" style="background: {platformColor}20; color: {platformColor}; border-color: {platformColor}40">
-        {post.platform === 'reddit' ? 'Reddit' : 'Bluesky'}
+        {post.platform === 'reddit' ? 'Reddit' : post.platform === 'hackernews' ? 'Hacker News' : 'Bluesky'}
       </span>
       {#if projectMode === 'research' && signalStyle}
         <span class="type-badge" style="color: {signalStyle.color}; background: {signalStyle.bg}; border: 1px solid {signalStyle.border}">
@@ -153,7 +154,7 @@
     <div class="metrics">
       {#if upvotes > 0}
         <span class="metric">
-          {#if post.platform === 'reddit'}
+          {#if post.platform === 'reddit' || post.platform === 'hackernews'}
             &#9650; {upvotes}
           {:else}
             &#9825; {upvotes}
