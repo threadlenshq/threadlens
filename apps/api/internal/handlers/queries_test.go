@@ -106,7 +106,7 @@ func TestQueryCreate_InvalidPlatform_Returns400(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
 		t.Fatal(err)
 	}
-	if resp["error"] != "platform must be reddit, bluesky, or google" {
+	if resp["error"] != "platform must be reddit, bluesky, google, or hackernews" {
 		t.Fatalf("error = %q", resp["error"])
 	}
 }

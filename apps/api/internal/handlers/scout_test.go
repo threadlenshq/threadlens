@@ -41,7 +41,7 @@ func TestScout_InvalidPlatform(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
 		t.Fatal(err)
 	}
-	want := `platform must be "reddit", "bluesky", or "google"`
+	want := `platform must be "reddit", "bluesky", "google", or "hackernews"`
 	if resp["error"] != want {
 		t.Fatalf("error = %q, want %q", resp["error"], want)
 	}
