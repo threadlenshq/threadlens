@@ -80,6 +80,50 @@ func TestMigrateSQLiteIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestMigrateSQLiteAllowsHackerNewsPlatform(t *testing.T) {
+	database, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	defer database.Close()
+	if _, err := database.Exec("PRAGMA foreign_keys=ON"); err != nil {
+		t.Fatalf("enable fk: %v", err)
+	}
+	if err := Migrate(context.Background(), database, DialectSQLite); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	if _, err := database.Exec(
+		`INSERT INTO projects (id, name, mode) VALUES ('p1', 'P1', 'research')`); err != nil {
+		t.Fatalf("seed project: %v", err)
+	}
+
+	cases := []struct {
+		name string
+		stmt string
+	}{
+		{"project_queries", `INSERT INTO project_queries (project_id, platform, query_url, angle) VALUES ('p1','hackernews','manual invoicing','pain')`},
+		{"posts", `INSERT INTO posts (id, project_id, platform) VALUES ('hn_1','p1','hackernews')`},
+		{"scout_runs", `INSERT INTO scout_runs (project_id, platform) VALUES ('p1','hackernews')`},
+		{"schedules", `INSERT INTO schedules (project_id, platform, cron_expr) VALUES ('p1','hackernews','0 * * * *')`},
+	}
+	for _, c := range cases {
+		if _, err := database.Exec(c.stmt); err != nil {
+			t.Errorf("%s: insert hackernews failed: %v", c.name, err)
+		}
+	}
+
+	for _, idx := range []string{"idx_posts_project", "idx_posts_score", "idx_posts_filter_state", "idx_queries_project", "idx_runs_project", "idx_schedules_project"} {
+		var n int
+		if err := database.QueryRow(
+			`SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name=?`, idx).Scan(&n); err != nil {
+			t.Fatalf("query index %s: %v", idx, err)
+		}
+		if n != 1 {
+			t.Errorf("index %s missing after rebuild (count=%d)", idx, n)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Postgres migration test (optional, gated by env var)
 // ---------------------------------------------------------------------------
