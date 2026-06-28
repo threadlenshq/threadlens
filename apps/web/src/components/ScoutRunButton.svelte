@@ -26,6 +26,7 @@
     { value: 'reddit', label: 'Reddit' },
     { value: 'bluesky', label: 'Bluesky' },
     { value: 'google', label: 'Google' },
+    { value: 'hackernews', label: 'Hacker News' },
   ];
 
   function selectedPlatformLabel() {
@@ -75,7 +76,7 @@
     try {
       let results;
       if (selectedPlatform === 'all') {
-        const allPlatforms = ['reddit', 'bluesky', 'google'];
+        const allPlatforms = ['reddit', 'bluesky', 'google', 'hackernews'];
         const allowedPlatforms = capabilities
           ? allPlatforms.filter((p) => hasCapability(capabilities, scoutCapabilityForPlatform(p)) && !platformLocked(p))
           : allPlatforms.filter((p) => !platformLocked(p));
