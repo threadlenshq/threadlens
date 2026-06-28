@@ -28,7 +28,7 @@ func NewScoutService(repo *repository.Repository, runner *pipeline.Runner, mode 
 // Returns the new runID and status "running", or an HTTP status code and error message.
 func (s *ScoutService) StartRun(ctx context.Context, projectID string, platform string) (domain.ScoutRun, int, string) {
 	if !validPlatforms[platform] {
-		return domain.ScoutRun{}, http.StatusBadRequest, `platform must be "reddit", "bluesky", or "google"`
+		return domain.ScoutRun{}, http.StatusBadRequest, `platform must be "reddit", "bluesky", "google", or "hackernews"`
 	}
 
 	decision, err := s.resolver.Check(ctx, entitlements.CheckRequest{

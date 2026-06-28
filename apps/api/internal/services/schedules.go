@@ -52,7 +52,7 @@ func (s *ScheduleService) Create(ctx context.Context, projectID string, body Sch
 		return domain.Schedule{}, http.StatusBadRequest, "platform and cron_expr are required"
 	}
 	if !validPlatforms[platform] {
-		return domain.Schedule{}, http.StatusBadRequest, "platform must be reddit, bluesky, or google"
+		return domain.Schedule{}, http.StatusBadRequest, "platform must be reddit, bluesky, google, or hackernews"
 	}
 
 	sch, err := s.repo.CreateSchedule(ctx, projectID, platform, cronExpr)

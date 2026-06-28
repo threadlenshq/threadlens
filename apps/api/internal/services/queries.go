@@ -14,9 +14,10 @@ import (
 var httpURLRegexp = regexp.MustCompile(`(?i)^https?://`)
 
 var validPlatforms = map[string]bool{
-	"reddit":  true,
-	"bluesky": true,
-	"google":  true,
+	"reddit":      true,
+	"bluesky":     true,
+	"google":      true,
+	"hackernews":  true,
 }
 
 type QueryService struct {
@@ -87,7 +88,7 @@ func (s *QueryService) Create(ctx context.Context, projectID string, body QueryR
 		return domain.Query{}, http.StatusBadRequest, "platform, query_url, and angle are required"
 	}
 	if !validPlatforms[platform] {
-		return domain.Query{}, http.StatusBadRequest, "platform must be reddit, bluesky, or google"
+		return domain.Query{}, http.StatusBadRequest, "platform must be reddit, bluesky, google, or hackernews"
 	}
 	if platform == "google" && httpURLRegexp.MatchString(queryURL) {
 		return domain.Query{}, http.StatusBadRequest, "google query_url must be a root keyword, not a URL"
@@ -107,7 +108,7 @@ func (s *QueryService) Create(ctx context.Context, projectID string, body QueryR
 func (s *QueryService) Patch(ctx context.Context, projectID string, queryID int64, body map[string]any) (domain.Query, int, string) {
 	platform, hasPlatform := stringField(body, "platform")
 	if hasPlatform && !validPlatforms[platform] {
-		return domain.Query{}, http.StatusBadRequest, "platform must be reddit, bluesky, or google"
+		return domain.Query{}, http.StatusBadRequest, "platform must be reddit, bluesky, google, or hackernews"
 	}
 	if hasPlatform {
 		body["platform"] = platform
