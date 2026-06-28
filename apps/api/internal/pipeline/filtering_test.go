@@ -55,6 +55,26 @@ func TestClassifyFilterInputAllowsGenuinePainPost(t *testing.T) {
 	}
 }
 
+func TestNormalizeFetchedPostForFilteringHackerNews(t *testing.T) {
+	p := FetchedPost{
+		ID:        "hn_42",
+		Title:     "Parent title",
+		Selftext:  "comment body",
+		Permalink: "https://news.ycombinator.com/item?id=42",
+		Author:    "Carol",
+	}
+	in := NormalizeFetchedPostForFiltering("hackernews", "proj1", p)
+	if in.Platform != "hackernews" {
+		t.Errorf("Platform = %q", in.Platform)
+	}
+	if in.SourceIdentity["hn_author"] != "carol" {
+		t.Errorf("hn_author = %q, want carol", in.SourceIdentity["hn_author"])
+	}
+	if in.URL != "https://news.ycombinator.com/item?id=42" {
+		t.Errorf("URL = %q", in.URL)
+	}
+}
+
 func TestClassifyFilterInputFlagsAIBoilerplateWithConfidence(t *testing.T) {
 	c := NewFilterClassifier(fakeTrustLookup{}, nil)
 	d, err := c.Classify(context.Background(), "p1", FilterInput{Platform: "google", Title: "Unlock productivity today", Body: "In today's fast-paced digital landscape, leverage cutting-edge solutions to streamline workflows and unlock your potential.", SourceIdentity: domain.SourceIdentity{"domain": "spam.example"}})

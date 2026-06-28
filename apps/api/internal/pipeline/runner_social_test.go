@@ -573,6 +573,85 @@ func TestSocialRunnerGeneratesDMTargetsAfterSuccessfulMarketingRun(t *testing.T)
 	}
 }
 
+func TestRunSocialDispatchesHackerNews(t *testing.T) {
+	runner, repo := newTestRunner(t)
+	ctx := context.Background()
+
+	mkProject(t, repo, "proj1", "research")
+	mkQuery(t, repo, "proj1", "hackernews", "manual invoicing", "pain", true)
+
+	called := false
+	runner.fetchHackerNews = func(_ context.Context, _ []string, _ func(int, int)) ([]FetchedPost, error) {
+		called = true
+		return nil, nil
+	}
+
+	runID, err := repo.CreateScoutRun(ctx, "proj1", "hackernews")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runner.Run(ctx, "proj1", "hackernews", &runID); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !called {
+		t.Fatal("expected fetchHackerNews to be called for platform=hackernews")
+	}
+}
+
+func TestRunSocialStoresHackerNewsPosts(t *testing.T) {
+	runner, repo := newTestRunner(t)
+	ctx := context.Background()
+
+	mkProject(t, repo, "proj1", "research")
+	mkQuery(t, repo, "proj1", "hackernews", "invoicing", "pain", true)
+
+	runner.fetchHackerNews = func(_ context.Context, _ []string, _ func(int, int)) ([]FetchedPost, error) {
+		return []FetchedPost{
+			{ID: "hn_1", Title: "Ask HN: invoicing pain", Selftext: "story body", Author: "alice", Score: 50, NumComments: 10, Permalink: "https://news.ycombinator.com/item?id=1", CreatedUTC: 1700000000},
+			{ID: "hn_2", Title: "Parent title", Selftext: "comment about invoicing", Author: "bob", Score: 0, Permalink: "https://news.ycombinator.com/item?id=2", CreatedUTC: 1700000500},
+		}, nil
+	}
+	runner.scorePosts = fakeScorer(map[string]ScoredPost{
+		"hn_1": scored("hn_1", 7),
+		"hn_2": scored("hn_2", 4),
+	})
+
+	runID, _ := repo.CreateScoutRun(ctx, "proj1", "hackernews")
+	res, err := runner.Run(ctx, "proj1", "hackernews", &runID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.PostsChecked != 2 || res.PostsFound != 2 {
+		t.Fatalf("want checked=2 found=2, got %d/%d", res.PostsChecked, res.PostsFound)
+	}
+
+	posts, err := repo.ListPosts(ctx, "proj1", repository.PostFilters{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var hn1 *domain.Post
+	for i := range posts {
+		if posts[i].ID == "hn_1" {
+			hn1 = &posts[i]
+		}
+	}
+	if hn1 == nil {
+		t.Fatal("hn_1 not stored")
+	}
+	if hn1.Platform != "hackernews" {
+		t.Errorf("platform = %q", hn1.Platform)
+	}
+	if hn1.URL != "https://news.ycombinator.com/item?id=1" {
+		t.Errorf("url = %q (should be the permalink, not reddit-prefixed)", hn1.URL)
+	}
+	if hn1.RedditScore == nil || *hn1.RedditScore != 50 {
+		t.Errorf("RedditScore = %v, want 50", hn1.RedditScore)
+	}
+	if hn1.Subreddit != nil {
+		t.Errorf("Subreddit should be nil for HN, got %q", *hn1.Subreddit)
+	}
+}
+
 func TestSocialRunnerDMTargetWarningsDoNotFailRun(t *testing.T) {
 	runner, repo := newTestRunner(t)
 	ctx := context.Background()

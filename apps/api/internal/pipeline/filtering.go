@@ -291,6 +291,20 @@ func NormalizeFetchedPostForFiltering(platform, _ string, p FetchedPost) FilterI
 			},
 		}
 	}
+	if platform == "hackernews" {
+		return FilterInput{
+			FindingType: domain.FindingTypePost,
+			Platform:    "hackernews",
+			ID:          p.ID,
+			Title:       p.Title,
+			Body:        p.Selftext,
+			URL:         p.Permalink,
+			Author:      p.Author,
+			SourceIdentity: domain.SourceIdentity{
+				"hn_author": strings.ToLower(p.Author),
+			},
+		}
+	}
 	return FilterInput{
 		FindingType: domain.FindingTypePost,
 		Platform:    "bluesky",
@@ -311,7 +325,7 @@ func NormalizeFetchedPostForFiltering(platform, _ string, p FetchedPost) FilterI
 func TrustOptionsForDecision(input FilterInput, signature string) []domain.FilterTrustOption {
 	input = normalizeFilterInput(input)
 	var out []domain.FilterTrustOption
-	for _, kind := range []string{"reddit_author", "subreddit", "bluesky_cid", "bluesky_handle", "domain", "canonical_url"} {
+	for _, kind := range []string{"reddit_author", "subreddit", "bluesky_cid", "bluesky_handle", "hn_author", "domain", "canonical_url"} {
 		if key := input.SourceIdentity[kind]; key != "" {
 			out = append(out, domain.FilterTrustOption{
 				Platform:   input.Platform,
@@ -344,6 +358,8 @@ func trustLabel(platform, kind, key string) string {
 		return fmt.Sprintf("Trust Bluesky CID %s", key)
 	case "bluesky_handle":
 		return fmt.Sprintf("Trust Bluesky handle %s", key)
+	case "hn_author":
+		return fmt.Sprintf("Trust Hacker News user %s", key)
 	case "domain":
 		return fmt.Sprintf("Trust domain %s", key)
 	case "canonical_url":

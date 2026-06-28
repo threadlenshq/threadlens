@@ -25,6 +25,24 @@ type Result struct {
 	PostsFound   int64
 }
 
+// applyHackerNewsFields populates the HN-specific fields on a domain.Post from a
+// fetched HN post. HN is Reddit-shaped but its permalink is already a full URL
+// and it has no subreddit; points are stored in RedditScore.
+func applyHackerNewsFields(post *domain.Post, p FetchedPost) {
+	post.Title = p.Title
+	post.Body = p.Selftext
+	post.Author = p.Author
+	post.URL = p.Permalink
+	score := int64(p.Score)
+	post.RedditScore = &score
+	numComments := int64(p.NumComments)
+	post.NumComments = &numComments
+	if p.CreatedUTC != 0 {
+		t := time.Unix(int64(p.CreatedUTC), 0).UTC().Format(time.RFC3339)
+		post.CreatedAt = &t
+	}
+}
+
 // Runner manages active scout runs and their cancellation contexts.
 type Runner struct {
 	Repo *repository.Repository
@@ -36,9 +54,10 @@ type Runner struct {
 	dmTargets        *DMTargetGenerator
 
 	// Overridable fetchers for testing.
-	fetchReddit  func(ctx context.Context, queryURLs []string, onProgress func(int, int)) ([]FetchedPost, error)
-	fetchBluesky func(ctx context.Context, queries []string, onProgress func(int, int)) ([]FetchedPost, error)
-	scorePosts   func(ctx context.Context, posts []ScoringPost, angles []string, rubric *string, desc *string, onProgress func(int, int)) (ScoreResult, error)
+	fetchReddit     func(ctx context.Context, queryURLs []string, onProgress func(int, int)) ([]FetchedPost, error)
+	fetchBluesky    func(ctx context.Context, queries []string, onProgress func(int, int)) ([]FetchedPost, error)
+	fetchHackerNews func(ctx context.Context, queries []string, onProgress func(int, int)) ([]FetchedPost, error)
+	scorePosts      func(ctx context.Context, posts []ScoringPost, angles []string, rubric *string, desc *string, onProgress func(int, int)) (ScoreResult, error)
 }
 
 // NewRunner creates a new Runner.
@@ -54,6 +73,9 @@ func NewRunner(repo *repository.Repository, ai *ai.Service) *Runner {
 	}
 	r.fetchBluesky = func(ctx context.Context, queries []string, onProgress func(int, int)) ([]FetchedPost, error) {
 		return FetchBlueskyPosts(ctx, queries, onProgress)
+	}
+	r.fetchHackerNews = func(ctx context.Context, queries []string, onProgress func(int, int)) ([]FetchedPost, error) {
+		return FetchHackerNewsPosts(ctx, queries, onProgress)
 	}
 	r.scorePosts = func(ctx context.Context, posts []ScoringPost, angles []string, rubric *string, desc *string, onProgress func(int, int)) (ScoreResult, error) {
 		return ScorePosts(ctx, repo, ai, posts, angles, 15, rubric, desc, onProgress)
@@ -246,6 +268,8 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 		fetchedPosts, err = r.fetchReddit(ctx, queryURLs, onFetchProgress)
 	case "bluesky":
 		fetchedPosts, err = r.fetchBluesky(ctx, queryURLs, onFetchProgress)
+	case "hackernews":
+		fetchedPosts, err = r.fetchHackerNews(ctx, queryURLs, onFetchProgress)
 	default:
 		return Result{RunID: runID}, fmt.Errorf("unsupported platform: %s", platform)
 	}
@@ -306,7 +330,8 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 			if decision.Confidence != nil {
 				fp.FilterConfidence = decision.Confidence
 			}
-			if platform == "reddit" {
+			switch platform {
+			case "reddit":
 				fp.Title = p.Title
 				fp.Body = p.Selftext
 				fp.Author = p.Author
@@ -323,7 +348,9 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 					t := time.Unix(int64(p.CreatedUTC), 0).UTC().Format(time.RFC3339)
 					fp.CreatedAt = &t
 				}
-			} else {
+			case "hackernews":
+				applyHackerNewsFields(&fp, p)
+			default: // bluesky
 				title := p.Text
 				if len(title) > 100 {
 					title = title[:100]
@@ -411,7 +438,8 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 	_ = r.Repo.UpdateScoutStep(ctx, runID, fmt.Sprintf("Scoring 0/%d posts", totalToScore))
 	scoringPosts := make([]ScoringPost, len(filtered))
 	for i, p := range filtered {
-		if platform == "reddit" {
+		switch platform {
+		case "reddit":
 			scoringPosts[i] = ScoringPost{
 				ID:          p.ID,
 				Title:       p.Title,
@@ -420,7 +448,15 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 				Score:       p.Score,
 				NumComments: p.NumComments,
 			}
-		} else {
+		case "hackernews":
+			scoringPosts[i] = ScoringPost{
+				ID:          p.ID,
+				Title:       p.Title,
+				Selftext:    p.Selftext,
+				Score:       p.Score,
+				NumComments: p.NumComments,
+			}
+		default: // bluesky
 			title := p.Text
 			if len(title) > 100 {
 				title = title[:100]
@@ -489,7 +525,8 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 			EngagementType: scored.EngagementType,
 			KarmaTopic:     scored.KarmaTopic,
 		}
-		if platform == "reddit" {
+		switch platform {
+		case "reddit":
 			post.Title = p.Title
 			post.Body = p.Selftext
 			post.Author = p.Author
@@ -506,7 +543,9 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 				t := time.Unix(int64(p.CreatedUTC), 0).UTC().Format(time.RFC3339)
 				post.CreatedAt = &t
 			}
-		} else {
+		case "hackernews":
+			applyHackerNewsFields(&post, p)
+		default: // bluesky
 			title := p.Text
 			if len(title) > 100 {
 				title = title[:100]
