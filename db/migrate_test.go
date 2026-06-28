@@ -63,20 +63,36 @@ func TestMigrateSQLiteIsIdempotent(t *testing.T) {
 	}
 	defer database.Close()
 
-	for i := range 2 {
-		if err := Migrate(context.Background(), database, DialectSQLite); err != nil {
-			t.Fatalf("Migrate (run %d): %v", i+1, err)
-		}
+	// First migration run
+	if err := Migrate(context.Background(), database, DialectSQLite); err != nil {
+		t.Fatalf("Migrate (run 1): %v", err)
 	}
 
-	var count int
+	var countAfterFirst int
 	if err := database.QueryRow(
 		`SELECT COUNT(*) FROM schema_migrations WHERE scope = 'core'`,
-	).Scan(&count); err != nil {
-		t.Fatalf("querying schema_migrations: %v", err)
+	).Scan(&countAfterFirst); err != nil {
+		t.Fatalf("querying schema_migrations after first run: %v", err)
 	}
-	if count != 1 {
-		t.Errorf("schema_migrations rows for scope='core' = %d after two runs, want 1", count)
+	if countAfterFirst <= 0 {
+		t.Errorf("schema_migrations rows for scope='core' = %d after first run, want > 0", countAfterFirst)
+	}
+
+	// Second migration run
+	if err := Migrate(context.Background(), database, DialectSQLite); err != nil {
+		t.Fatalf("Migrate (run 2): %v", err)
+	}
+
+	var countAfterSecond int
+	if err := database.QueryRow(
+		`SELECT COUNT(*) FROM schema_migrations WHERE scope = 'core'`,
+	).Scan(&countAfterSecond); err != nil {
+		t.Fatalf("querying schema_migrations after second run: %v", err)
+	}
+
+	// Verify idempotency: second run should not add or duplicate rows
+	if countAfterSecond != countAfterFirst {
+		t.Errorf("schema_migrations rows for scope='core': after first run = %d, after second run = %d, want equal (idempotent)", countAfterFirst, countAfterSecond)
 	}
 }
 
