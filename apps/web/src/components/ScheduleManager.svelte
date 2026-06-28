@@ -162,8 +162,9 @@
             class:reddit={s.platform === 'reddit'}
             class:bluesky={s.platform === 'bluesky'}
             class:google={s.platform === 'google'}
+            class:hackernews={s.platform === 'hackernews'}
           >
-            {s.platform === 'reddit' ? 'Reddit' : s.platform === 'bluesky' ? 'Bluesky' : 'Google'}
+            {s.platform === 'reddit' ? 'Reddit' : s.platform === 'bluesky' ? 'Bluesky' : s.platform === 'hackernews' ? 'Hacker News' : 'Google'}
           </span>
           <div class="schedule-details">
             <span class="schedule-label">{getScheduleLabel(s.cron_expr)}</span>
@@ -190,6 +191,7 @@
         <option value="reddit">Reddit</option>
         <option value="bluesky">Bluesky</option>
         <option value="google">Google</option>
+        <option value="hackernews">Hacker News</option>
       </select>
       {#if useCustomCron}
         <input
@@ -321,6 +323,8 @@
     background: #34a853;
     color: #fff;
   }
+
+  .platform-badge.hackernews { background: #ff6600; color: #fff; }
 
   .cron-expr {
     font-family: monospace;
