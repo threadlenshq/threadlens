@@ -1,4 +1,6 @@
 <script>
+  import { PLATFORM_LABELS, PLATFORM_COLORS } from '../lib/platforms.js';
+
   let {
     post,
     selected = false,
@@ -8,12 +10,6 @@
     onSelect,
     onBulkToggle,
   } = $props();
-
-  const PLATFORM_COLORS = {
-    reddit: '#FF4500',
-    bluesky: '#0085FF',
-    hackernews: '#ff6600',
-  };
 
   const STATUS_COLORS = {
     new: '#6b6b80',
@@ -121,7 +117,7 @@
     {/if}
     <div class="badges">
       <span class="platform-badge" style="background: {platformColor}20; color: {platformColor}; border-color: {platformColor}40">
-        {post.platform === 'reddit' ? 'Reddit' : post.platform === 'hackernews' ? 'Hacker News' : 'Bluesky'}
+        {PLATFORM_LABELS[post.platform] ?? post.platform}
       </span>
       {#if projectMode === 'research' && signalStyle}
         <span class="type-badge" style="color: {signalStyle.color}; background: {signalStyle.bg}; border: 1px solid {signalStyle.border}">

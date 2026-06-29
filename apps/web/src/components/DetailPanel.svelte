@@ -1,4 +1,6 @@
 <script>
+  import { PLATFORM_LABELS, PLATFORM_COLORS } from '../lib/platforms.js';
+
   export let post = null;
   export let generating = false;
   export let generateError = null;
@@ -11,12 +13,6 @@
   export let onStatusChange = null;
   export let onDraftChange = null;
   export let onPostReply = null;
-
-  const PLATFORM_COLORS = {
-    reddit: '#FF4500',
-    bluesky: '#0085FF',
-    hackernews: '#FF6600',
-  };
 
   let draftValue = '';
   let copied = false;
@@ -225,7 +221,7 @@
     <div class="panel-header">
       <div class="post-meta">
         <span class="platform-label" style="color: {platformColor}">
-          {post.platform === 'reddit' ? 'Reddit' : post.platform === 'hackernews' ? 'Hacker News' : 'Bluesky'}
+          {PLATFORM_LABELS[post.platform] ?? post.platform}
         </span>
         <span class="author">by {post.author}</span>
         <span class="date">{formatDate(post.created_at)}</span>

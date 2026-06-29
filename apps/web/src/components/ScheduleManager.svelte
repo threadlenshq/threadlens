@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { schedules as schedulesApi } from '../lib/api.js';
+  import { platformLabel } from '../lib/platforms.js';
 
   let { projectId } = $props();
 
@@ -164,7 +165,7 @@
             class:google={s.platform === 'google'}
             class:hackernews={s.platform === 'hackernews'}
           >
-            {s.platform === 'reddit' ? 'Reddit' : s.platform === 'bluesky' ? 'Bluesky' : s.platform === 'hackernews' ? 'Hacker News' : 'Google'}
+            {platformLabel(s.platform)}
           </span>
           <div class="schedule-details">
             <span class="schedule-label">{getScheduleLabel(s.cron_expr)}</span>

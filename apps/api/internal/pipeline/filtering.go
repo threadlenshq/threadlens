@@ -253,6 +253,7 @@ func inputSignature(input FilterInput, reasonKey string) string {
 		reasonKey,
 		input.SourceIdentity["reddit_author"],
 		input.SourceIdentity["bluesky_cid"],
+		input.SourceIdentity["hn_author"],
 		input.SourceIdentity["domain"],
 		strings.ToLower(input.Title),
 	}

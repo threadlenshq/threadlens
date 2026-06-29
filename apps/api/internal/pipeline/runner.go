@@ -25,6 +25,27 @@ type Result struct {
 	PostsFound   int64
 }
 
+// applyRedditFields populates the Reddit-specific fields on a domain.Post from a
+// fetched Reddit post.
+func applyRedditFields(post *domain.Post, p FetchedPost) {
+	post.Title = p.Title
+	post.Body = p.Selftext
+	post.Author = p.Author
+	post.URL = "https://www.reddit.com" + p.Permalink
+	if p.Subreddit != "" {
+		subreddit := p.Subreddit
+		post.Subreddit = &subreddit
+	}
+	score := int64(p.Score)
+	post.RedditScore = &score
+	numComments := int64(p.NumComments)
+	post.NumComments = &numComments
+	if p.CreatedUTC != 0 {
+		t := time.Unix(int64(p.CreatedUTC), 0).UTC().Format(time.RFC3339)
+		post.CreatedAt = &t
+	}
+}
+
 // applyHackerNewsFields populates the HN-specific fields on a domain.Post from a
 // fetched HN post. HN is Reddit-shaped but its permalink is already a full URL
 // and it has no subreddit; points are stored in RedditScore.
@@ -332,22 +353,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 			}
 			switch platform {
 			case "reddit":
-				fp.Title = p.Title
-				fp.Body = p.Selftext
-				fp.Author = p.Author
-				fp.URL = "https://www.reddit.com" + p.Permalink
-				subreddit := p.Subreddit
-				if subreddit != "" {
-					fp.Subreddit = &subreddit
-				}
-				score := int64(p.Score)
-				fp.RedditScore = &score
-				numComments := int64(p.NumComments)
-				fp.NumComments = &numComments
-				if p.CreatedUTC != 0 {
-					t := time.Unix(int64(p.CreatedUTC), 0).UTC().Format(time.RFC3339)
-					fp.CreatedAt = &t
-				}
+				applyRedditFields(&fp, p)
 			case "hackernews":
 				applyHackerNewsFields(&fp, p)
 			default: // bluesky
@@ -439,20 +445,13 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 	scoringPosts := make([]ScoringPost, len(filtered))
 	for i, p := range filtered {
 		switch platform {
-		case "reddit":
+		case "reddit", "hackernews":
+			// HN has no subreddit; p.Subreddit is empty for HN hits.
 			scoringPosts[i] = ScoringPost{
 				ID:          p.ID,
 				Title:       p.Title,
 				Selftext:    p.Selftext,
 				Subreddit:   p.Subreddit,
-				Score:       p.Score,
-				NumComments: p.NumComments,
-			}
-		case "hackernews":
-			scoringPosts[i] = ScoringPost{
-				ID:          p.ID,
-				Title:       p.Title,
-				Selftext:    p.Selftext,
 				Score:       p.Score,
 				NumComments: p.NumComments,
 			}
@@ -527,22 +526,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 		}
 		switch platform {
 		case "reddit":
-			post.Title = p.Title
-			post.Body = p.Selftext
-			post.Author = p.Author
-			post.URL = "https://www.reddit.com" + p.Permalink
-			subreddit := p.Subreddit
-			if subreddit != "" {
-				post.Subreddit = &subreddit
-			}
-			score := int64(p.Score)
-			post.RedditScore = &score
-			numComments := int64(p.NumComments)
-			post.NumComments = &numComments
-			if p.CreatedUTC != 0 {
-				t := time.Unix(int64(p.CreatedUTC), 0).UTC().Format(time.RFC3339)
-				post.CreatedAt = &t
-			}
+			applyRedditFields(&post, p)
 		case "hackernews":
 			applyHackerNewsFields(&post, p)
 		default: // bluesky

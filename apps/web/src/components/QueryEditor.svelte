@@ -1,5 +1,6 @@
 <script>
   import { queries as queriesApi, queryReviewJobs as queryReviewJobsApi } from '../lib/api.js';
+  import { PLATFORM_LABELS } from '../lib/platforms.js';
   import Surface from './ui/Surface.svelte';
   import QueryJobReviewModal from './QueryJobReviewModal.svelte';
 
@@ -14,7 +15,6 @@
 
   const MIN_RECOMMENDED_QUERIES = 8;
   const MIN_RECOMMENDED_ANGLES = 3;
-  const PLATFORM_LABELS = { reddit: 'Reddit', bluesky: 'Bluesky', google: 'Google', hackernews: 'Hacker News' };
   const QUALITY_LABEL_FALLBACK = 'No signal yet';
   const QUALITY_SUMMARY_FALLBACK = 'No completed social or Google reports yet.';
   const QUERY_VISIBILITY_OPTIONS = [

@@ -130,11 +130,12 @@ func hnSearch(ctx context.Context, query string) ([]hnHit, error) {
 	q.Set("hitsPerPage", strconv.Itoa(hnHitsPerPage))
 	reqURL := hnSearchURL + "?" + q.Encode()
 
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("hn build request: %w", err)
+	}
+
 	for attempt := 0; attempt <= hnMaxRetries; attempt++ {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
-		if err != nil {
-			return nil, fmt.Errorf("hn build request: %w", err)
-		}
 		resp, err := hnHTTPClient.Do(req)
 		if err != nil {
 			return nil, fmt.Errorf("hn fetch: %w", err)
