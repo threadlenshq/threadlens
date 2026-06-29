@@ -102,6 +102,7 @@
   let newUrl = $state('');
   let newAngle = $state('');
   let adding = $state(false);
+  let showAddForm = $state(false);
 
   // Suggest / Refine confirm modal state
   let showSuggestConfirmModal = $state(false);
@@ -323,6 +324,42 @@
     </div>
   {/if}
 
+  <div class="add-panel" class:open={showAddForm}>
+    <div class="add-toggle">
+      <button class="add-toggle-btn" type="button" aria-expanded={showAddForm} onclick={() => showAddForm = !showAddForm}>
+        <span class="add-toggle-icon" aria-hidden="true">{showAddForm ? '✕' : '+'}</span>
+        <span class="add-toggle-label">Add Query</span>
+      </button>
+      <a class="doc-link" href="https://docs.threadlens.dev/user-guide/scouting-sources/" target="_blank" rel="noopener" title="Add queries for each platform to scout">?</a>
+    </div>
+    {#if showAddForm}
+      <div class="add-form">
+        <div class="form-row">
+          <select bind:value={newPlatform} class="platform-select">
+            <option value="reddit">Reddit</option>
+            <option value="bluesky">Bluesky</option>
+            <option value="google">Google</option>
+          </select>
+          <input
+            class="angle-input"
+            type="text"
+            placeholder="Angle (optional)"
+            bind:value={newAngle}
+          />
+        </div>
+        <textarea
+          class="url-textarea"
+          placeholder={newPlatform === 'google' ? 'Root keyword (e.g., remote developer burnout)' : 'Query URL'}
+          bind:value={newUrl}
+          rows="2"
+        ></textarea>
+        <button class="add-btn" onclick={addQuery} disabled={adding || !newUrl.trim()}>
+          {adding ? 'Adding...' : 'Add Query'}
+        </button>
+      </div>
+    {/if}
+  </div>
+
   {#if loading}
     <div class="loading">Loading queries...</div>
   {:else if visibleQueries.length === 0}
@@ -388,35 +425,6 @@
       {/each}
     </div>
   {/if}
-
-  <div class="add-form">
-    <div class="add-form-title">
-      Add Query
-      <a class="doc-link" href="https://docs.threadlens.dev/user-guide/scouting-sources/" target="_blank" rel="noopener" title="Add queries for each platform to scout">?</a>
-    </div>
-    <div class="form-row">
-      <select bind:value={newPlatform} class="platform-select">
-        <option value="reddit">Reddit</option>
-        <option value="bluesky">Bluesky</option>
-        <option value="google">Google</option>
-      </select>
-      <input
-        class="angle-input"
-        type="text"
-        placeholder="Angle (optional)"
-        bind:value={newAngle}
-      />
-    </div>
-    <textarea
-      class="url-textarea"
-      placeholder={newPlatform === 'google' ? 'Root keyword (e.g., remote developer burnout)' : 'Query URL'}
-      bind:value={newUrl}
-      rows="2"
-    ></textarea>
-     <button class="add-btn" onclick={addQuery} disabled={adding || !newUrl.trim()}>
-      {adding ? 'Adding...' : 'Add Query'}
-    </button>
-  </div>
 
   {#if showSuggestConfirmModal}
     <div class="modal-overlay" role="presentation" tabindex="-1" onclick={(e) => { if (e.target === e.currentTarget) closeSuggestConfirm(); }} onkeydown={(e) => closeOnEscape(e, closeSuggestConfirm)}>
@@ -865,6 +873,64 @@
     }
   }
 
+  .add-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .add-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 0 14px 0 0;
+    background: #1a1a24;
+    border: 1px solid #2a2a3a;
+    border-radius: 8px;
+    transition: background 0.12s ease, border-color 0.12s ease;
+  }
+
+  .add-toggle:hover {
+    background: #20202c;
+    border-color: #3a3a4a;
+  }
+
+  .add-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    padding: 11px 16px;
+    background: none;
+    border: none;
+    color: #e2e2e8;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+  }
+
+  .add-panel.open .add-toggle {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-color: transparent;
+  }
+
+  .add-toggle-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    font-size: 14px;
+    color: #888;
+  }
+
+  .add-toggle-label {
+    flex: 1;
+    text-align: left;
+  }
+
   .add-form {
     display: flex;
     flex-direction: column;
@@ -872,15 +938,8 @@
     padding: 16px;
     background: #1a1a24;
     border: 1px solid #2a2a3a;
-    border-radius: 8px;
-  }
-
-  .add-form-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: #888;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
   }
 
   .form-row {
