@@ -339,6 +339,7 @@
             <option value="reddit">Reddit</option>
             <option value="bluesky">Bluesky</option>
             <option value="google">Google</option>
+            <option value="hackernews">Hacker News</option>
           </select>
           <input
             class="angle-input"
@@ -349,7 +350,7 @@
         </div>
         <textarea
           class="url-textarea"
-          placeholder={newPlatform === 'google' ? 'Root keyword (e.g., remote developer burnout)' : 'Query URL'}
+          placeholder={newPlatform === 'google' ? 'Root keyword (e.g., remote developer burnout)' : newPlatform === 'hackernews' ? 'Search keyword (e.g., self-hosting pain)' : 'Query URL'}
           bind:value={newUrl}
           rows="2"
         ></textarea>

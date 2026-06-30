@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS projects (
 CREATE TABLE IF NOT EXISTS project_queries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky', 'google')),
+  platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky', 'google', 'hackernews')),
   query_url TEXT NOT NULL,
   angle TEXT NOT NULL,
   enabled INTEGER NOT NULL DEFAULT 1,
@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS project_prompts (
 CREATE TABLE IF NOT EXISTS posts (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky')),
+  platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky', 'hackernews')),
   title TEXT NOT NULL DEFAULT '',
   body TEXT NOT NULL DEFAULT '',
   author TEXT NOT NULL DEFAULT '',
@@ -230,7 +230,7 @@ CREATE TABLE IF NOT EXISTS seen_posts (
 CREATE TABLE IF NOT EXISTS scout_runs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky', 'google')),
+  platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky', 'google', 'hackernews')),
   started_at DATETIME NOT NULL DEFAULT (datetime('now')),
   completed_at DATETIME,
   posts_checked INTEGER NOT NULL DEFAULT 0,
@@ -260,7 +260,7 @@ CREATE TABLE IF NOT EXISTS query_review_jobs (
 CREATE TABLE IF NOT EXISTS filter_trust_records (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky', 'google', 'all')),
+  platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky', 'google', 'all', 'hackernews')),
   trust_type TEXT NOT NULL CHECK (trust_type IN ('source', 'filter_signature')),
   source_kind TEXT NOT NULL,
   source_key TEXT NOT NULL,
@@ -286,7 +286,7 @@ CREATE TABLE IF NOT EXISTS filter_jobs (
 CREATE TABLE IF NOT EXISTS schedules (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky', 'google')),
+  platform TEXT NOT NULL CHECK (platform IN ('reddit', 'bluesky', 'google', 'hackernews')),
   cron_expr TEXT NOT NULL,
   enabled INTEGER NOT NULL DEFAULT 1,
   last_run_at DATETIME,
