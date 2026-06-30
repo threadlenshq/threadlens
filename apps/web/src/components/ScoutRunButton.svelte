@@ -2,14 +2,17 @@
   import { scout as scoutApi } from '../lib/api.js';
   import { hasCapability, scoutCapabilityForPlatform, isGoogleScoutLocked } from '../lib/capabilities.js';
   import GoogleLockedNotice from './GoogleLockedNotice.svelte';
+  import NoQueriesNotice from './NoQueriesNotice.svelte';
 
   let {
     projectId,
     externalRunning = false,
     lastRunLabel = '',
     enabledQueryCount = null,
+    enabledQueryCounts = null,
     capabilities = null,
     onScoutComplete,
+    onAddQueries,
   } = $props();
 
   let running = $state(false);
@@ -18,6 +21,8 @@
   let showDropdown = $state(false);
   let selectedPlatform = $state('all');
   let showGoogleLockedNotice = $state(false);
+  let showNoQueriesNotice = $state(false);
+  let noQueriesPlatformLabel = $state(null);
   let disabled = $derived(running || externalRunning || !projectId);
   let googleLocked = $derived(isGoogleScoutLocked(capabilities));
 
@@ -30,7 +35,7 @@
   ];
 
   function selectedPlatformLabel() {
-    return platforms.find((p) => p.value === selectedPlatform)?.label || selectedPlatform;
+    return platformLabel(selectedPlatform);
   }
 
   function platformAllowed(platform) {
@@ -44,6 +49,21 @@
 
   function platformLocked(platform) {
     return platform === 'google' && googleLocked;
+  }
+
+  function platformLabel(platform) {
+    return platforms.find((p) => p.value === platform)?.label || platform;
+  }
+
+  // When per-platform counts are not yet loaded, never block (advisory UI only).
+  function platformHasQueries(platform) {
+    if (!enabledQueryCounts) return true;
+    return (enabledQueryCounts[platform] || 0) > 0;
+  }
+
+  function openNoQueriesNotice(label) {
+    noQueriesPlatformLabel = label;
+    showNoQueriesNotice = true;
   }
 
   function showToast(msg) {
@@ -64,6 +84,28 @@
       showToast('This scout run is not available for the current server capabilities.');
       return;
     }
+
+    // Resolve which platforms will actually run, and guide the user when there are
+    // no enabled queries to scout instead of firing a run that completes with 0 results.
+    let targetPlatforms;
+    if (selectedPlatform === 'all') {
+      const allPlatforms = ['reddit', 'bluesky', 'google', 'hackernews'];
+      const allowedPlatforms = capabilities
+        ? allPlatforms.filter((p) => hasCapability(capabilities, scoutCapabilityForPlatform(p)) && !platformLocked(p))
+        : allPlatforms.filter((p) => !platformLocked(p));
+      targetPlatforms = allowedPlatforms.filter((p) => platformHasQueries(p));
+      if (targetPlatforms.length === 0) {
+        openNoQueriesNotice(null);
+        return;
+      }
+    } else {
+      if (!platformHasQueries(selectedPlatform)) {
+        openNoQueriesNotice(platformLabel(selectedPlatform));
+        return;
+      }
+      targetPlatforms = [selectedPlatform];
+    }
+
     if (enabledQueryCount !== null && enabledQueryCount < MIN_RECOMMENDED_QUERIES) {
       const proceed = confirm(
         `You have ${enabledQueryCount} search ${enabledQueryCount === 1 ? 'query' : 'queries'}. For best results, we recommend at least ${MIN_RECOMMENDED_QUERIES}. Run anyway?`
@@ -74,16 +116,7 @@
     toastMessage = '';
     showDropdown = false;
     try {
-      let results;
-      if (selectedPlatform === 'all') {
-        const allPlatforms = ['reddit', 'bluesky', 'google', 'hackernews'];
-        const allowedPlatforms = capabilities
-          ? allPlatforms.filter((p) => hasCapability(capabilities, scoutCapabilityForPlatform(p)) && !platformLocked(p))
-          : allPlatforms.filter((p) => !platformLocked(p));
-        results = await Promise.all(allowedPlatforms.map((p) => scoutApi.run(projectId, p)));
-      } else {
-        results = [await scoutApi.run(projectId, selectedPlatform)];
-      }
+      const results = await Promise.all(targetPlatforms.map((p) => scoutApi.run(projectId, p)));
       const runIds = results.map(r => r.runId).filter(Boolean);
       onScoutComplete?.({ platform: selectedPlatform, runIds });
     } catch (e) {
@@ -171,6 +204,13 @@
   {/if}
 
   <GoogleLockedNotice open={showGoogleLockedNotice} onClose={() => { showGoogleLockedNotice = false; }} />
+
+  <NoQueriesNotice
+    open={showNoQueriesNotice}
+    platformLabel={noQueriesPlatformLabel}
+    onClose={() => { showNoQueriesNotice = false; }}
+    onAddQueries={() => onAddQueries?.()}
+  />
 </div>
 
 <style>

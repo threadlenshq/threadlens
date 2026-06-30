@@ -97,6 +97,7 @@
 
   // Query readiness state
   let enabledQueryCount = $state(null);
+  let enabledQueryCountsByPlatform = $state(null);
 
   // Run-awareness state
   let activeRuns = $state([]);
@@ -709,13 +710,20 @@
   async function loadEnabledQueryCount() {
     if (!selectedProjectId) {
       enabledQueryCount = null;
+      enabledQueryCountsByPlatform = null;
       return;
     }
     try {
       const list = await queriesApi.list(selectedProjectId);
-      enabledQueryCount = list.filter(q => q.enabled).length;
+      const enabled = list.filter(q => q.enabled);
+      enabledQueryCount = enabled.length;
+      enabledQueryCountsByPlatform = enabled.reduce((acc, q) => {
+        acc[q.platform] = (acc[q.platform] || 0) + 1;
+        return acc;
+      }, {});
     } catch {
       enabledQueryCount = null;
+      enabledQueryCountsByPlatform = null;
     }
   }
 
@@ -1216,8 +1224,10 @@
             externalRunning={activeRuns.length > 0}
             {lastRunLabel}
             {enabledQueryCount}
+            enabledQueryCounts={enabledQueryCountsByPlatform}
             capabilities={capabilitySnapshot}
             onScoutComplete={handleScoutTriggered}
+            onAddQueries={() => navigateTo('sources')}
           />
         {/if}
         <button
