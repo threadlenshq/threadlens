@@ -75,10 +75,8 @@
     }
   }
 
-  let lastProjectId = null;
   $effect(() => {
-    if (projectId && projectId !== lastProjectId) {
-      lastProjectId = projectId;
+    if (projectId) {
       showAddForm = false;
       load();
     }
