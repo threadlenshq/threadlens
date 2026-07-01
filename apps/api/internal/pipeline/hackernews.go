@@ -8,11 +8,16 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
 const (
-	hnSearchURL   = "https://hn.algolia.com/api/v1/search_by_date"
+	// hnSearchURL is the relevance + popularity ranked Algolia endpoint. We
+	// deliberately avoid search_by_date: date sorting surfaces brand-new,
+	// zero-engagement submissions, while relevance ranking returns substantive,
+	// well-discussed posts that carry real pain signal.
+	hnSearchURL   = "https://hn.algolia.com/api/v1/search"
 	hnHitsPerPage = 50
 	hnMaxRetries  = 2
 	hnBaseBackoff = 1000 * time.Millisecond
@@ -50,6 +55,23 @@ func (h hnHit) isComment() bool {
 	return false
 }
 
+// isDead reports whether the hit is a dead, deleted, or flagged item. HN renders
+// these with a placeholder such as "[dead]" in place of the real content, so
+// they carry no usable signal and should be dropped before scoring.
+func (h hnHit) isDead() bool {
+	dead := func(s string) bool {
+		switch strings.ToLower(strings.TrimSpace(s)) {
+		case "[dead]", "[deleted]", "[flagged]":
+			return true
+		}
+		return false
+	}
+	if h.isComment() {
+		return dead(h.CommentText)
+	}
+	return dead(h.Title)
+}
+
 // mapHNHit converts one Algolia hit into the common FetchedPost shape.
 func mapHNHit(h hnHit) FetchedPost {
 	fp := FetchedPost{
@@ -85,6 +107,9 @@ func mapHNHits(hits []hnHit) []FetchedPost {
 		if h.ObjectID == "" {
 			continue // skip malformed hit
 		}
+		if h.isDead() {
+			continue // skip dead/deleted/flagged items
+		}
 		out = append(out, mapHNHit(h))
 	}
 	return out
@@ -105,7 +130,7 @@ func dedupHNPosts(posts []FetchedPost) []FetchedPost {
 }
 
 // FetchHackerNewsPosts runs each query string against the Algolia HN Search API
-// (date-sorted, stories + comments) and returns deduped FetchedPost results.
+// (relevance-ranked, stories + comments) and returns deduped FetchedPost results.
 func FetchHackerNewsPosts(ctx context.Context, queries []string, onProgress func(done, total int)) ([]FetchedPost, error) {
 	all := make([]FetchedPost, 0)
 	total := len(queries)
@@ -122,10 +147,31 @@ func FetchHackerNewsPosts(ctx context.Context, queries []string, onProgress func
 	return dedupHNPosts(all), nil
 }
 
-// hnSearch performs one Algolia search_by_date request with retry on 429/503.
+// normalizeHNQuery extracts a bare search term from a stored query value. The
+// Algolia search endpoint expects a plain term, but some HN queries were stored
+// as full Algolia URLs (e.g. "https://hn.algolia.com/api/v1/search?query=customer+discovery").
+// Passing such a URL verbatim as the query param matches nothing, so when the
+// value looks like a URL carrying a "query" parameter, return that parameter;
+// otherwise return the value unchanged.
+func normalizeHNQuery(query string) string {
+	query = strings.TrimSpace(query)
+	if !strings.HasPrefix(query, "http://") && !strings.HasPrefix(query, "https://") {
+		return query
+	}
+	u, err := url.Parse(query)
+	if err != nil {
+		return query
+	}
+	if term := strings.TrimSpace(u.Query().Get("query")); term != "" {
+		return term
+	}
+	return query
+}
+
+// hnSearch performs one Algolia search request with retry on 429/503.
 func hnSearch(ctx context.Context, query string) ([]hnHit, error) {
 	q := url.Values{}
-	q.Set("query", query)
+	q.Set("query", normalizeHNQuery(query))
 	q.Set("tags", "(story,comment)")
 	q.Set("hitsPerPage", strconv.Itoa(hnHitsPerPage))
 	reqURL := hnSearchURL + "?" + q.Encode()

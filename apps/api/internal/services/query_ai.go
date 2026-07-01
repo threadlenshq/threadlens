@@ -813,6 +813,7 @@ Query format rules:
 - Only use subreddit-restricted search when the subreddit has >500k members, the keyword is ≤3 tokens, and the fit is clear
 - Keep Reddit query keywords to ≤5 tokens total; prefer 1-3 token phrases over multi-phrase OR chains
 - Bluesky query_url must be a plain keyword search string, 2-5 words
+- Hacker News query_url must be a plain keyword search string, not a URL, 2-5 words
 - Google query_url must be a plain root keyword, not a URL, usually 2-6 words
 - Each add recommendation must include a concise angle
 
