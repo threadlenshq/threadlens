@@ -78,6 +78,77 @@ func TestGeneralQueryService_UpdateResyncsRows(t *testing.T) {
 	}
 }
 
+// TestQueryService_MaterializedRowsAreReadOnly verifies that the per-platform
+// QueryService Patch and Delete endpoints refuse to touch rows that are owned
+// by a general query (general_query_id IS NOT NULL), returning 409, while
+// standalone rows remain fully editable.
+func TestQueryService_MaterializedRowsAreReadOnly(t *testing.T) {
+	db := testhelpers.OpenTestDB(t)
+	repo := repository.New(db)
+	ctx := context.Background()
+	if _, err := repo.CreateProject(ctx, domain.Project{ID: "p1", Name: "Proj", Mode: "research"}); err != nil {
+		t.Fatal(err)
+	}
+
+	gqSvc := services.NewGeneralQueryService(repo)
+	qSvc := services.NewQueryService(repo, nil)
+	en := true
+
+	// Create a general query for google - materializes one row.
+	gq, status, msg := gqSvc.Create(ctx, "p1", services.GeneralQueryRequest{
+		QueryText: "manual invoicing", Angle: "pain", Platforms: []string{"google"}, Enabled: &en,
+	})
+	if msg != "" || status != http.StatusCreated {
+		t.Fatalf("create general query failed: %d %q", status, msg)
+	}
+
+	// Find the materialized row.
+	all, err := repo.ListAllQueries(ctx, "p1")
+	if err != nil || len(all) != 1 {
+		t.Fatalf("expected 1 materialized row, got %d (err: %v)", len(all), err)
+	}
+	rowID := all[0].ID
+	if all[0].GeneralQueryID == nil || *all[0].GeneralQueryID != gq.ID {
+		t.Fatalf("row not linked to general query: %+v", all[0])
+	}
+
+	// Delete must return 409 and the row must still exist.
+	delStatus, delMsg := qSvc.Delete(ctx, "p1", rowID)
+	if delStatus != http.StatusConflict {
+		t.Errorf("Delete materialized row: want 409, got %d (%q)", delStatus, delMsg)
+	}
+	after, _ := repo.ListAllQueries(ctx, "p1")
+	if len(after) != 1 {
+		t.Errorf("Delete materialized row: row was removed despite 409; rows after: %d", len(after))
+	}
+
+	// Patch must return 409 and the row must be unchanged.
+	_, patchStatus, patchMsg := qSvc.Patch(ctx, "p1", rowID, map[string]any{"angle": "x"})
+	if patchStatus != http.StatusConflict {
+		t.Errorf("Patch materialized row: want 409, got %d (%q)", patchStatus, patchMsg)
+	}
+	after2, _ := repo.ListAllQueries(ctx, "p1")
+	if len(after2) == 0 {
+		t.Errorf("Patch materialized row: row no longer exists")
+	} else if after2[0].Angle != "pain" {
+		t.Errorf("Patch materialized row: angle was changed to %q", after2[0].Angle)
+	}
+
+	// Control case: standalone query can be patched and deleted normally.
+	standalone, err := repo.CreateQuery(ctx, "p1", "reddit", "/r/selfhosted", "test angle", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, ctlPatchStatus, ctlPatchMsg := qSvc.Patch(ctx, "p1", standalone.ID, map[string]any{"angle": "updated"})
+	if ctlPatchStatus != http.StatusOK {
+		t.Errorf("Patch standalone row: want 200, got %d (%q)", ctlPatchStatus, ctlPatchMsg)
+	}
+	ctlDelStatus, ctlDelMsg := qSvc.Delete(ctx, "p1", standalone.ID)
+	if ctlDelStatus != http.StatusNoContent {
+		t.Errorf("Delete standalone row: want 204, got %d (%q)", ctlDelStatus, ctlDelMsg)
+	}
+}
+
 // TestGeneralQueryService_UpdateCollision409PreservesRows verifies that a 409
 // collision on Update leaves the general query's original materialized rows intact
 // (regression: previously the rows were deleted before the collision check).

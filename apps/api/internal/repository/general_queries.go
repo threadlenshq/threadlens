@@ -59,7 +59,7 @@ func (r *Repository) CreateGeneralQuery(ctx context.Context, projectID, queryTex
 
 func (r *Repository) ListGeneralQueries(ctx context.Context, projectID string) ([]domain.GeneralQuery, error) {
 	rows, err := r.DB.QueryContext(ctx,
-		"SELECT "+generalQueryCols+" FROM general_queries WHERE project_id = ? ORDER BY created_at", projectID)
+		"SELECT "+generalQueryCols+" FROM general_queries WHERE project_id = ? ORDER BY created_at, id", projectID)
 	if err != nil {
 		return nil, err
 	}

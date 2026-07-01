@@ -118,12 +118,17 @@ func (s *QueryService) Patch(ctx context.Context, projectID string, queryID int6
 		body["query_url"] = queryURL
 	}
 
+	// Fetch existing row once - needed for ownership check and platform/url validation.
+	existing, err := s.repo.GetQuery(ctx, projectID, queryID)
+	if err != nil {
+		code, msg := mapError(err)
+		return domain.Query{}, code, msg
+	}
+	if existing.GeneralQueryID != nil {
+		return domain.Query{}, http.StatusConflict, "This query is managed by a general query and cannot be edited individually"
+	}
+
 	if hasPlatform || hasQueryURL {
-		existing, err := s.repo.GetQuery(ctx, projectID, queryID)
-		if err != nil {
-			code, msg := mapError(err)
-			return domain.Query{}, code, msg
-		}
 		effectivePlatform := existing.Platform
 		if hasPlatform {
 			effectivePlatform = platform
@@ -158,8 +163,14 @@ func stringField(body map[string]any, key string) (string, bool) {
 }
 
 func (s *QueryService) Delete(ctx context.Context, projectID string, queryID int64) (int, string) {
-	err := s.repo.DeleteQuery(ctx, projectID, queryID)
+	existing, err := s.repo.GetQuery(ctx, projectID, queryID)
 	if err != nil {
+		return mapError(err)
+	}
+	if existing.GeneralQueryID != nil {
+		return http.StatusConflict, "This query is managed by a general query and cannot be deleted individually"
+	}
+	if err := s.repo.DeleteQuery(ctx, projectID, queryID); err != nil {
 		return mapError(err)
 	}
 	return http.StatusNoContent, ""
