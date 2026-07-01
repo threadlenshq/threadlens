@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.19.0 - 2026-07-01
+
+Tag: `threadlens-v0.19.0`
+
+### Features
+
+- feat(scout): guide users when running a platform with no queries (`165bea7`)
+- feat(hackernews): allow creating Hacker News queries (`c014fc5`)
+- feat(web): move add-query form into collapsible panel at top of sources (`e4be67d`)
+- feat(web): surface Hacker News in inbox, filters, and query editor (`0964812`)
+- feat(web): render Hacker News post labels and engagement (`e6efec2`)
+- feat(web): run Hacker News scout from run button (`1783329`)
+- feat(web): schedule Hacker News scout runs (`793f47c`)
+- feat(pipeline): dispatch and map hackernews posts in runner (`897e158`)
+- feat(db): drop platform CHECK constraints to allow new sources (`9780340`)
+- feat(pipeline): add Hacker News Algolia fetcher (`5c36168`)
+- feat(services): accept hackernews platform in validation (`868b30a`)
+- feat(entitlements): register hackernews scout capability (`96bfa3e`)
+
+### Fixes
+
+- fix(web): show HN search term on Sources page and fix external link (`3fa9e6f`)
+- fix(hackernews): make queries work, rank by relevance, drop dead posts (`523fb09`)
+- fix(db): assert migration idempotency without hardcoding count (`51af7e1`)
+
+### Maintenance
+
+- refactor(hackernews): dedup platform mapping and fix HN filter signature (`9f39587`)
+- style(services): gofmt validPlatforms map alignment (`7957d69`)
+- test(handlers): update platform-error assertions for hackernews (`a4b9f27`)
+
 ## 0.18.0 - 2026-06-27
 
 Tag: `threadlens-v0.18.0`
