@@ -11,7 +11,7 @@ import (
 
 func (r *Repository) ListQueries(ctx context.Context, projectID string) ([]domain.Query, error) {
 	rows, err := r.DB.QueryContext(ctx,
-		"SELECT id, project_id, platform, query_url, angle, enabled, created_at FROM project_queries WHERE project_id = ? ORDER BY created_at",
+		"SELECT id, project_id, platform, query_url, angle, enabled, created_at, general_query_id FROM project_queries WHERE project_id = ? ORDER BY created_at",
 		projectID,
 	)
 	if err != nil {
@@ -292,7 +292,7 @@ func (r *Repository) ListGoogleKeywordRows(ctx context.Context, projectID string
 // ListAllQueries returns all queries for a project (all platforms, all enabled states) ordered by created_at.
 func (r *Repository) ListAllQueries(ctx context.Context, projectID string) ([]domain.Query, error) {
 	rows, err := r.DB.QueryContext(ctx,
-		"SELECT id, project_id, platform, query_url, angle, enabled, created_at FROM project_queries WHERE project_id = ? ORDER BY created_at",
+		"SELECT id, project_id, platform, query_url, angle, enabled, created_at, general_query_id FROM project_queries WHERE project_id = ? ORDER BY created_at",
 		projectID,
 	)
 	if err != nil {
@@ -319,7 +319,7 @@ func (r *Repository) ListAllQueries(ctx context.Context, projectID string) ([]do
 
 func (r *Repository) EnabledQueries(ctx context.Context, projectID string, platform string) ([]domain.Query, error) {
 	rows, err := r.DB.QueryContext(ctx,
-		"SELECT id, project_id, platform, query_url, angle, enabled, created_at FROM project_queries WHERE project_id = ? AND platform = ? AND enabled = 1 ORDER BY created_at",
+		"SELECT id, project_id, platform, query_url, angle, enabled, created_at, general_query_id FROM project_queries WHERE project_id = ? AND platform = ? AND enabled = 1 ORDER BY created_at",
 		projectID, platform,
 	)
 	if err != nil {
@@ -346,7 +346,7 @@ func (r *Repository) EnabledQueries(ctx context.Context, projectID string, platf
 
 func (r *Repository) GetQuery(ctx context.Context, projectID string, queryID int64) (domain.Query, error) {
 	row := r.DB.QueryRowContext(ctx,
-		"SELECT id, project_id, platform, query_url, angle, enabled, created_at FROM project_queries WHERE id = ? AND project_id = ?",
+		"SELECT id, project_id, platform, query_url, angle, enabled, created_at, general_query_id FROM project_queries WHERE id = ? AND project_id = ?",
 		queryID, projectID,
 	)
 	q, err := scanQuery(row)
@@ -358,7 +358,7 @@ func (r *Repository) GetQuery(ctx context.Context, projectID string, queryID int
 
 func (r *Repository) getQueryByID(ctx context.Context, id int64) (domain.Query, error) {
 	row := r.DB.QueryRowContext(ctx,
-		"SELECT id, project_id, platform, query_url, angle, enabled, created_at FROM project_queries WHERE id = ?",
+		"SELECT id, project_id, platform, query_url, angle, enabled, created_at, general_query_id FROM project_queries WHERE id = ?",
 		id,
 	)
 	q, err := scanQuery(row)
@@ -375,6 +375,11 @@ type rowScanner interface {
 
 func scanQuery(s rowScanner) (domain.Query, error) {
 	var q domain.Query
-	err := s.Scan(&q.ID, &q.ProjectID, &q.Platform, &q.QueryURL, &q.Angle, &q.Enabled, &q.CreatedAt)
+	var generalQueryID sql.NullInt64
+	err := s.Scan(&q.ID, &q.ProjectID, &q.Platform, &q.QueryURL, &q.Angle, &q.Enabled, &q.CreatedAt, &generalQueryID)
+	if generalQueryID.Valid {
+		v := generalQueryID.Int64
+		q.GeneralQueryID = &v
+	}
 	return q, err
 }
