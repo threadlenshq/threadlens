@@ -123,12 +123,13 @@ func (s *GeneralQueryService) Update(ctx context.Context, projectID string, id i
 	if msg != "" {
 		return domain.GeneralQuery{}, code, msg
 	}
-	// Drop owned rows first so the collision check does not flag the query against itself.
-	if err := s.repo.DeleteMaterializedQueries(ctx, id); err != nil {
-		return domain.GeneralQuery{}, http.StatusInternalServerError, "Internal server error"
-	}
+	// Check collisions before deleting - excludeGQID skips this query's own rows,
+	// so no false self-collision occurs and no data is lost on a rejected update.
 	if code, msg := s.checkCollisions(ctx, projectID, pairs, id); msg != "" {
 		return domain.GeneralQuery{}, code, msg
+	}
+	if err := s.repo.DeleteMaterializedQueries(ctx, id); err != nil {
+		return domain.GeneralQuery{}, http.StatusInternalServerError, "Internal server error"
 	}
 
 	enabled := true
