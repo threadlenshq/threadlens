@@ -29,13 +29,24 @@ type ProjectWithStats struct {
 }
 
 type Query struct {
-	ID        int64  `json:"id"`
-	ProjectID string `json:"project_id"`
-	Platform  string `json:"platform"`
-	QueryURL  string `json:"query_url"`
-	Angle     string `json:"angle"`
-	Enabled   int64  `json:"enabled"`
-	CreatedAt string `json:"created_at"`
+	ID             int64  `json:"id"`
+	ProjectID      string `json:"project_id"`
+	Platform       string `json:"platform"`
+	QueryURL       string `json:"query_url"`
+	Angle          string `json:"angle"`
+	Enabled        int64  `json:"enabled"`
+	CreatedAt      string `json:"created_at"`
+	GeneralQueryID *int64 `json:"general_query_id"`
+}
+
+type GeneralQuery struct {
+	ID        int64    `json:"id"`
+	ProjectID string   `json:"project_id"`
+	QueryText string   `json:"query_text"`
+	Angle     string   `json:"angle"`
+	Platforms []string `json:"platforms"`
+	Enabled   int64    `json:"enabled"`
+	CreatedAt string   `json:"created_at"`
 }
 
 type Prompt struct {
