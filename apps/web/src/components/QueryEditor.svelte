@@ -62,6 +62,17 @@
         }
       }
     }
+    if (query.platform === 'hackernews') {
+      // Plain term normally, but legacy/AI-generated queries stored a full
+      // Algolia API URL. Show the search term, not the URL.
+      const raw = String(query.query_url || '').trim();
+      try {
+        const q = new URL(raw).searchParams.get('query');
+        if (q) return q.trim();
+      } catch {
+        // already a plain term
+      }
+    }
     return String(query.query_url || '').trim();
   }
 
@@ -248,7 +259,16 @@
       return `https://www.google.com/search?q=${encodeURIComponent(query.query_url)}`;
     }
     if (query.platform === 'hackernews') {
-      return `https://hn.algolia.com/?dateRange=all&type=all&query=${encodeURIComponent(query.query_url)}`;
+      // query_url is normally a plain search term, but legacy/AI-generated
+      // queries stored a full Algolia API URL. Extract the query term so the
+      // link searches the term, not the URL string.
+      let term = query.query_url;
+      try {
+        term = new URL(query.query_url).searchParams.get('query') || query.query_url;
+      } catch {
+        // query_url is already a plain term
+      }
+      return `https://hn.algolia.com/?query=${encodeURIComponent(term)}&sort=byPopularity&type=all`;
     }
     return query.query_url;
   }
