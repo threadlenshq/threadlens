@@ -416,11 +416,15 @@
                       </div>
 
                       <div class="query-row-actions">
-                        <label class="toggle" title={q.enabled ? 'Disable' : 'Enable'}>
-                          <input type="checkbox" checked={q.enabled} onchange={() => toggleEnabled(q)} />
-                          <span class="toggle-slider"></span>
-                        </label>
-                        <button class="delete-btn" onclick={() => deleteQuery(q)} title="Delete query">&#x2715;</button>
+                        {#if q.general_query_id != null}
+                          <span class="readonly-badge" title="Managed by a general query">from general query</span>
+                        {:else}
+                          <label class="toggle" title={q.enabled ? 'Disable' : 'Enable'}>
+                            <input type="checkbox" checked={q.enabled} onchange={() => toggleEnabled(q)} />
+                            <span class="toggle-slider"></span>
+                          </label>
+                          <button class="delete-btn" onclick={() => deleteQuery(q)} title="Delete query">&#x2715;</button>
+                        {/if}
                       </div>
                     </div>
 
@@ -850,6 +854,17 @@
 
   .toggle input:checked + .toggle-slider::after {
     transform: translateX(16px);
+  }
+
+  .readonly-badge {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    background: #1e1e2e;
+    border: 1px solid #3a3a5a;
+    border-radius: 4px;
+    color: #7a7a9a;
+    font-size: 11px;
+    white-space: nowrap;
   }
 
   .delete-btn {

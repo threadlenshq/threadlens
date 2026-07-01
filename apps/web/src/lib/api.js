@@ -55,6 +55,13 @@ export const queries = {
   refine: (pid, body = {}) => api(`/api/projects/${pid}/queries/refine`, { method: 'POST', body }),
 };
 
+export const generalQueries = {
+  list: (pid) => api(`/api/projects/${pid}/general-queries`),
+  create: (pid, body) => api(`/api/projects/${pid}/general-queries`, { method: 'POST', body }),
+  update: (pid, gqid, body) => api(`/api/projects/${pid}/general-queries/${gqid}`, { method: 'PATCH', body }),
+  delete: (pid, gqid) => api(`/api/projects/${pid}/general-queries/${gqid}`, { method: 'DELETE' }),
+};
+
 export const queryReviewJobs = {
   create: (pid, body = {}) => api(`/api/projects/${pid}/query-review-jobs`, { method: 'POST', body }),
   list: (pid) => api(`/api/projects/${pid}/query-review-jobs`),
