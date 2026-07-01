@@ -41,8 +41,9 @@ type App struct {
 	RuntimeService    *services.RuntimeService
 	InsightsService   *services.InsightsService
 	ProjectService    *services.ProjectService
-	QueryService      *services.QueryService
-	PromptService     *services.PromptService
+	QueryService        *services.QueryService
+	GeneralQueryService *services.GeneralQueryService
+	PromptService       *services.PromptService
 	PostService       *services.PostService
 	ModelService      *services.ModelService
 	ReportService     *services.ReportService
@@ -110,8 +111,9 @@ func New(cfg Config, db *sql.DB) *App {
 		RuntimeService:    services.NewRuntimeService(cfg.RuntimeMode, entitlementResolver, templateCatalog),
 		InsightsService:   services.NewInsightsService(repo),
 		ProjectService:    services.NewProjectService(repo, cfg.RuntimeMode, entitlementResolver),
-		QueryService:      services.NewQueryService(repo, aiSvc),
-		PromptService:     services.NewPromptService(repo, aiSvc),
+		QueryService:        services.NewQueryService(repo, aiSvc),
+		GeneralQueryService: services.NewGeneralQueryService(repo),
+		PromptService:       services.NewPromptService(repo, aiSvc),
 		PostService:       services.NewPostServiceFull(repo, aiSvc, redditContextFetcher{}, blueskyReplierAdapter{}),
 		ModelService:      modelSvc,
 		ReportService:     services.NewReportService(repo, db, aiSvc, cfg.RuntimeMode, entitlementResolver),

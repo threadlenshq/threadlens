@@ -31,6 +31,7 @@ func (a *App) mountRoutes() {
 	handlers.MountInsightsRoutes(a.Router, a.InsightsService)
 	handlers.MountProjectRoutes(a.Router, a.ProjectService)
 	handlers.MountQueryRoutes(a.Router, a.QueryService, a.TelemetryRecorder)
+	handlers.MountGeneralQueryRoutes(a.Router, a.GeneralQueryService)
 	handlers.MountQueryReviewJobRoutes(a.Router, a.Repo, a.QueryService)
 	handlers.MountFilterRoutes(a.Router, a.Repo, a.FilterClassifier, a.TelemetryRecorder)
 	handlers.MountPromptRoutes(a.Router, a.PromptService)
