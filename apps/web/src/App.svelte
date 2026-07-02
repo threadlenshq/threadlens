@@ -2,7 +2,6 @@
   import { onMount, onDestroy } from 'svelte';
   import ProjectSettings from './components/ProjectSettings.svelte';
   import QueryEditor from './components/QueryEditor.svelte';
-  import GeneralQueryEditor from './components/GeneralQueryEditor.svelte';
   import ScoutRunButton from './components/ScoutRunButton.svelte';
   import ActiveRunBanner from './components/ActiveRunBanner.svelte';
   import TopbarJobBanner from './components/TopbarJobBanner.svelte';
@@ -1460,10 +1459,6 @@
     {:else if view === 'sources'}
       <div class="full-width-view">
         {#key `${selectedProjectId}:${view}`}
-          <GeneralQueryEditor
-            projectId={selectedProjectId}
-            onQueriesChanged={handleQueriesChanged}
-          />
           <QueryEditor
             projectId={selectedProjectId}
             reviewJob={activeQueryReviewJob}
