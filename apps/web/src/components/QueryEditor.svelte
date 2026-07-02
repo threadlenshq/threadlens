@@ -1,5 +1,5 @@
 <script>
-  import { queries as queriesApi, queryReviewJobs as queryReviewJobsApi } from '../lib/api.js';
+  import { queries as queriesApi, queryReviewJobs as queryReviewJobsApi, generalQueries as generalQueriesApi } from '../lib/api.js';
   import { PLATFORM_LABELS } from '../lib/platforms.js';
   import Surface from './ui/Surface.svelte';
   import QueryJobReviewModal from './QueryJobReviewModal.svelte';
@@ -108,12 +108,24 @@
   );
   let error = $state('');
 
+  // Query authoring covers two modes:
+  //  - 'cross'  : one query text fanned out across selected platforms (general query)
+  //  - 'single' : one raw query URL / keyword for a single platform (advanced)
+  const ALL_PLATFORMS = ['reddit', 'bluesky', 'google', 'hackernews'];
+
   // Add form state
+  let addMode = $state('cross');
   let newPlatform = $state('reddit');
   let newUrl = $state('');
   let newAngle = $state('');
+  let newText = $state('');
+  let newPlatforms = $state([...ALL_PLATFORMS]);
+  let editingGeneralId = $state(null);
   let adding = $state(false);
   let showAddForm = $state(false);
+
+  // General queries (cross-platform groups) shown as a managed strip.
+  let generalList = $state([]);
 
   // Suggest / Refine confirm modal state
   let showSuggestConfirmModal = $state(false);
@@ -156,7 +168,46 @@
     }
   }
 
-  async function addQuery() {
+  async function loadGeneral() {
+    try {
+      generalList = await generalQueriesApi.list(projectId);
+    } catch (e) {
+      error = e.message;
+    }
+  }
+
+  function resetAddForm() {
+    addMode = 'cross';
+    newPlatform = 'reddit';
+    newUrl = '';
+    newAngle = '';
+    newText = '';
+    newPlatforms = [...ALL_PLATFORMS];
+    editingGeneralId = null;
+  }
+
+  function toggleAddForm() {
+    if (showAddForm) {
+      showAddForm = false;
+      resetAddForm();
+    } else {
+      resetAddForm();
+      showAddForm = true;
+    }
+  }
+
+  function cancelAdd() {
+    showAddForm = false;
+    resetAddForm();
+  }
+
+  function toggleNewPlatform(p) {
+    newPlatforms = newPlatforms.includes(p)
+      ? newPlatforms.filter((x) => x !== p)
+      : [...newPlatforms, p];
+  }
+
+  async function addSingleQuery() {
     if (!newUrl.trim()) return;
     adding = true;
     error = '';
@@ -174,6 +225,59 @@
       error = e.message;
     } finally {
       adding = false;
+    }
+  }
+
+  async function submitGeneral() {
+    if (!newText.trim() || !newAngle.trim() || newPlatforms.length === 0) return;
+    adding = true;
+    error = '';
+    try {
+      const body = {
+        query_text: newText.trim(),
+        angle: newAngle.trim(),
+        platforms: newPlatforms,
+      };
+      if (editingGeneralId != null) {
+        await generalQueriesApi.update(projectId, editingGeneralId, body);
+      } else {
+        await generalQueriesApi.create(projectId, body);
+      }
+      // Materialized rows changed; refresh both the group strip and the list.
+      await Promise.all([loadGeneral(), loadQueries()]);
+      onQueriesChanged?.({ projectId });
+      showAddForm = false;
+      resetAddForm();
+    } catch (e) {
+      error = e.message;
+    } finally {
+      adding = false;
+    }
+  }
+
+  function editGeneral(gq) {
+    resetAddForm();
+    editingGeneralId = gq.id;
+    addMode = 'cross';
+    newText = gq.query_text;
+    newAngle = gq.angle || '';
+    newPlatforms = [...(gq.platforms || [])];
+    showAddForm = true;
+    error = '';
+  }
+
+  async function deleteGeneral(gq) {
+    if (!confirm('Delete this general query and all its platform queries?')) return;
+    try {
+      await generalQueriesApi.delete(projectId, gq.id);
+      if (editingGeneralId === gq.id) {
+        showAddForm = false;
+        resetAddForm();
+      }
+      await Promise.all([loadGeneral(), loadQueries()]);
+      onQueriesChanged?.({ projectId });
+    } catch (e) {
+      error = e.message;
     }
   }
 
@@ -280,8 +384,11 @@
       showSuggestConfirmModal = false;
       showRefineConfirmModal = false;
       suggestRefinement = '';
+      showAddForm = false;
+      resetAddForm();
       onQueryReviewModalClosed?.();
       loadQueries();
+      loadGeneral();
     }
   });
 </script>
@@ -346,40 +453,126 @@
 
   <div class="add-panel" class:open={showAddForm}>
     <div class="add-toggle">
-      <button class="add-toggle-btn" type="button" aria-expanded={showAddForm} onclick={() => showAddForm = !showAddForm}>
+      <button class="add-toggle-btn" type="button" aria-expanded={showAddForm} onclick={toggleAddForm}>
         <span class="add-toggle-icon" aria-hidden="true">{showAddForm ? '✕' : '+'}</span>
-        <span class="add-toggle-label">Add Query</span>
+        <span class="add-toggle-label">{editingGeneralId != null ? 'Edit Query Group' : 'Add Query'}</span>
       </button>
       <a class="doc-link" href="https://docs.threadlens.dev/user-guide/scouting-sources/" target="_blank" rel="noopener" title="Add queries for each platform to scout">?</a>
     </div>
     {#if showAddForm}
       <div class="add-form">
-        <div class="form-row">
-          <select bind:value={newPlatform} class="platform-select">
-            <option value="reddit">Reddit</option>
-            <option value="bluesky">Bluesky</option>
-            <option value="google">Google</option>
-            <option value="hackernews">Hacker News</option>
-          </select>
+        <div class="mode-toggle" role="group" aria-label="Query mode">
+          <button
+            type="button"
+            class="mode-btn"
+            class:active={addMode === 'cross'}
+            aria-pressed={addMode === 'cross'}
+            onclick={() => addMode = 'cross'}
+          >
+            Cross-platform
+          </button>
+          <button
+            type="button"
+            class="mode-btn"
+            class:active={addMode === 'single'}
+            aria-pressed={addMode === 'single'}
+            disabled={editingGeneralId != null}
+            title={editingGeneralId != null ? 'Editing a cross-platform group' : ''}
+            onclick={() => addMode = 'single'}
+          >
+            Single platform
+          </button>
+        </div>
+
+        {#if addMode === 'cross'}
           <input
-            class="angle-input"
+            class="text-input"
             type="text"
-            placeholder="Angle (optional)"
+            placeholder="Query text, e.g. manual invoicing pain"
+            bind:value={newText}
+          />
+          <input
+            class="text-input"
+            type="text"
+            placeholder="Angle / intent"
             bind:value={newAngle}
           />
-        </div>
-        <textarea
-          class="url-textarea"
-          placeholder={newPlatform === 'google' ? 'Root keyword (e.g., remote developer burnout)' : newPlatform === 'hackernews' ? 'Search keyword (e.g., self-hosting pain)' : 'Query URL'}
-          bind:value={newUrl}
-          rows="2"
-        ></textarea>
-        <button class="add-btn" onclick={addQuery} disabled={adding || !newUrl.trim()}>
-          {adding ? 'Adding...' : 'Add Query'}
-        </button>
+          <div class="platform-checkboxes">
+            {#each ALL_PLATFORMS as p}
+              <label class="platform-label">
+                <input
+                  type="checkbox"
+                  checked={newPlatforms.includes(p)}
+                  onchange={() => toggleNewPlatform(p)}
+                />
+                {PLATFORM_LABELS[p]}
+              </label>
+            {/each}
+          </div>
+          <div class="form-actions">
+            <button
+              class="add-btn"
+              onclick={submitGeneral}
+              disabled={adding || !newText.trim() || !newAngle.trim() || newPlatforms.length === 0}
+            >
+              {adding ? 'Saving...' : (editingGeneralId != null ? 'Save changes' : 'Add Query')}
+            </button>
+            {#if editingGeneralId != null}
+              <button class="cancel-btn" type="button" onclick={cancelAdd}>Cancel</button>
+            {/if}
+          </div>
+        {:else}
+          <div class="form-row">
+            <select bind:value={newPlatform} class="platform-select">
+              <option value="reddit">Reddit</option>
+              <option value="bluesky">Bluesky</option>
+              <option value="google">Google</option>
+              <option value="hackernews">Hacker News</option>
+            </select>
+            <input
+              class="angle-input"
+              type="text"
+              placeholder="Angle (optional)"
+              bind:value={newAngle}
+            />
+          </div>
+          <textarea
+            class="url-textarea"
+            placeholder={newPlatform === 'google' ? 'Root keyword (e.g., remote developer burnout)' : newPlatform === 'hackernews' ? 'Search keyword (e.g., self-hosting pain)' : 'Query URL'}
+            bind:value={newUrl}
+            rows="2"
+          ></textarea>
+          <button class="add-btn" onclick={addSingleQuery} disabled={adding || !newUrl.trim()}>
+            {adding ? 'Adding...' : 'Add Query'}
+          </button>
+        {/if}
       </div>
     {/if}
   </div>
+
+  {#if generalList.length > 0}
+    <div class="managed-groups">
+      <div class="managed-groups-header">
+        <span class="managed-groups-title">Managed groups</span>
+        <span class="count">{generalList.length}</span>
+      </div>
+      <ul class="group-list">
+        {#each generalList as gq (gq.id)}
+          <li class="group-row" class:editing={editingGeneralId === gq.id}>
+            <span class="group-text" title={gq.query_text}>{gq.query_text}</span>
+            {#if gq.angle}
+              <span class="angle-tag">{gq.angle}</span>
+            {/if}
+            <span class="group-platforms">{(gq.platforms || []).map((p) => PLATFORM_LABELS[p] || p).join(' · ')}</span>
+            <span class="group-actions">
+              <button class="icon-btn" type="button" title="Edit group" aria-label="Edit group" onclick={() => editGeneral(gq)}>&#x270e;</button>
+              <button class="icon-btn danger" type="button" title="Delete group" aria-label="Delete group" onclick={() => deleteGeneral(gq)}>&#x2715;</button>
+            </span>
+          </li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
 
   {#if loading}
     <div class="loading">Loading queries...</div>
@@ -1047,6 +1240,175 @@
   .add-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .mode-toggle {
+    display: inline-flex;
+    align-self: flex-start;
+    gap: 4px;
+    padding: 3px;
+    background: #14141d;
+    border: 1px solid #2a2a3a;
+    border-radius: 8px;
+  }
+
+  .mode-btn {
+    padding: 5px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #8d8da1;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .mode-btn.active {
+    background: #2a2a45;
+    color: #f1efff;
+  }
+
+  .mode-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .text-input {
+    width: 100%;
+    padding: 7px 10px;
+    background: #0f0f13;
+    border: 1px solid #2a2a3a;
+    border-radius: 6px;
+    color: #e2e2e8;
+    font-size: 13px;
+  }
+
+  .text-input::placeholder {
+    color: #555;
+  }
+
+  .text-input:focus {
+    outline: none;
+    border-color: #7c6af5;
+  }
+
+  .platform-checkboxes {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .platform-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #c0c0d0;
+    cursor: pointer;
+  }
+
+  .platform-label input[type="checkbox"] {
+    accent-color: #7c6af5;
+  }
+
+  .form-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .managed-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .managed-groups-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .managed-groups-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #c9c9dc;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .group-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0;
+    margin: 0;
+  }
+
+  .group-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: #1a1a24;
+    border: 1px solid #2a2a3a;
+    border-radius: 8px;
+  }
+
+  .group-row.editing {
+    border-color: #7c6af5;
+    background: #20203a;
+  }
+
+  .group-text {
+    min-width: 0;
+    font-size: 13px;
+    color: #c0c0d0;
+    font-family: monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .group-platforms {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 11px;
+    color: #80c080;
+  }
+
+  .group-actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .icon-btn {
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid #352c35;
+    border-radius: 6px;
+    color: #7f8696;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .icon-btn:hover {
+    color: #e2e2e8;
+    border-color: #555;
+  }
+
+  .icon-btn.danger:hover {
+    background: #3a1a1a;
+    border-color: #f87171;
+    color: #f87171;
   }
 
   .header-actions {
