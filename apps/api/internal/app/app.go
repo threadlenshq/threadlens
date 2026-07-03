@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -125,6 +126,13 @@ func New(cfg Config, db *sql.DB) *App {
 		TelemetryRecorder: telemetryRecorder,
 		SettingsRepo:      settingsRepo,
 	}
+
+	runner.ReportTrigger = func(projectID string) {
+		if _, _, msg := a.ReportService.StartReport(context.Background(), projectID, services.CreateReportRequest{}); msg != "" {
+			log.Printf("auto-report after all-run failed for %s: %s", projectID, msg)
+		}
+	}
+
 	a.mountRoutes()
 	return a
 }

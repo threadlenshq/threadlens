@@ -18,13 +18,30 @@ func MountScoutRoutes(r chi.Router, svc *services.ScoutService, rec *telemetry.R
 
 		// Accept optional platform in query string (matching Express behavior).
 		platform := r.URL.Query().Get("platform")
+		var body struct {
+			Platform       string `json:"platform"`
+			GenerateReport *bool  `json:"generate_report"`
+		}
+		_ = httpx.DecodeJSON(r, &body)
 		if platform == "" {
-			// Fall back to JSON body.
-			var body struct {
-				Platform string `json:"platform"`
-			}
-			_ = httpx.DecodeJSON(r, &body)
 			platform = body.Platform
+		}
+
+		if platform == "all" {
+			generateReport := true
+			if body.GenerateReport != nil {
+				generateReport = *body.GenerateReport
+			}
+			runIDs, status, msg := svc.StartAllRun(r.Context(), projectID, generateReport)
+			if msg != "" {
+				httpx.WriteError(w, status, msg)
+				return
+			}
+			if rec != nil {
+				rec.Record(telemetry.EventFeatureScoutRun)
+			}
+			httpx.WriteJSON(w, http.StatusCreated, map[string]any{"runIds": runIDs})
+			return
 		}
 
 		run, status, msg := svc.StartRun(r.Context(), projectID, platform)

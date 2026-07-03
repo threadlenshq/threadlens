@@ -92,6 +92,88 @@ func (s *ScoutService) GetRun(ctx context.Context, projectID string, runID int64
 	return run, http.StatusOK, ""
 }
 
+// platformAllowed reports whether the current subject is entitled to run scout
+// for the given platform in the given project.
+func (s *ScoutService) platformAllowed(ctx context.Context, projectID, platform string) (bool, error) {
+	decision, err := s.resolver.Check(ctx, entitlements.CheckRequest{
+		Subject:    tenant.SubjectFromContext(ctx, s.mode),
+		Capability: entitlements.CapabilityForScoutPlatform(platform),
+		ProjectID:  projectID,
+		Action:     "scout.run",
+	})
+	if err != nil {
+		return false, err
+	}
+	return entitlements.EnsureAllowed(decision) == nil, nil
+}
+
+// StartAllRun starts a unified run: one merged social run (reddit/bluesky/hackernews)
+// covering every eligible social platform that has enabled queries, plus a separate
+// Google run when Google is eligible and has queries. Returns the created run IDs.
+func (s *ScoutService) StartAllRun(ctx context.Context, projectID string, generateReport bool) ([]int64, int, string) {
+	if _, err := s.repo.GetProject(ctx, projectID); err != nil {
+		code, msg := mapError(err)
+		if msg == "not found" {
+			msg = "Project not found"
+		}
+		return nil, code, msg
+	}
+
+	// Determine eligible social platforms (entitled AND with enabled queries).
+	var eligibleSocial []string
+	for _, p := range []string{"reddit", "bluesky", "hackernews"} {
+		allowed, err := s.platformAllowed(ctx, projectID, p)
+		if err != nil {
+			return nil, http.StatusInternalServerError, "Internal server error"
+		}
+		if !allowed {
+			continue
+		}
+		qs, err := s.repo.EnabledQueries(ctx, projectID, p)
+		if err != nil {
+			return nil, http.StatusInternalServerError, "Internal server error"
+		}
+		if len(qs) > 0 {
+			eligibleSocial = append(eligibleSocial, p)
+		}
+	}
+
+	// Determine Google eligibility.
+	googleEligible := false
+	if allowed, err := s.platformAllowed(ctx, projectID, "google"); err != nil {
+		return nil, http.StatusInternalServerError, "Internal server error"
+	} else if allowed {
+		qs, err := s.repo.EnabledQueries(ctx, projectID, "google")
+		if err != nil {
+			return nil, http.StatusInternalServerError, "Internal server error"
+		}
+		googleEligible = len(qs) > 0
+	}
+
+	if len(eligibleSocial) == 0 && !googleEligible {
+		return nil, http.StatusBadRequest, "No enabled queries to run"
+	}
+
+	var runIDs []int64
+	if len(eligibleSocial) > 0 {
+		runID, err := s.repo.CreateScoutRun(ctx, projectID, "all")
+		if err != nil {
+			return nil, http.StatusInternalServerError, "Internal server error"
+		}
+		s.runner.StartAllAsync(projectID, runID, eligibleSocial, generateReport)
+		runIDs = append(runIDs, runID)
+	}
+	if googleEligible {
+		runID, err := s.repo.CreateScoutRun(ctx, projectID, "google")
+		if err != nil {
+			return nil, http.StatusInternalServerError, "Internal server error"
+		}
+		s.runner.StartAsync(projectID, "google", runID)
+		runIDs = append(runIDs, runID)
+	}
+	return runIDs, http.StatusCreated, ""
+}
+
 // CancelRun cancels the given run. If tracked, cancels its context; if untracked but
 // still running in the DB, marks it failed with "Cancelled".
 func (s *ScoutService) CancelRun(ctx context.Context, projectID string, runID int64) (int, string) {

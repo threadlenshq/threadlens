@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -197,4 +198,50 @@ func TestScout_Cancel_UntrackedRunningRow_MarksFailedWithCancelled(t *testing.T)
 
 func intStr(i int64) string {
 	return fmt.Sprintf("%d", i)
+}
+
+func contextBG() context.Context { return context.Background() }
+
+func TestScout_AllRun_CreatesMergedRun(t *testing.T) {
+	r, repo := newScoutRouter(t)
+	doRequest(t, r, http.MethodPost, "/api/projects", map[string]any{"id": "allp", "name": "Test", "mode": "research"})
+
+	// Two enabled social queries so the pool is non-empty.
+	if _, err := repo.CreateQuery(contextBG(), "allp", "reddit", "https://www.reddit.com/search?q=x", "pain", true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.CreateQuery(contextBG(), "allp", "bluesky", "x", "pain", true); err != nil {
+		t.Fatal(err)
+	}
+
+	rr := doRequest(t, r, http.MethodPost, "/api/projects/allp/scout?platform=all", nil)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201; body = %s", rr.Code, rr.Body.String())
+	}
+	var resp struct {
+		RunIDs []int64 `json:"runIds"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.RunIDs) != 1 {
+		t.Fatalf("want 1 merged social run id, got %v", resp.RunIDs)
+	}
+	run, err := repo.GetScoutRun(contextBG(), "allp", resp.RunIDs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Platform != "all" {
+		t.Fatalf("run platform = %q, want all", run.Platform)
+	}
+}
+
+func TestScout_AllRun_EmptyPoolRejected(t *testing.T) {
+	r, _ := newScoutRouter(t)
+	doRequest(t, r, http.MethodPost, "/api/projects", map[string]any{"id": "allempty", "name": "Test", "mode": "research"})
+
+	rr := doRequest(t, r, http.MethodPost, "/api/projects/allempty/scout?platform=all", nil)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body = %s", rr.Code, rr.Body.String())
+	}
 }
