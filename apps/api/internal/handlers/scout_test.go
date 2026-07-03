@@ -236,6 +236,82 @@ func TestScout_AllRun_CreatesMergedRun(t *testing.T) {
 	}
 }
 
+func TestScout_AllRun_ExcludesUnentitledGoogle(t *testing.T) {
+	r, repo := newScoutRouter(t)
+	doRequest(t, r, http.MethodPost, "/api/projects", map[string]any{"id": "allnogoogle", "name": "Test", "mode": "research"})
+
+	// Reddit is entitled by default; Google is not (PARALLEL_API_KEY unset in this test env).
+	if _, err := repo.CreateQuery(contextBG(), "allnogoogle", "reddit", "https://www.reddit.com/search?q=x", "pain", true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.CreateQuery(contextBG(), "allnogoogle", "google", "x", "pain", true); err != nil {
+		t.Fatal(err)
+	}
+
+	rr := doRequest(t, r, http.MethodPost, "/api/projects/allnogoogle/scout?platform=all", nil)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201; body = %s", rr.Code, rr.Body.String())
+	}
+	var resp struct {
+		RunIDs []int64 `json:"runIds"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.RunIDs) != 1 {
+		t.Fatalf("want 1 run id (Google excluded, unentitled), got %v", resp.RunIDs)
+	}
+	run, err := repo.GetScoutRun(contextBG(), "allnogoogle", resp.RunIDs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Platform != "all" {
+		t.Fatalf("run platform = %q, want all", run.Platform)
+	}
+}
+
+func TestScout_AllRun_WithGoogleCreatesTwoRuns(t *testing.T) {
+	t.Setenv("PARALLEL_API_KEY", "test-key")
+
+	r, repo := newScoutRouter(t)
+	doRequest(t, r, http.MethodPost, "/api/projects", map[string]any{"id": "allwithgoogle", "name": "Test", "mode": "research"})
+
+	if _, err := repo.CreateQuery(contextBG(), "allwithgoogle", "reddit", "https://www.reddit.com/search?q=x", "pain", true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.CreateQuery(contextBG(), "allwithgoogle", "google", "x", "pain", true); err != nil {
+		t.Fatal(err)
+	}
+
+	rr := doRequest(t, r, http.MethodPost, "/api/projects/allwithgoogle/scout?platform=all", nil)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201; body = %s", rr.Code, rr.Body.String())
+	}
+	var resp struct {
+		RunIDs []int64 `json:"runIds"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.RunIDs) != 2 {
+		t.Fatalf("want 2 run ids (merged social + google), got %v", resp.RunIDs)
+	}
+	socialRun, err := repo.GetScoutRun(contextBG(), "allwithgoogle", resp.RunIDs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if socialRun.Platform != "all" {
+		t.Fatalf("run[0] platform = %q, want all", socialRun.Platform)
+	}
+	googleRun, err := repo.GetScoutRun(contextBG(), "allwithgoogle", resp.RunIDs[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if googleRun.Platform != "google" {
+		t.Fatalf("run[1] platform = %q, want google", googleRun.Platform)
+	}
+}
+
 func TestScout_AllRun_EmptyPoolRejected(t *testing.T) {
 	r, _ := newScoutRouter(t)
 	doRequest(t, r, http.MethodPost, "/api/projects", map[string]any{"id": "allempty", "name": "Test", "mode": "research"})

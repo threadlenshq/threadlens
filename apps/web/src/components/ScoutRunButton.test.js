@@ -58,7 +58,7 @@ describe('ScoutRunButton no-query guidance', () => {
     expect(scoutApi.run).toHaveBeenCalledWith('p1', 'hackernews');
   });
 
-  it('All Platforms scouts only platforms with queries and guides when all are empty', async () => {
+  it('All Platforms fires a single runAll call when any platform has queries, and guides when all are empty', async () => {
     const { rerender } = render(ScoutRunButton, {
       projectId: 'p1',
       capabilities: null,
