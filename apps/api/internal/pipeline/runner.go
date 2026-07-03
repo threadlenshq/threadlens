@@ -261,7 +261,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 
 	checked, found, warnings, perr := r.processSocialPlatform(ctx, project, projectID, platform, queries, runID)
 	if perr != nil {
-		if ctx.Err() != nil {
+		if errors.Is(perr, context.Canceled) || errors.Is(perr, context.DeadlineExceeded) {
 			r.failRun(runID, ctxErrMessage(ctx))
 			return Result{RunID: runID, PostsChecked: checked, PostsFound: 0}, nil
 		}
