@@ -101,6 +101,36 @@ func TestRunAll_PartialFailureContinues(t *testing.T) {
 	}
 }
 
+func TestRunAll_CancellationAbortsButKeepsAccumulatedCounts(t *testing.T) {
+	runner, repo := newTestRunner(t)
+	ctx := context.Background()
+	mkProject(t, repo, "p1", "research")
+	mkQuery(t, repo, "p1", "reddit", "https://www.reddit.com/search?q=x", "pain", true)
+	mkQuery(t, repo, "p1", "bluesky", "x", "pain", true)
+
+	runner.fetchReddit = func(_ context.Context, _ []string, _ func(int, int)) ([]FetchedPost, error) {
+		return []FetchedPost{{ID: "t3_r", Title: "R", Author: "u", Permalink: "/r/x/1", URL: "https://www.reddit.com/r/x/1"}}, nil
+	}
+	// Bluesky fetch fails with a context cancellation -> runAll must abort.
+	runner.fetchBluesky = func(_ context.Context, _ []string, _ func(int, int)) ([]FetchedPost, error) {
+		return nil, context.Canceled
+	}
+	runner.scorePosts = fakeScorer(map[string]ScoredPost{"t3_r": scored("t3_r", 5)})
+
+	runID, _ := repo.CreateScoutRun(ctx, "p1", "all")
+	res, err := runner.runAll(ctx, "p1", runID, socialAll)
+	if err != nil {
+		t.Fatalf("runAll returns nil error on abort (run marked failed internally): %v", err)
+	}
+	if res.PostsFound != 1 {
+		t.Fatalf("abort must preserve reddit's accumulated PostsFound=1, got %d", res.PostsFound)
+	}
+	run, _ := repo.GetScoutRun(ctx, "p1", runID)
+	if run.Status != "failed" {
+		t.Fatalf("cancellation should mark run failed, got %s", run.Status)
+	}
+}
+
 func TestRunAll_EmptyPoolCompletesZero(t *testing.T) {
 	runner, repo := newTestRunner(t)
 	ctx := context.Background()

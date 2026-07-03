@@ -57,7 +57,7 @@ func (r *Runner) runAll(ctx context.Context, projectID string, runID int64, plat
 			// per-platform error is a partial failure - record it and continue.
 			if errors.Is(perr, context.Canceled) || errors.Is(perr, context.DeadlineExceeded) {
 				r.failRun(runID, ctxErrMessage(ctx))
-				return Result{RunID: runID, PostsChecked: totalChecked, PostsFound: 0}, nil
+				return Result{RunID: runID, PostsChecked: totalChecked, PostsFound: totalFound}, nil
 			}
 			warnings = append(warnings, fmt.Sprintf("%s: %s", platform, perr.Error()))
 			continue
