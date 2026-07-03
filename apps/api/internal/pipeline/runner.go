@@ -245,30 +245,47 @@ func (r *Runner) Cancel(runID int64) bool {
 	return ok
 }
 
-// runSocial executes the social (reddit / bluesky) scout pipeline, mirroring
-// the Express _runScoutPipeline function exactly.
+// runSocial loads the enabled queries for one platform and runs its pipeline
+// against runID, then completes (or fails) the run. It is the per-platform entry
+// used by Run/StartAsync; runAll calls processSocialPlatform directly to merge.
 func (r *Runner) runSocial(ctx context.Context, projectID string, platform string, runID int64) (Result, error) {
-	// 1. Verify project exists.
 	project, err := r.Repo.GetProject(ctx, projectID)
 	if err != nil {
 		return Result{RunID: runID}, fmt.Errorf("project not found: %s", projectID)
 	}
-
-	// 2. Update step: loading queries.
 	_ = r.Repo.UpdateScoutStep(ctx, runID, "Loading queries")
-
-	// 3. Load enabled queries for this project + platform.
 	queries, err := r.Repo.EnabledQueries(ctx, projectID, platform)
 	if err != nil {
 		return Result{RunID: runID}, err
 	}
 
-	// 4. No queries → complete with 0 counts.
-	if len(queries) == 0 {
-		if err := r.Repo.CompleteScoutRun(ctx, runID, 0, 0, nil); err != nil {
-			return Result{RunID: runID}, err
+	checked, found, warnings, perr := r.processSocialPlatform(ctx, project, projectID, platform, queries, runID)
+	if perr != nil {
+		if ctx.Err() != nil {
+			r.failRun(runID, ctxErrMessage(ctx))
+			return Result{RunID: runID, PostsChecked: checked, PostsFound: 0}, nil
 		}
-		return Result{RunID: runID, PostsChecked: 0, PostsFound: 0}, nil
+		return Result{RunID: runID}, perr
+	}
+
+	var warningsText *string
+	if len(warnings) > 0 {
+		s := strings.Join(warnings, "\n")
+		warningsText = &s
+	}
+	if err := r.Repo.CompleteScoutRun(ctx, runID, checked, found, warningsText); err != nil {
+		return Result{RunID: runID}, err
+	}
+	return Result{RunID: runID, PostsChecked: checked, PostsFound: found}, nil
+}
+
+// processSocialPlatform runs the full social fetch/filter/score/insert pipeline
+// for ONE platform against an existing run row. It does NOT complete or fail the
+// run; the caller owns run lifecycle. It returns posts checked/found and warning
+// lines. A non-nil err with ctx.Err()!=nil signals cancellation mid-flight.
+func (r *Runner) processSocialPlatform(ctx context.Context, project domain.Project, projectID string, platform string, queries []domain.Query, runID int64) (int64, int64, []string, error) {
+	if len(queries) == 0 {
+		return 0, 0, nil, nil
 	}
 
 	// 5. Fetch posts.
@@ -284,6 +301,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 	}
 
 	var fetchedPosts []FetchedPost
+	var err error
 	switch platform {
 	case "reddit":
 		fetchedPosts, err = r.fetchReddit(ctx, queryURLs, onFetchProgress)
@@ -292,10 +310,10 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 	case "hackernews":
 		fetchedPosts, err = r.fetchHackerNews(ctx, queryURLs, onFetchProgress)
 	default:
-		return Result{RunID: runID}, fmt.Errorf("unsupported platform: %s", platform)
+		return 0, 0, nil, fmt.Errorf("unsupported platform: %s", platform)
 	}
 	if err != nil {
-		return Result{RunID: runID}, err
+		return 0, 0, nil, err
 	}
 
 	postsChecked := int64(len(fetchedPosts))
@@ -304,7 +322,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 	_ = r.Repo.UpdateScoutStep(ctx, runID, fmt.Sprintf("Filtering %d posts", len(fetchedPosts)))
 	seenIDs, err := r.Repo.SeenIDs(ctx, projectID, platform)
 	if err != nil {
-		return Result{RunID: runID}, err
+		return 0, 0, nil, err
 	}
 
 	getPostID := func(p FetchedPost) string {
@@ -328,7 +346,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 	for _, p := range newPosts {
 		decision, err := r.filterClassifier.Classify(ctx, projectID, NormalizeFetchedPostForFiltering(platform, projectID, p))
 		if err != nil {
-			return Result{RunID: runID}, err
+			return 0, 0, nil, err
 		}
 		if decision.State == domain.FilterStateFiltered {
 			fp := domain.Post{
@@ -396,14 +414,14 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 	// so they are not re-classified on subsequent runs.
 	if len(filteredPosts) > 0 {
 		if _, err := r.Repo.InsertSocialPosts(ctx, filteredPosts); err != nil {
-			return Result{RunID: runID}, err
+			return 0, 0, nil, err
 		}
 		filteredIDs := make([]string, len(filteredPosts))
 		for i, fp := range filteredPosts {
 			filteredIDs[i] = fp.ID
 		}
 		if err := r.Repo.MarkSeen(ctx, projectID, platform, filteredIDs); err != nil {
-			return Result{RunID: runID}, err
+			return 0, 0, nil, err
 		}
 	}
 
@@ -412,10 +430,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 
 	// 9. No new posts → complete with postsChecked, postsFound=0.
 	if len(filtered) == 0 {
-		if err := r.Repo.CompleteScoutRun(ctx, runID, postsChecked, 0, nil); err != nil {
-			return Result{RunID: runID}, err
-		}
-		return Result{RunID: runID, PostsChecked: postsChecked, PostsFound: 0}, nil
+		return postsChecked, 0, nil, nil
 	}
 
 	// 10. Build pain angles from enabled queries.
@@ -474,7 +489,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 		_ = r.Repo.UpdateScoutStep(ctx, runID, fmt.Sprintf("Scoring %d/%d posts", scored, total))
 	})
 	if err != nil {
-		return Result{RunID: runID}, err
+		return 0, 0, nil, err
 	}
 
 	// 12b. Mark seen only if scoring at least partially succeeded.
@@ -484,7 +499,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 			allIDs[i] = getPostID(p)
 		}
 		if err := r.Repo.MarkSeen(ctx, projectID, platform, allIDs); err != nil {
-			return Result{RunID: runID}, err
+			return 0, 0, nil, err
 		}
 	}
 
@@ -498,8 +513,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 
 	// 14. Check cancellation before storage.
 	if ctx.Err() != nil {
-		r.failRun(runID, ctxErrMessage(ctx))
-		return Result{RunID: runID, PostsChecked: postsChecked, PostsFound: 0}, nil
+		return postsChecked, 0, nil, ctx.Err()
 	}
 
 	_ = r.Repo.UpdateScoutStep(ctx, runID, "Storing results")
@@ -559,7 +573,7 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 
 	inserted, err := r.Repo.InsertSocialPosts(ctx, postsToInsert)
 	if err != nil {
-		return Result{RunID: runID}, err
+		return 0, 0, nil, err
 	}
 	postsFound := inserted
 
@@ -597,21 +611,11 @@ func (r *Runner) runSocial(ctx context.Context, projectID string, platform strin
 			fmt.Sprintf("%d/%d posts had no matching score returned", unmatchedCount, len(filtered)))
 	}
 	warnings = append(warnings, dmWarnings...)
-	var warningsText *string
-	if len(warnings) > 0 {
-		s := strings.Join(warnings, "\n")
-		warningsText = &s
-	}
 
 	// 17. Check cancellation again before completing.
 	if ctx.Err() != nil {
-		r.failRun(runID, ctxErrMessage(ctx))
-		return Result{RunID: runID, PostsChecked: postsChecked, PostsFound: 0}, nil
+		return postsChecked, 0, nil, ctx.Err()
 	}
 
-	if err := r.Repo.CompleteScoutRun(ctx, runID, postsChecked, postsFound, warningsText); err != nil {
-		return Result{RunID: runID}, err
-	}
-
-	return Result{RunID: runID, PostsChecked: postsChecked, PostsFound: postsFound}, nil
+	return postsChecked, postsFound, warnings, nil
 }
