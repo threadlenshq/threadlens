@@ -74,6 +74,12 @@ type Runner struct {
 	filterClassifier *FilterClassifier
 	dmTargets        *DMTargetGenerator
 
+	// ReportTrigger, if set, is invoked (fire-and-forget) after a successful
+	// platform='all' run when a report was requested. Wired in app.go to start
+	// the unified analysis report. Kept as a hook to avoid a pipeline->services
+	// import cycle.
+	ReportTrigger func(projectID string)
+
 	// Overridable fetchers for testing.
 	fetchReddit     func(ctx context.Context, queryURLs []string, onProgress func(int, int)) ([]FetchedPost, error)
 	fetchBluesky    func(ctx context.Context, queries []string, onProgress func(int, int)) ([]FetchedPost, error)

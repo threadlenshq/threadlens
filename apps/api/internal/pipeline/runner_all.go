@@ -77,3 +77,38 @@ func (r *Runner) runAll(ctx context.Context, projectID string, runID int64, plat
 	}
 	return Result{RunID: runID, PostsChecked: totalChecked, PostsFound: totalFound}, nil
 }
+
+// runAllAndReport runs the merged social all-run and, on success, invokes the
+// ReportTrigger hook when a report was requested.
+func (r *Runner) runAllAndReport(ctx context.Context, projectID string, runID int64, platforms []string, generateReport bool) (Result, error) {
+	res, err := r.runAll(ctx, projectID, runID, platforms)
+	if err != nil {
+		return res, err
+	}
+	if generateReport && r.ReportTrigger != nil {
+		r.ReportTrigger(projectID)
+	}
+	return res, nil
+}
+
+// StartAllAsync runs the merged all-run in a background goroutine, mirroring
+// StartAsync's context registration and failure handling.
+func (r *Runner) StartAllAsync(projectID string, runID int64, platforms []string, generateReport bool) {
+	bgCtx, cancel := context.WithTimeout(context.Background(), pipelineTimeout)
+
+	r.mu.Lock()
+	r.runs[runID] = cancel
+	r.mu.Unlock()
+
+	go func() {
+		defer func() {
+			cancel()
+			r.mu.Lock()
+			delete(r.runs, runID)
+			r.mu.Unlock()
+		}()
+		if _, err := r.runAllAndReport(bgCtx, projectID, runID, platforms, generateReport); err != nil {
+			r.failRun(runID, err.Error())
+		}
+	}()
+}

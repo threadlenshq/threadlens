@@ -149,3 +149,44 @@ func TestRunAll_EmptyPoolCompletesZero(t *testing.T) {
 		t.Fatalf("empty pool should still complete, got %s", run.Status)
 	}
 }
+
+func TestRunAllAndReport_TriggersReportWhenRequested(t *testing.T) {
+	runner, repo := newTestRunner(t)
+	ctx := context.Background()
+	mkProject(t, repo, "p1", "research")
+	mkQuery(t, repo, "p1", "reddit", "https://www.reddit.com/search?q=x", "pain", true)
+	runner.fetchReddit = func(_ context.Context, _ []string, _ func(int, int)) ([]FetchedPost, error) {
+		return nil, nil
+	}
+
+	var triggeredWith string
+	runner.ReportTrigger = func(projectID string) { triggeredWith = projectID }
+
+	runID, _ := repo.CreateScoutRun(ctx, "p1", "all")
+	if _, err := runner.runAllAndReport(ctx, "p1", runID, socialAll, true); err != nil {
+		t.Fatalf("runAllAndReport: %v", err)
+	}
+	if triggeredWith != "p1" {
+		t.Fatalf("ReportTrigger should fire with projectID, got %q", triggeredWith)
+	}
+}
+
+func TestRunAllAndReport_SkipsReportWhenNotRequested(t *testing.T) {
+	runner, repo := newTestRunner(t)
+	ctx := context.Background()
+	mkProject(t, repo, "p1", "research")
+	mkQuery(t, repo, "p1", "reddit", "https://www.reddit.com/search?q=x", "pain", true)
+	runner.fetchReddit = func(_ context.Context, _ []string, _ func(int, int)) ([]FetchedPost, error) {
+		return nil, nil
+	}
+	called := false
+	runner.ReportTrigger = func(_ string) { called = true }
+
+	runID, _ := repo.CreateScoutRun(ctx, "p1", "all")
+	if _, err := runner.runAllAndReport(ctx, "p1", runID, socialAll, false); err != nil {
+		t.Fatalf("runAllAndReport: %v", err)
+	}
+	if called {
+		t.Fatal("ReportTrigger must not fire when generateReport is false")
+	}
+}
