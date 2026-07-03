@@ -98,6 +98,8 @@ export const posts = {
 export const scout = {
   run: (pid, platform, wait = false) =>
     api(`/api/projects/${pid}/scout${wait ? '?wait=true' : ''}`, { method: 'POST', body: { platform } }),
+  runAll: (pid, { generateReport = true } = {}) =>
+    api(`/api/projects/${pid}/scout`, { method: 'POST', body: { platform: 'all', generate_report: generateReport } }),
   getRun: (pid, runId) => api(`/api/projects/${pid}/scout/runs/${runId}`),
   runs: (pid) => api(`/api/projects/${pid}/scout/runs`),
   cancelRun: (pid, runId) => api(`/api/projects/${pid}/scout/runs/${runId}/cancel`, { method: 'POST' }),

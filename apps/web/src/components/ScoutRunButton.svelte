@@ -20,6 +20,7 @@
   let toastTimeout = $state(null);
   let showDropdown = $state(false);
   let selectedPlatform = $state('all');
+  let generateReport = $state(true);
   let showGoogleLockedNotice = $state(false);
   let showNoQueriesNotice = $state(false);
   let noQueriesPlatformLabel = $state(null);
@@ -116,8 +117,14 @@
     toastMessage = '';
     showDropdown = false;
     try {
-      const results = await Promise.all(targetPlatforms.map((p) => scoutApi.run(projectId, p)));
-      const runIds = results.map(r => r.runId).filter(Boolean);
+      let runIds;
+      if (selectedPlatform === 'all') {
+        const res = await scoutApi.runAll(projectId, { generateReport });
+        runIds = res.runIds || [];
+      } else {
+        const res = await scoutApi.run(projectId, selectedPlatform);
+        runIds = [res.runId].filter(Boolean);
+      }
       onScoutComplete?.({ platform: selectedPlatform, runIds });
     } catch (e) {
       showToast(e.message);
@@ -176,6 +183,13 @@
       <span class="caret" class:open={showDropdown}>&#9662;</span>
     </button>
   </div>
+
+  {#if selectedPlatform === 'all'}
+    <label class="generate-report-toggle">
+      <input type="checkbox" bind:checked={generateReport} />
+      Generate report after run
+    </label>
+  {/if}
 
   {#if lastRunLabel && !running && !externalRunning}
     <span class="last-run">Last run: {lastRunLabel}</span>
@@ -373,6 +387,20 @@
   @keyframes toast-in {
     from { opacity: 0; transform: translateY(-8px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+
+  .generate-report-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #888;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .generate-report-toggle input {
+    cursor: pointer;
   }
 
   .last-run {

@@ -5,7 +5,7 @@ import ScoutRunButton from './ScoutRunButton.svelte';
 import { scout as scoutApi } from '../lib/api.js';
 
 vi.mock('../lib/api.js', () => ({
-  scout: { run: vi.fn() },
+  scout: { run: vi.fn(), runAll: vi.fn() },
 }));
 
 // jsdom lacks the Web Animations API that Svelte 5 transitions (used by Modal) rely on.
@@ -28,6 +28,7 @@ describe('ScoutRunButton no-query guidance', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     scoutApi.run.mockResolvedValue({ runId: 1 });
+    scoutApi.runAll.mockResolvedValue({ runIds: [1] });
   });
 
   it('guides to Sources and does not run when the chosen platform has no queries', async () => {
@@ -64,12 +65,14 @@ describe('ScoutRunButton no-query guidance', () => {
       enabledQueryCounts: { reddit: 2, bluesky: 0, google: 0, hackernews: 0 },
     });
 
-    // reddit has queries -> All Platforms runs reddit only, skips the empties silently.
+    // reddit has queries -> All Platforms fires a single unified run call.
     await selectPlatform('All Platforms');
-    expect(scoutApi.run).toHaveBeenCalledTimes(1);
-    expect(scoutApi.run).toHaveBeenCalledWith('p1', 'reddit');
+    expect(scoutApi.runAll).toHaveBeenCalledTimes(1);
+    expect(scoutApi.runAll).toHaveBeenCalledWith('p1', { generateReport: true });
+    expect(scoutApi.run).not.toHaveBeenCalled();
 
     vi.clearAllMocks();
+    scoutApi.runAll.mockResolvedValue({ runIds: [1] });
     await rerender({
       projectId: 'p1',
       capabilities: null,
@@ -78,7 +81,7 @@ describe('ScoutRunButton no-query guidance', () => {
 
     // Nothing has queries -> guidance, no run.
     await selectPlatform('All Platforms');
-    expect(scoutApi.run).not.toHaveBeenCalled();
+    expect(scoutApi.runAll).not.toHaveBeenCalled();
     expect(await screen.findByText('No search queries yet')).toBeTruthy();
   });
 
