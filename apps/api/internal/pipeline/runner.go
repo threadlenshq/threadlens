@@ -188,6 +188,8 @@ func (r *Runner) Run(ctx context.Context, projectID string, platform string, exi
 		gr, gerr := google.RunGoogleScoutPipeline(runCtx, r.Repo, r.AI, project, projectID, runID, provider, r.googleResultFilter())
 		res = Result{RunID: gr.RunID, PostsChecked: gr.PostsChecked, PostsFound: gr.PostsFound}
 		err = gerr
+	} else if platform == "all" {
+		res, err = r.runAll(runCtx, projectID, runID, []string{"reddit", "bluesky", "hackernews"})
 	} else {
 		res, err = r.runSocial(runCtx, projectID, platform, runID)
 	}
