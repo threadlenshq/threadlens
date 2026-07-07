@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/domain"
+	"github.com/kyle/scout/open-core/apps/api/internal/querynorm"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
 )
 
@@ -63,6 +64,9 @@ func (s *GeneralQueryService) validateAndAdapt(body GeneralQueryRequest) ([][2]s
 
 // checkCollisions returns a 409 message if any (platform, normalized query_url) pair
 // already exists among the project's queries, excluding rows owned by excludeGQID.
+// It uses the same run-time dedup key (querynorm.Key) the pipeline pool uses, so
+// the authoring guard catches the same effective-target collisions - including
+// Reddit encoding / param-order variants - that fetch-time dedup would collapse.
 func (s *GeneralQueryService) checkCollisions(ctx context.Context, projectID string, pairs [][2]string, excludeGQID int64) (int, string) {
 	existing, err := s.repo.ListAllQueries(ctx, projectID)
 	if err != nil {
@@ -73,10 +77,10 @@ func (s *GeneralQueryService) checkCollisions(ctx context.Context, projectID str
 		if q.GeneralQueryID != nil && *q.GeneralQueryID == excludeGQID {
 			continue
 		}
-		seen[q.Platform+"|"+NormalizeQueryURL(q.Platform, q.QueryURL)] = true
+		seen[querynorm.Key(q.Platform, q.QueryURL)] = true
 	}
 	for _, pair := range pairs {
-		key := pair[0] + "|" + NormalizeQueryURL(pair[0], pair[1])
+		key := querynorm.Key(pair[0], pair[1])
 		if seen[key] {
 			return http.StatusConflict, "A " + pair[0] + " query for this already exists; it's already covered"
 		}

@@ -28,10 +28,3 @@ func AdaptQueryURL(platform, queryText string) (string, error) {
 		return "", fmt.Errorf("unsupported platform: %s", platform)
 	}
 }
-
-// NormalizeQueryURL returns a comparison key used to detect duplicate effective
-// fetch targets across standalone and general-owned queries.
-func NormalizeQueryURL(platform, queryURL string) string {
-	s := strings.ToLower(strings.TrimSpace(queryURL))
-	return strings.Join(strings.Fields(s), " ")
-}

@@ -40,11 +40,3 @@ func TestAdaptQueryURL_Errors(t *testing.T) {
 		t.Fatal("want error on unknown platform")
 	}
 }
-
-func TestNormalizeQueryURL(t *testing.T) {
-	a := NormalizeQueryURL("google", "  Manual   Invoicing ")
-	b := NormalizeQueryURL("google", "manual invoicing")
-	if a != b {
-		t.Fatalf("normalize mismatch: %q vs %q", a, b)
-	}
-}

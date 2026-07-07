@@ -193,7 +193,7 @@ func TestGeneralQueryService_UpdateCollision409PreservesRows(t *testing.T) {
 	if len(gqRows) != 1 {
 		t.Fatalf("want 1 materialized row for G after 409, got %d (rows deleted on rejected update)", len(gqRows))
 	}
-	if services.NormalizeQueryURL("google", gqRows[0].QueryURL) != services.NormalizeQueryURL("google", "invoicing") {
+	if gqRows[0].QueryURL != "invoicing" {
 		t.Fatalf("original row URL changed: %q", gqRows[0].QueryURL)
 	}
 }
