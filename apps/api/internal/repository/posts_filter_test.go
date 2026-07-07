@@ -3,6 +3,7 @@ package repository_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/kyle/scout/open-core/apps/api/internal/domain"
 	"github.com/kyle/scout/open-core/apps/api/internal/repository"
@@ -117,8 +118,9 @@ func TestListPosts_MaxAgeDays(t *testing.T) {
 	ctx := context.Background()
 	seedPostProject(t, repo, "proj-age")
 
-	old := "2026-05-01T12:00:00Z"
-	recent := "2026-06-18T12:00:00Z"
+	// Use times relative to now so the MaxAgeDays window stays valid as real time advances.
+	old := time.Now().UTC().AddDate(0, 0, -30).Format(time.RFC3339)
+	recent := time.Now().UTC().Add(-2 * time.Hour).Format(time.RFC3339)
 	posts := []domain.Post{
 		{
 			ID:           "old-post",
