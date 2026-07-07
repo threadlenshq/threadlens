@@ -77,8 +77,10 @@ type Runner struct {
 	// ReportTrigger, if set, is invoked (fire-and-forget) after a successful
 	// platform='all' run when a report was requested. Wired in app.go to start
 	// the unified analysis report. Kept as a hook to avoid a pipeline->services
-	// import cycle.
-	ReportTrigger func(projectID string)
+	// import cycle. The ctx carries the originating request's tenant subject
+	// (detached from cancellation) so the report's entitlement check runs against
+	// the real requester, not a default local subject.
+	ReportTrigger func(ctx context.Context, projectID string)
 
 	// Overridable fetchers for testing.
 	fetchReddit     func(ctx context.Context, queryURLs []string, onProgress func(int, int)) ([]FetchedPost, error)

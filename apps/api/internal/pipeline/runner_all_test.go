@@ -160,14 +160,24 @@ func TestRunAllAndReport_TriggersReportWhenRequested(t *testing.T) {
 	}
 
 	var triggeredWith string
-	runner.ReportTrigger = func(projectID string) { triggeredWith = projectID }
+	var gotCtx context.Context
+	runner.ReportTrigger = func(rc context.Context, projectID string) {
+		triggeredWith = projectID
+		gotCtx = rc
+	}
+
+	type ctxKey struct{}
+	reportCtx := context.WithValue(context.Background(), ctxKey{}, "subject")
 
 	runID, _ := repo.CreateScoutRun(ctx, "p1", "all")
-	if _, err := runner.runAllAndReport(ctx, "p1", runID, socialAll, true); err != nil {
+	if _, err := runner.runAllAndReport(ctx, "p1", runID, socialAll, true, reportCtx); err != nil {
 		t.Fatalf("runAllAndReport: %v", err)
 	}
 	if triggeredWith != "p1" {
 		t.Fatalf("ReportTrigger should fire with projectID, got %q", triggeredWith)
+	}
+	if gotCtx == nil || gotCtx.Value(ctxKey{}) != "subject" {
+		t.Fatal("ReportTrigger must receive the passed reportCtx (carrying the request subject)")
 	}
 }
 
@@ -180,10 +190,10 @@ func TestRunAllAndReport_SkipsReportWhenNotRequested(t *testing.T) {
 		return nil, nil
 	}
 	called := false
-	runner.ReportTrigger = func(_ string) { called = true }
+	runner.ReportTrigger = func(context.Context, string) { called = true }
 
 	runID, _ := repo.CreateScoutRun(ctx, "p1", "all")
-	if _, err := runner.runAllAndReport(ctx, "p1", runID, socialAll, false); err != nil {
+	if _, err := runner.runAllAndReport(ctx, "p1", runID, socialAll, false, ctx); err != nil {
 		t.Fatalf("runAllAndReport: %v", err)
 	}
 	if called {

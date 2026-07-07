@@ -79,21 +79,25 @@ func (r *Runner) runAll(ctx context.Context, projectID string, runID int64, plat
 }
 
 // runAllAndReport runs the merged social all-run and, on success, invokes the
-// ReportTrigger hook when a report was requested.
-func (r *Runner) runAllAndReport(ctx context.Context, projectID string, runID int64, platforms []string, generateReport bool) (Result, error) {
+// ReportTrigger hook when a report was requested. reportCtx carries the
+// originating request's tenant subject so the report's entitlement check runs
+// against the real requester.
+func (r *Runner) runAllAndReport(ctx context.Context, projectID string, runID int64, platforms []string, generateReport bool, reportCtx context.Context) (Result, error) {
 	res, err := r.runAll(ctx, projectID, runID, platforms)
 	if err != nil {
 		return res, err
 	}
 	if generateReport && r.ReportTrigger != nil {
-		r.ReportTrigger(projectID)
+		r.ReportTrigger(reportCtx, projectID)
 	}
 	return res, nil
 }
 
 // StartAllAsync runs the merged all-run in a background goroutine, mirroring
-// StartAsync's context registration and failure handling.
-func (r *Runner) StartAllAsync(projectID string, runID int64, platforms []string, generateReport bool) {
+// StartAsync's context registration and failure handling. reportCtx is a
+// non-cancelable context carrying the request's tenant subject; it is used only
+// for the auto-report trigger, not for the fetch pipeline.
+func (r *Runner) StartAllAsync(projectID string, runID int64, platforms []string, generateReport bool, reportCtx context.Context) {
 	bgCtx, cancel := context.WithTimeout(context.Background(), pipelineTimeout)
 
 	r.mu.Lock()
@@ -107,7 +111,7 @@ func (r *Runner) StartAllAsync(projectID string, runID int64, platforms []string
 			delete(r.runs, runID)
 			r.mu.Unlock()
 		}()
-		if _, err := r.runAllAndReport(bgCtx, projectID, runID, platforms, generateReport); err != nil {
+		if _, err := r.runAllAndReport(bgCtx, projectID, runID, platforms, generateReport, reportCtx); err != nil {
 			r.failRun(runID, err.Error())
 		}
 	}()

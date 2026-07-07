@@ -154,13 +154,19 @@ func (s *ScoutService) StartAllRun(ctx context.Context, projectID string, genera
 		return nil, http.StatusBadRequest, "No enabled queries to run"
 	}
 
+	// The auto-report fires from a background goroutine after the request returns,
+	// so it cannot use the request context (which is canceled by then). Detach
+	// cancellation but preserve the tenant subject so the report's entitlement
+	// check runs against the real requester, not a default local subject.
+	reportCtx := context.WithoutCancel(ctx)
+
 	var runIDs []int64
 	if len(eligibleSocial) > 0 {
 		runID, err := s.repo.CreateScoutRun(ctx, projectID, "all")
 		if err != nil {
 			return nil, http.StatusInternalServerError, "Internal server error"
 		}
-		s.runner.StartAllAsync(projectID, runID, eligibleSocial, generateReport)
+		s.runner.StartAllAsync(projectID, runID, eligibleSocial, generateReport, reportCtx)
 		runIDs = append(runIDs, runID)
 	}
 	if googleEligible {

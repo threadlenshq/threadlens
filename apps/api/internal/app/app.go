@@ -127,8 +127,8 @@ func New(cfg Config, db *sql.DB) *App {
 		SettingsRepo:      settingsRepo,
 	}
 
-	runner.ReportTrigger = func(projectID string) {
-		if _, _, msg := a.ReportService.StartReport(context.Background(), projectID, services.CreateReportRequest{}); msg != "" {
+	runner.ReportTrigger = func(ctx context.Context, projectID string) {
+		if _, _, msg := a.ReportService.StartReport(ctx, projectID, services.CreateReportRequest{}); msg != "" {
 			log.Printf("auto-report after all-run failed for %s: %s", projectID, msg)
 		}
 	}
