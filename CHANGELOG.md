@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.20.0 - 2026-07-12
+
+Tag: `threadlens-v0.20.0`
+
+### Features
+
+- feat(web): unified all-run call and generate-report toggle (`cfb6694`)
+- feat(api): StartAllRun path, all-run handler branch, report wiring (`5014773`)
+- feat(pipeline): auto-report trigger and StartAllAsync for all-run (`c450c88`)
+- feat(pipeline): add runAll merged social run with query dedup (`39b0809`)
+- feat(querynorm): add run-time query-target normalization (`433fe01`)
+- feat(web): unify query authoring with cross-platform/single-platform modes (`75e964f`)
+- feat(web): general query authoring UI and read-only materialized rows (`d845ab9`)
+- feat(api): mount general-query routes and wire service (`16d9761`)
+- feat(services): GeneralQueryService with collision blocking and resync (`efe1db5`)
+- feat(repository): general_queries CRUD and materialized-row helpers (`580cfd0`)
+- feat(services): add general-query URL adaptation and normalization (`1049ea1`)
+- feat(domain): add GeneralQuery model and Query.general_query_id (`be8c1b7`)
+- feat(db): add general_queries table and project_queries link (`663e20b`)
+
+### Fixes
+
+- fix(scout): run auto-report entitlement check under real request subject (`bf1e5c6`)
+- fix(pipeline): preserve accumulated post counts on runAll abort (`119fb3e`)
+- fix(pipeline): gate context cancellation check on actual context errors (`fcae5f7`)
+- fix(queries): enforce read-only guard on materialized query rows at service layer (`7b74797`)
+- fix(web): remove redundant lastProjectId guard in GeneralQueryEditor effect (`552bd74`)
+- fix(services): reorder Update to check collisions before deleting rows (`a0317ca`)
+
+### Maintenance
+
+- test(repository): use relative dates in MaxAgeDays test (`3ff8e8d`)
+- refactor(queries): unify collision guard on run-time querynorm.Key (`1342eab`)
+- test(scout): cover entitlement exclusion in StartAllRun and fix stale test title (`6340901`)
+- refactor(pipeline): extract processSocialPlatform from runSocial (`ad36f39`)
+- refactor(web): remove standalone GeneralQueryEditor component (`108f421`)
+
 ## 0.19.0 - 2026-07-01
 
 Tag: `threadlens-v0.19.0`
