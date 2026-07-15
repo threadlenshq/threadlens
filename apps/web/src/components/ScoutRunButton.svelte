@@ -413,4 +413,38 @@
     color: #666;
     white-space: nowrap;
   }
+
+  @media (max-width: 767px) {
+    .scout-run-btn {
+      width: 100%;
+      align-items: stretch;
+    }
+
+    .btn-group {
+      width: 100%;
+    }
+
+    .run-btn {
+      flex: 1;
+      justify-content: center;
+      min-width: 0;
+    }
+
+    .dropdown-menu {
+      left: 0;
+      right: auto;
+      width: 100%;
+    }
+
+    .last-run {
+      position: static;
+      transform: none;
+      margin: 4px 0 0 0;
+      align-self: flex-start;
+    }
+
+    .generate-report-toggle {
+      align-self: flex-start;
+    }
+  }
 </style>
