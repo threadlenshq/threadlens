@@ -2,6 +2,28 @@
   import ProjectSelector from '../ProjectSelector.svelte';
   let { projects = [], selectedProjectId = null, view = 'posts', collapsed = false, onToggleCollapse, onSelectProject, onRequestCreateProject, onNavigate, onboardingStatus = null, onToggleChecklist = () => {} } = $props();
 
+  let mobileMenuOpen = $state(false);
+  let isMobile = $state(false);
+
+  $effect(() => {
+    const media = window.matchMedia('(max-width: 767px)');
+    const update = () => isMobile = media.matches;
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  });
+
+  let railCollapsed = $derived(collapsed && !isMobile);
+
+  function toggleMobileMenu() {
+    mobileMenuOpen = !mobileMenuOpen;
+  }
+
+  function handleNavigate(nextView) {
+    mobileMenuOpen = false;
+    onNavigate?.(nextView);
+  }
+
   let showOnboardingNav = $derived(
     onboardingStatus?.requiredSetupComplete === true &&
     onboardingStatus?.explorationComplete === false &&
@@ -58,57 +80,69 @@
   ];
 </script>
 
-<div class="rail-inner" class:collapsed>
+<div class="rail-inner" class:collapsed={railCollapsed}>
   <!-- Header: logo + brand + collapse toggle -->
   <div class="rail-header">
     <img src="/logo.svg" alt="" class="rail-logo" />
-    {#if !collapsed}
-      <span class="rail-brand">ThreadLens</span>
-      <button class="collapse-btn" onclick={onToggleCollapse} title="Collapse sidebar">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-          <line x1="9" y1="3" x2="9" y2="21"></line>
-        </svg>
-      </button>
-    {:else}
-      <button class="collapse-btn expand-btn" onclick={onToggleCollapse} title="Expand sidebar">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+    <span class="rail-brand">ThreadLens</span>
+    <button
+      class="mobile-menu-toggle"
+      onclick={toggleMobileMenu}
+      aria-label={mobileMenuOpen ? 'Close navigation' : 'Open navigation'}
+      aria-expanded={mobileMenuOpen}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        {#if mobileMenuOpen}
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        {:else}
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        {/if}
+      </svg>
+    </button>
+    <button class="collapse-btn" onclick={onToggleCollapse} title={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+        {#if railCollapsed}
           <line x1="15" y1="3" x2="15" y2="21"></line>
-        </svg>
-      </button>
-    {/if}
+        {:else}
+          <line x1="9" y1="3" x2="9" y2="21"></line>
+        {/if}
+      </svg>
+    </button>
   </div>
 
   <!-- Project selector -->
-  <div class="rail-project">
+  <div class="rail-project" class:mobile-open={mobileMenuOpen}>
     <ProjectSelector
       {projects}
       selectedId={selectedProjectId}
       onSelect={onSelectProject}
       onRequestCreate={onRequestCreateProject}
-      {collapsed}
+      collapsed={railCollapsed}
     />
   </div>
 
   <!-- Nav items -->
-  <nav class="rail-nav">
+  <nav class="rail-nav" class:mobile-open={mobileMenuOpen}>
     {#each mainNavItems as item}
       <div class="nav-item-wrap">
         <button
           type="button"
           class="nav-item"
           class:active={view === item.id}
-          onclick={() => onNavigate(item.id)}
+          onclick={() => handleNavigate(item.id)}
         >
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             {@html item.icon}
           </svg>
-          {#if !collapsed}
+          {#if !railCollapsed}
             <span class="nav-label">{item.label}</span>
           {/if}
         </button>
-        {#if collapsed}
+        {#if railCollapsed}
           <div class="nav-tooltip">{item.label}</div>
         {/if}
       </div>
@@ -122,16 +156,16 @@
           type="button"
           class="nav-item"
           class:active={view === item.id}
-          onclick={() => onNavigate(item.id)}
+          onclick={() => handleNavigate(item.id)}
         >
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             {@html item.icon}
           </svg>
-          {#if !collapsed}
+          {#if !railCollapsed}
             <span class="nav-label">{item.label}</span>
           {/if}
         </button>
-        {#if collapsed}
+        {#if railCollapsed}
           <div class="nav-tooltip">{item.label}</div>
         {/if}
       </div>
@@ -146,16 +180,16 @@
           type="button"
           class="nav-item"
           class:active={view === item.id}
-          onclick={() => onNavigate(item.id)}
+          onclick={() => handleNavigate(item.id)}
         >
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             {@html item.icon}
           </svg>
-          {#if !collapsed}
+          {#if !railCollapsed}
             <span class="nav-label">{item.label}</span>
           {/if}
         </button>
-        {#if collapsed}
+        {#if railCollapsed}
           <div class="nav-tooltip">{item.label}</div>
         {/if}
       </div>
@@ -164,21 +198,21 @@
   </nav>
 
   {#if showOnboardingNav}
-    <div class="onboarding-nav">
+    <div class="onboarding-nav" class:mobile-open={mobileMenuOpen}>
       <button
         type="button"
         class="onboarding-btn"
-        onclick={onToggleChecklist}
+        onclick={() => { mobileMenuOpen = false; onToggleChecklist(); }}
       >
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
           <path d="M12 8v4l2 2"></path>
         </svg>
-        {#if !collapsed}
+        {#if !railCollapsed}
           <span class="nav-label">Setup checklist</span>
         {/if}
       </button>
-      {#if collapsed}
+      {#if railCollapsed}
         <div class="nav-tooltip">Setup checklist</div>
       {/if}
     </div>
@@ -249,7 +283,11 @@
     gap: var(--space-8);
   }
 
-  .collapsed .expand-btn {
+  .collapsed .rail-brand {
+    display: none;
+  }
+
+  .collapsed .collapse-btn {
     margin-left: 0;
   }
 
@@ -423,5 +461,85 @@
 
   .onboarding-nav:hover .nav-tooltip {
     opacity: 1;
+  }
+
+  /* ---------- Mobile menu toggle ---------- */
+  .mobile-menu-toggle {
+    display: none;
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .mobile-menu-toggle:hover {
+    background: var(--color-surface-hover, rgba(255,255,255,0.06));
+    color: var(--color-text-primary);
+  }
+
+  @media (max-width: 767px) {
+    .rail-inner {
+      gap: var(--space-12);
+      padding: var(--space-12) 0;
+    }
+
+    .rail-header {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 var(--space-12);
+      gap: var(--space-8);
+      min-height: 32px;
+    }
+
+    .rail-header .rail-brand {
+      display: block;
+      flex: 1;
+    }
+
+    .collapse-btn {
+      display: none;
+    }
+
+    .mobile-menu-toggle {
+      display: flex;
+    }
+
+    .rail-project {
+      display: none;
+      padding: 0 var(--space-12);
+    }
+
+    .rail-project.mobile-open {
+      display: block;
+    }
+
+    .rail-nav,
+    .onboarding-nav {
+      display: none;
+    }
+
+    .rail-nav.mobile-open,
+    .onboarding-nav.mobile-open {
+      display: flex;
+      padding: 0 var(--space-12);
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+
+    .onboarding-nav.mobile-open {
+      margin-top: 0;
+    }
+
+    .nav-bottom-group {
+      margin-top: 0;
+    }
   }
 </style>

@@ -95,12 +95,25 @@
   @media (max-width: 767px) {
     .app-shell {
       flex-direction: column;
+      overflow: auto;
     }
 
     .app-rail {
       width: 100%;
       border-right: none;
       border-bottom: 1px solid var(--color-border);
+      flex-shrink: 0;
+    }
+
+    .app-topbar {
+      height: auto;
+      min-height: var(--topbar-height);
+      padding: var(--space-8) var(--space-12);
+      flex-wrap: wrap;
+    }
+
+    .app-main {
+      min-width: 0;
     }
   }
 </style>
