@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.21.0 - 2026-07-15
+
+Tag: `threadlens-v0.21.0`
+
+### Features
+
+- feat(web): add mobile menu toggle to workspace rail (`d44ef1c`)
+
+### Fixes
+
+- fix(web): wrap section headers and action groups on narrow screens (`d2317df`)
+- fix(web): add responsive breakpoints for page layout and post list (`ee80a20`)
+- fix(web): make top bar and run button responsive on narrow screens (`5b1bab5`)
+
 ## 0.20.0 - 2026-07-12
 
 Tag: `threadlens-v0.20.0`
