@@ -604,4 +604,20 @@
     color: #61afef;
     background: #61afef20;
   }
+
+  @media (max-width: 767px) {
+    .section-header {
+      flex-wrap: wrap;
+      gap: var(--space-8, 8px);
+      align-items: flex-start;
+    }
+
+    .schedule-row {
+      flex-wrap: wrap;
+    }
+
+    .add-form {
+      flex-wrap: wrap;
+    }
+  }
 </style>

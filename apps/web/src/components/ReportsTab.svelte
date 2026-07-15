@@ -513,4 +513,30 @@
     border-color: #e06c7540;
     color: #e06c75;
   }
+
+  @media (max-width: 767px) {
+    .reports-tab {
+      gap: var(--space-16, 16px);
+    }
+
+    .reports-header {
+      flex-wrap: wrap;
+      gap: var(--space-12, 12px);
+    }
+
+    .reports-header h2 {
+      font-size: 18px;
+    }
+
+    .header-actions {
+      flex-wrap: wrap;
+      width: 100%;
+      justify-content: flex-end;
+    }
+
+    .options-bar {
+      flex-direction: column;
+      gap: var(--space-12, 12px);
+    }
+  }
 </style>

@@ -1083,10 +1083,18 @@
   }
 
   @media (max-width: 720px) {
-    .section-header,
-    .header-actions {
-      align-items: flex-start;
+    .section-header {
       flex-wrap: wrap;
+      gap: var(--space-8, 8px);
+      align-items: flex-start;
+    }
+
+    .header-actions {
+      flex-wrap: wrap;
+      gap: var(--space-8, 8px);
+      width: 100%;
+      justify-content: flex-end;
+      align-items: flex-start;
     }
 
     .query-row-main {
@@ -1098,6 +1106,10 @@
     }
 
     .query-row-secondary {
+      flex-wrap: wrap;
+    }
+
+    .query-filter {
       flex-wrap: wrap;
     }
   }

@@ -676,4 +676,15 @@
   .review-approve:hover {
     background: #6a58e0;
   }
+
+  @media (max-width: 767px) {
+    .section-header {
+      flex-wrap: wrap;
+      gap: var(--space-8, 8px);
+    }
+
+    .prompt-header {
+      flex-wrap: wrap;
+    }
+  }
 </style>
