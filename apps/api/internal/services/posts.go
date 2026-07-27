@@ -301,9 +301,13 @@ func (s *PostService) GenerateDMDraft(ctx context.Context, projectID string, pos
 		return domain.DMTarget{}, code, msg
 	}
 
-	prompt, err := s.repo.GetPromptForPost(ctx, projectID, "dm", "reddit")
+	dmPlatform := post.Platform
+	if dmPlatform != "reddit" && dmPlatform != "bluesky" {
+		dmPlatform = "reddit"
+	}
+	prompt, err := s.repo.GetPromptForPost(ctx, projectID, "dm", dmPlatform)
 	if err != nil {
-		return domain.DMTarget{}, http.StatusBadRequest, "No DM prompt configured for reddit"
+		return domain.DMTarget{}, http.StatusBadRequest, fmt.Sprintf("No DM prompt configured for %s", dmPlatform)
 	}
 
 	messageParts := []string{
