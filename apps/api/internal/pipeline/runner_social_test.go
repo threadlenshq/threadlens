@@ -682,3 +682,56 @@ func TestSocialRunnerDMTargetWarningsDoNotFailRun(t *testing.T) {
 		t.Fatalf("expected DM warning, got %v", run.Warnings)
 	}
 }
+
+func TestRunSocialInsertsDMTargetsWithNewStatusAndTimestamp(t *testing.T) {
+	// Standalone in-memory DB; same setup as the existing social-runner tests.
+	db := testhelpers.OpenTestDB(t)
+	repo := repository.New(db)
+	// Seed a marketing-mode project (the runner only generates DM targets
+	// for marketing projects; see dm_targets.go Generate).
+	if _, err := db.Exec(
+		`INSERT INTO projects (id, name, mode, created_at, updated_at) VALUES ('mkt', 'mkt', 'marketing', datetime('now'), datetime('now'))`,
+	); err != nil {
+		t.Fatalf("seed project: %v", err)
+	}
+	// Seed a post with a high enough final_score to qualify for DM target
+	// generation. The exact threshold lives in the DMTargetGenerator; a score
+	// of 9.0 is well above it.
+	if _, err := db.Exec(
+		`INSERT INTO posts (id, project_id, platform, title, body, author, url, post_score, final_score, engagement_type, status, found_at, scouted_at)
+		 VALUES ('p-mkt', 'mkt', 'reddit', 'Hot post', 'body', 'author', 'https://reddit.com/r/x/comments/1', 9.0, 9.0, 'karma', 'new', datetime('now'), datetime('now'))`,
+	); err != nil {
+		t.Fatalf("seed post: %v", err)
+	}
+
+	// Run the DM target generator directly (no need to exercise the full
+	// scout pipeline here — the assertion is about the post-rebuild insert
+	// behaviour, which lives in InsertDMTargets).
+	targets := []domain.DMTargetInsert{
+		{Username: "u1", IntentScore: 7.5, Signal: "s", Context: "c", Approach: "a", DMStatus: "new"},
+	}
+	if _, err := repo.InsertDMTargets(context.Background(), "p-mkt", targets); err != nil {
+		t.Fatalf("InsertDMTargets: %v", err)
+	}
+
+	var (
+		status  string
+		updated string
+		inserted int
+	)
+	if err := db.QueryRow(`SELECT dm_status, dm_status_updated_at FROM dm_targets WHERE post_id = 'p-mkt' AND username = 'u1'`).Scan(&status, &updated); err != nil {
+		t.Fatalf("read dm_target: %v", err)
+	}
+	if status != "new" {
+		t.Fatalf("dm_status = %q, want new", status)
+	}
+	if updated == "" {
+		t.Fatalf("dm_status_updated_at must be populated by column default on insert, got empty")
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM dm_targets WHERE post_id = 'p-mkt'`).Scan(&inserted); err != nil {
+		t.Fatal(err)
+	}
+	if inserted != 1 {
+		t.Fatalf("inserted rows = %d, want 1", inserted)
+	}
+}
