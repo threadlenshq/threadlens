@@ -235,7 +235,7 @@ func TestGenerateDMDraft_MissingDMPromptReddit_Returns400(t *testing.T) {
 	router, repo := newDraftRouter(t, &fakeAI{response: "dm", modelID: "m"}, &fakeReddit{})
 	seedProject(t, repo, "proj8")
 	seedPostWithPlatform(t, repo, "proj8", "post8", "reddit", "karma")
-	seedDMTarget(t, repo, "post8", "targetuser", 8.0)
+	seedDMTarget(t, repo, "post8", "targetuser", 8.0, "", "")
 
 	rr := doRequest(t, router, http.MethodPost, "/api/projects/proj8/posts/post8/dm/targetuser/generate-draft", nil)
 	if rr.Code != http.StatusBadRequest {
@@ -253,7 +253,7 @@ func TestGenerateDMDraft_StoresDraftInDMTarget(t *testing.T) {
 	router, repo := newDraftRouter(t, ai, &fakeReddit{})
 	seedProject(t, repo, "proj9")
 	seedPostWithPlatform(t, repo, "proj9", "post9", "reddit", "karma")
-	seedDMTarget(t, repo, "post9", "dmuser", 9.0)
+	seedDMTarget(t, repo, "post9", "dmuser", 9.0, "", "")
 	seedPrompt(t, repo, "proj9", "dm", "reddit", "dm system prompt")
 
 	rr := doRequest(t, router, http.MethodPost, "/api/projects/proj9/posts/post9/dm/dmuser/generate-draft", nil)
