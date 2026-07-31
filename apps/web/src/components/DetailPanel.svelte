@@ -22,6 +22,10 @@
   let dmGenerating = {};    // { username: true/false }
   let dmCopied = {};        // { username: true/false }
   let dmErrors = {};        // { username: error message }
+  let dmStatus = {};        // { username: current dm_status }
+  let dmUpdatedAt = {};     // { username: dm_status_updated_at string }
+  let dmStatusSaving = {};  // { username: true while PATCHing }
+  let dmSentPrompt = {};    // { username: true } — the "Did you send it?" prompt is visible for this card
 
   // Sync draftValue when post or draft changes
   $: if (post) {
@@ -33,10 +37,14 @@
     });
   }
 
-  $: parsedTargets = (post?.dm_targets || []).map(t => ({
-    ...t,
-    _profile: t.profile_signals ? parseProfile(t.profile_signals) : null,
-  }));
+  $: parsedTargets = (post?.dm_targets || []).map(t => {
+    dmStatus[t.username] = t.dm_status;
+    dmUpdatedAt[t.username] = t.dm_status_updated_at;
+    return {
+      ...t,
+      _profile: t.profile_signals ? parseProfile(t.profile_signals) : null,
+    };
+  });
 
   function scoreColor(score) {
     if (score == null) return '#4a4a60';
@@ -138,6 +146,57 @@
 
   function openDmCompose(username) {
     window.open(`https://www.reddit.com/message/compose/?to=${username}`, '_blank', 'noopener,noreferrer');
+  }
+
+  async function changeDmStatus(username, newStatus) {
+    if (dmStatus[username] === newStatus) return;
+    dmStatusSaving[username] = true;
+    dmStatusSaving = dmStatusSaving;
+    try {
+      const res = await fetch(
+        `/api/projects/${selectedProjectId}/posts/${encodeURIComponent(post.id)}/dm/${encodeURIComponent(username)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dm_status: newStatus }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      dmStatus[username] = data.dm_status;
+      dmUpdatedAt[username] = data.dm_status_updated_at;
+      dmStatus = dmStatus;
+      dmUpdatedAt = dmUpdatedAt;
+    } catch (e) {
+      dmErrors[username] = e.message;
+      dmErrors = dmErrors;
+    } finally {
+      dmStatusSaving[username] = false;
+      dmStatusSaving = dmStatusSaving;
+    }
+  }
+
+  function handleSendDmClick(username) {
+    // Always copy + open the compose URL, then show the confirmation prompt.
+    // Never auto-mark 'sent' — honesty requires a deliberate human action.
+    copyDmDraft(username);
+    openDmCompose(username);
+    dmSentPrompt[username] = true;
+    dmSentPrompt = dmSentPrompt;
+  }
+
+  async function confirmSent(username) {
+    dmSentPrompt[username] = false;
+    dmSentPrompt = dmSentPrompt;
+    await changeDmStatus(username, 'sent');
+  }
+
+  function dismissSentPrompt(username) {
+    dmSentPrompt[username] = false;
+    dmSentPrompt = dmSentPrompt;
   }
 
   function parseProfile(signalsJSON) {
@@ -429,14 +488,29 @@
         {#each parsedTargets as target}
           <div class="dm-card">
             <div class="dm-header">
-              <a
-                class="dm-username"
-                href="https://www.reddit.com/user/{target.username}"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                u/{target.username}
-              </a>
+              <div class="dm-header-left">
+                <a
+                  class="dm-username"
+                  href="https://www.reddit.com/user/{target.username}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  u/{target.username}
+                </a>
+                <select
+                  class="dm-status-select status-{dmStatus[target.username] || target.dm_status}"
+                  value={dmStatus[target.username] || target.dm_status}
+                  disabled={dmStatusSaving[target.username]}
+                  on:change={(e) => changeDmStatus(target.username, e.currentTarget.value)}
+                  title="Change DM status"
+                  aria-label={`DM status for u/${target.username}`}
+                >
+                  <option value="new">new</option>
+                  <option value="sent">sent</option>
+                  <option value="replied">replied</option>
+                  <option value="ignored">ignored</option>
+                </select>
+              </div>
               <span class="dm-intent" class:high={target.intent_score >= 7} class:medium={target.intent_score >= 5 && target.intent_score < 7}>
                 Intent: {target.intent_score}
                 <a class="doc-link" href="https://docs.threadlens.dev/user-guide/dm-targets-and-profile-scoring/" target="_blank" rel="noopener" title="Score adjusted by profile quality. Higher is better.">?</a>
@@ -509,10 +583,24 @@
                   <button class="copy-btn" on:click={() => copyDmDraft(target.username)}>
                     {dmCopied[target.username] ? '\u2713 Copied' : '\u{1F4CB} Copy'}
                   </button>
-                  <button class="send-dm-btn" on:click={() => { copyDmDraft(target.username); openDmCompose(target.username); }}>
+                  <button class="send-dm-btn" on:click={() => handleSendDmClick(target.username)}>
                     Send DM &#8599;
                   </button>
                 </div>
+                {#if dmSentPrompt[target.username]}
+                  <div class="dm-sent-prompt" role="alert">
+                    <span class="dm-sent-prompt-label">Did you send it?</span>
+                    <button
+                      class="dm-sent-prompt-yes"
+                      disabled={dmStatusSaving[target.username]}
+                      on:click={() => confirmSent(target.username)}
+                    >Yes, sent</button>
+                    <button
+                      class="dm-sent-prompt-no"
+                      on:click={() => dismissSentPrompt(target.username)}
+                    >Not yet</button>
+                  </div>
+                {/if}
               {/if}
             </div>
           </div>
@@ -1295,5 +1383,48 @@
     color: #9090a8;
     text-align: right;
   }
+
+  .dm-header-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  .dm-status-select {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #2a2a3a;
+    background: #13131a;
+    color: #9090a8;
+    cursor: pointer;
+  }
+  .dm-status-select:disabled { opacity: 0.5; cursor: not-allowed; }
+  .dm-status-select.status-new { background: #2a2a3a; color: #9090a8; }
+  .dm-status-select.status-sent { background: #7c6af520; color: #a090ff; border-color: #7c6af540; }
+  .dm-status-select.status-replied { background: #98c37920; color: #98c379; border-color: #98c37940; }
+  .dm-status-select.status-ignored { background: #3a3a50; color: #6b6b80; }
+
+  .dm-sent-prompt {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 6px;
+    padding: 6px 10px;
+    background: #7c6af515;
+    border: 1px solid #7c6af540;
+    border-radius: 5px;
+  }
+  .dm-sent-prompt-label { font-size: 12px; color: #c0c0d8; font-weight: 500; }
+  .dm-sent-prompt-yes {
+    padding: 3px 10px; font-size: 12px; font-weight: 500;
+    background: #98c37920; color: #98c379;
+    border: 1px solid #98c37940; border-radius: 4px; cursor: pointer;
+  }
+  .dm-sent-prompt-yes:hover:not(:disabled) { background: #98c37930; }
+  .dm-sent-prompt-yes:disabled { opacity: 0.5; cursor: not-allowed; }
+  .dm-sent-prompt-no {
+    padding: 3px 10px; font-size: 12px;
+    background: transparent; color: #9090a8;
+    border: 1px solid #3a3a50; border-radius: 4px; cursor: pointer;
+  }
+  .dm-sent-prompt-no:hover { background: #23233a; color: #c0c0d8; }
 
 </style>
