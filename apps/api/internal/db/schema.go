@@ -28,6 +28,13 @@ func InitSchema(db *sql.DB) error {
 		return fmt.Errorf("initialize schema: %w", err)
 	}
 
+	// Rebuild dm_targets if upgrading from the two-state shape. Guarded by
+	// PRAGMA table_info so it is a no-op on fresh databases and on subsequent
+	// boots after a successful rebuild.
+	if err = rebuildDMTargetsIfNeeded(tx); err != nil {
+		return err
+	}
+
 	migrations := []struct {
 		table, column, alter string
 	}{
@@ -126,6 +133,84 @@ func addColumnIfMissing(db dbExecer, table, column, statement string) error {
 	return err
 }
 
+// rebuildDMTargetsIfNeeded migrates an existing dm_targets table to the new
+// shape (four-state CHECK + dm_status_updated_at column) by rebuilding it
+// in-place. Idempotent: a no-op when the column is already present (i.e. on
+// a fresh database whose DDL above created the new shape, or after a previous
+// successful run). Existing rows are copied verbatim and dm_status_updated_at
+// is backfilled to datetime('now').
+func rebuildDMTargetsIfNeeded(db dbExecer) error {
+	rows, err := db.Query("PRAGMA table_info(dm_targets)")
+	if err != nil {
+		return fmt.Errorf("inspect dm_targets: %w", err)
+	}
+	defer rows.Close()
+	hasNewColumn := false
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notNull int
+		var defaultValue any
+		var pk int
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &defaultValue, &pk); err != nil {
+			return err
+		}
+		if name == "dm_status_updated_at" {
+			hasNewColumn = true
+			break
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if hasNewColumn {
+		return nil
+	}
+
+	stmts := []string{
+		`CREATE TABLE dm_targets_new (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+			username TEXT NOT NULL,
+			intent_score REAL NOT NULL DEFAULT 0,
+			signal TEXT NOT NULL DEFAULT '',
+			context TEXT NOT NULL DEFAULT '',
+			approach TEXT NOT NULL DEFAULT '',
+			draft_dm TEXT,
+			draft_provider TEXT,
+			dm_status TEXT NOT NULL DEFAULT 'new' CHECK (dm_status IN ('new', 'sent', 'replied', 'ignored')),
+			profile_score REAL,
+			profile_signals TEXT,
+			dm_status_updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
+		)`,
+		`INSERT INTO dm_targets_new (id, post_id, username, intent_score, signal, context,
+			approach, draft_dm, draft_provider, dm_status,
+			profile_score, profile_signals, dm_status_updated_at)
+		SELECT id, post_id, username, intent_score, signal, context,
+			approach, draft_dm, draft_provider, dm_status,
+			profile_score, profile_signals, datetime('now')
+		FROM dm_targets`,
+		`DROP TABLE dm_targets`,
+		`ALTER TABLE dm_targets_new RENAME TO dm_targets`,
+		`CREATE INDEX IF NOT EXISTS idx_dm_targets_post ON dm_targets(post_id)`,
+	}
+	for _, s := range stmts {
+		if _, err := db.Exec(s); err != nil {
+			return fmt.Errorf("rebuild dm_targets (%s): %w", firstLine(s), err)
+		}
+	}
+	return nil
+}
+
+func firstLine(s string) string {
+	for i, r := range s {
+		if r == '\n' {
+			return s[:i]
+		}
+	}
+	return s
+}
+
 const schemaSQL = `
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY,
@@ -214,9 +299,10 @@ CREATE TABLE IF NOT EXISTS dm_targets (
   approach TEXT NOT NULL DEFAULT '',
   draft_dm TEXT,
   draft_provider TEXT,
-  dm_status TEXT NOT NULL DEFAULT 'new' CHECK (dm_status IN ('new', 'sent')),
+  dm_status TEXT NOT NULL DEFAULT 'new' CHECK (dm_status IN ('new', 'sent', 'replied', 'ignored')),
   profile_score REAL,
-  profile_signals TEXT
+  profile_signals TEXT,
+  dm_status_updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS seen_posts (
