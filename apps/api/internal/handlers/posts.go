@@ -81,6 +81,32 @@ func MountPostRoutes(r chi.Router, svc *services.PostService) {
 		httpx.WriteJSON(w, status, post)
 	})
 
+	// GET /api/projects/{id}/dm-targets?status=<new|sent|replied|ignored>
+	r.Get("/api/projects/{id}/dm-targets", func(w http.ResponseWriter, r *http.Request) {
+		projectID := chi.URLParam(r, "id")
+		q := extractQueryParams(r)
+		response, status, msg := svc.ListDMTargets(r.Context(), projectID, q["status"])
+		if msg != "" {
+			httpx.WriteError(w, status, msg)
+			return
+		}
+		httpx.WriteJSON(w, status, response)
+	})
+
+	// PATCH /api/projects/{id}/dm-targets/bulk - bulk DM target status update,
+	// keyed by dm_targets.id and scoped to the project.
+	r.Patch("/api/projects/{id}/dm-targets/bulk", func(w http.ResponseWriter, r *http.Request) {
+		projectID := chi.URLParam(r, "id")
+		var body services.BulkPatchDMTargetsBody
+		_ = httpx.DecodeJSON(r, &body)
+		updated, status, msg := svc.BulkPatchDMTargets(r.Context(), projectID, body)
+		if msg != "" {
+			httpx.WriteError(w, status, msg)
+			return
+		}
+		httpx.WriteJSON(w, status, map[string]any{"updated": updated})
+	})
+
 	// PATCH /api/projects/{id}/posts/{pid}/dm/{username}
 	r.Patch("/api/projects/{id}/posts/{pid}/dm/{username}", func(w http.ResponseWriter, r *http.Request) {
 		projectID := chi.URLParam(r, "id")
