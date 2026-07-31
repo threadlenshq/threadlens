@@ -50,6 +50,10 @@ type BlueskyReplier interface {
 // PostStatuses matches Express POST_STATUSES from @scout/shared.
 var PostStatuses = []string{"new", "drafted", "commented", "skipped", "reviewed", "starred", "excluded"}
 
+// DMStatuses mirrors the SQLite CHECK constraint on dm_targets.dm_status and
+// the default count map in repository.DMTargetStatusCounts.
+var DMStatuses = []string{"new", "sent", "replied", "ignored"}
+
 type PostService struct {
 	repo           *repository.Repository
 	aiSvc          AIService
@@ -153,6 +157,9 @@ func (s *PostService) PatchDMTarget(ctx context.Context, projectID string, postI
 		code, msg := mapEntityError(err, "Post not found")
 		return domain.DMTarget{}, code, msg
 	}
+	if body.DMStatus != nil && !isValidDMStatus(*body.DMStatus) {
+		return domain.DMTarget{}, http.StatusBadRequest, "Invalid dm_status. Must be one of: " + strings.Join(DMStatuses, ", ")
+	}
 
 	target, err := s.repo.PatchDMTarget(ctx, projectID, postID, username, body.DraftDM, body.DMStatus)
 	if err != nil {
@@ -193,6 +200,15 @@ func ParseFilters(q map[string]string) repository.PostFilters {
 
 func isValidStatus(status string) bool {
 	for _, s := range PostStatuses {
+		if s == status {
+			return true
+		}
+	}
+	return false
+}
+
+func isValidDMStatus(status string) bool {
+	for _, s := range DMStatuses {
 		if s == status {
 			return true
 		}
@@ -412,4 +428,47 @@ type BlueskyReplierFunc func(ctx context.Context, handle, appPassword, text, par
 
 func (f BlueskyReplierFunc) PostBlueskyReply(ctx context.Context, handle, appPassword, text, parentURI, parentCID string) (json.RawMessage, error) {
 	return f(ctx, handle, appPassword, text, parentURI, parentCID)
+}
+
+// ListDMTargets returns every DM target for the project, joined with post
+// context, plus a per-status count map. statusFilter must be empty or one of
+// DMStatuses; any other value returns 400.
+func (s *PostService) ListDMTargets(ctx context.Context, projectID, statusFilter string) (domain.DMTargetsListResponse, int, string) {
+	if statusFilter != "" && !isValidDMStatus(statusFilter) {
+		return domain.DMTargetsListResponse{}, http.StatusBadRequest, "Invalid status filter. Must be one of: " + strings.Join(DMStatuses, ", ")
+	}
+	items, err := s.repo.ListDMTargetsForProject(ctx, projectID, statusFilter)
+	if err != nil {
+		return domain.DMTargetsListResponse{}, http.StatusInternalServerError, "Internal server error"
+	}
+	counts, err := s.repo.DMTargetStatusCounts(ctx, projectID)
+	if err != nil {
+		return domain.DMTargetsListResponse{}, http.StatusInternalServerError, "Internal server error"
+	}
+	return domain.DMTargetsListResponse{Items: items, Counts: counts}, http.StatusOK, ""
+}
+
+// BulkPatchDMTargetsBody is the decoded request body for the bulk DM target
+// status update endpoint.
+type BulkPatchDMTargetsBody struct {
+	IDs      []int64 `json:"ids"`
+	DMStatus string  `json:"dm_status"`
+}
+
+// BulkPatchDMTargets validates and applies a bulk status update. ids must be
+// non-empty and dm_status must be one of DMStatuses. Returns the number of
+// rows actually updated; cross-project ids are silently ignored by the repo
+// (returns 0 for those).
+func (s *PostService) BulkPatchDMTargets(ctx context.Context, projectID string, body BulkPatchDMTargetsBody) (int64, int, string) {
+	if len(body.IDs) == 0 || body.DMStatus == "" {
+		return 0, http.StatusBadRequest, "ids (array) and dm_status are required"
+	}
+	if !isValidDMStatus(body.DMStatus) {
+		return 0, http.StatusBadRequest, "Invalid dm_status. Must be one of: " + strings.Join(DMStatuses, ", ")
+	}
+	updated, err := s.repo.BulkPatchDMTargets(ctx, projectID, body.IDs, body.DMStatus)
+	if err != nil {
+		return 0, http.StatusInternalServerError, "Internal server error"
+	}
+	return updated, http.StatusOK, ""
 }
