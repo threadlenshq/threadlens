@@ -95,6 +95,14 @@ export const posts = {
     api(`/api/projects/${pid}/posts/${encodeURIComponent(postId)}/post-reply`, { method: 'POST', body: { text } }),
 };
 
+export const dmTargets = {
+  list: (pid, status) => {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    return api(`/api/projects/${pid}/dm-targets${qs}`);
+  },
+  bulkUpdate: (pid, body) => api(`/api/projects/${pid}/dm-targets/bulk`, { method: 'PATCH', body }),
+};
+
 export const scout = {
   run: (pid, platform, wait = false) =>
     api(`/api/projects/${pid}/scout${wait ? '?wait=true' : ''}`, { method: 'POST', body: { platform } }),
