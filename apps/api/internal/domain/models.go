@@ -106,18 +106,19 @@ type Post struct {
 }
 
 type DMTarget struct {
-	ID             int64    `json:"id"`
-	PostID         string   `json:"post_id"`
-	Username       string   `json:"username"`
-	IntentScore    float64  `json:"intent_score"`
-	Signal         string   `json:"signal"`
-	Context        string   `json:"context"`
-	Approach       string   `json:"approach"`
-	DraftDM        *string  `json:"draft_dm"`
-	DraftProvider  *string  `json:"draft_provider"`
-	DMStatus       string   `json:"dm_status"`
-	ProfileScore   *float64 `json:"profile_score"`
-	ProfileSignals *string  `json:"profile_signals"`
+	ID                 int64    `json:"id"`
+	PostID             string   `json:"post_id"`
+	Username           string   `json:"username"`
+	IntentScore        float64  `json:"intent_score"`
+	Signal             string   `json:"signal"`
+	Context            string   `json:"context"`
+	Approach           string   `json:"approach"`
+	DraftDM            *string  `json:"draft_dm"`
+	DraftProvider      *string  `json:"draft_provider"`
+	DMStatus           string   `json:"dm_status"`
+	ProfileScore       *float64 `json:"profile_score"`
+	ProfileSignals     *string  `json:"profile_signals"`
+	DMStatusUpdatedAt  string   `json:"dm_status_updated_at"`
 }
 
 type DMTargetInsert struct {
@@ -198,4 +199,24 @@ type Pagination struct {
 type PagedPosts struct {
 	Items      []Post     `json:"items"`
 	Pagination Pagination `json:"pagination"`
+}
+
+// DMTargetListItem is a DM target joined with the post it belongs to, for the
+// dedicated /dm-targets triage list endpoint.
+type DMTargetListItem struct {
+	DMTarget
+	PostTitle     string  `json:"post_title"`
+	PostSubreddit *string `json:"post_subreddit"`
+	PostPlatform  string  `json:"post_platform"`
+	PostCreatedAt *string `json:"post_created_at"`
+	PostURL       string  `json:"post_url"`
+}
+
+// DMTargetsListResponse is the payload returned by GET /dm-targets. Items is
+// filtered by the optional `status` query param; Counts is always the full
+// per-status breakdown for the project (so tab badges stay accurate without a
+// second round-trip).
+type DMTargetsListResponse struct {
+	Items  []DMTargetListItem `json:"items"`
+	Counts map[string]int64   `json:"counts"`
 }
