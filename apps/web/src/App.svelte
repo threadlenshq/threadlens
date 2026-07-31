@@ -31,6 +31,7 @@
   import ManualTasker from './components/ManualTasker.svelte';
   import NewProjectModal from './components/NewProjectModal.svelte';
   import GoogleLockedNotice from './components/GoogleLockedNotice.svelte';
+  import DMTargets from './components/DMTargets.svelte';
   import { isGoogleScoutLocked } from './lib/capabilities.js';
   import { POST_STATUSES } from '@scout/shared';
 
@@ -61,7 +62,7 @@
   // --- State ---
   let projectList = $state([]);
   let selectedProjectId = $state(null);
-  let view = $state('posts'); // 'posts' | 'settings' | 'sources' | 'reports' | 'models'
+  let view = $state('posts'); // 'posts' | 'dm-targets' | 'settings' | 'sources' | 'reports' | 'models'
   let settingsTab = $state('general');
   let activeReportId = $state(null);
   let activeGoogleReportId = $state(null);
@@ -827,6 +828,10 @@
       writeUrlState({ view: 'settings', tab: settingsTab }, 'push');
       return;
     }
+    if (nextView === 'dm-targets') {
+      writeUrlState({ view: 'dm-targets', post: null }, 'push');
+      return;
+    }
     writeUrlState({ view: nextView }, 'push');
   }
 
@@ -1101,7 +1106,7 @@
 
     const urlState = readUrlState();
 
-    const validViews = ['posts', 'settings', 'sources', 'reports', 'models', 'filtered', 'privacy', 'manual'];
+    const validViews = ['posts', 'settings', 'sources', 'reports', 'models', 'filtered', 'privacy', 'manual', 'dm-targets'];
     const validReportSources = ['social', 'google'];
     const validPlatforms = ['all', 'reddit', 'bluesky', 'hackernews'];
     const validStatuses = [...POST_STATUSES, 'all'];
@@ -1457,6 +1462,10 @@
         </div>
       </div>
 
+    {:else if view === 'dm-targets'}
+      <div class="full-width-view">
+        <DMTargets projectId={selectedProjectId} projectMode={projectMode} />
+      </div>
     {:else if view === 'sources'}
       <div class="full-width-view">
         {#key `${selectedProjectId}:${view}`}
