@@ -219,6 +219,9 @@ func (r *Repository) PatchDMTarget(ctx context.Context, projectID string, postID
 	if dmStatus != nil {
 		updates = append(updates, "dm_status = ?")
 		values = append(values, *dmStatus)
+		// Always advance the status timestamp when status changes. Draft-only
+		// patches intentionally leave it untouched.
+		updates = append(updates, "dm_status_updated_at = datetime('now')")
 	}
 
 	if len(updates) == 0 {
@@ -296,7 +299,7 @@ func (r *Repository) InsertDMTargets(ctx context.Context, postID string, targets
 }
 
 // listDMTargets fetches dm_targets for a post ordered by intent_score DESC.
-const dmTargetColumns = "id, post_id, username, intent_score, signal, context, approach, draft_dm, draft_provider, dm_status, profile_score, profile_signals"
+const dmTargetColumns = "id, post_id, username, intent_score, signal, context, approach, draft_dm, draft_provider, dm_status, profile_score, profile_signals, dm_status_updated_at"
 
 func scanDMTargetRows(rows *sql.Rows) ([]domain.DMTarget, error) {
 	var targets []domain.DMTarget
@@ -304,7 +307,7 @@ func scanDMTargetRows(rows *sql.Rows) ([]domain.DMTarget, error) {
 		var t domain.DMTarget
 		var draftDM, draftProvider, profileSignals sql.NullString
 		var profileScore sql.NullFloat64
-		if err := rows.Scan(&t.ID, &t.PostID, &t.Username, &t.IntentScore, &t.Signal, &t.Context, &t.Approach, &draftDM, &draftProvider, &t.DMStatus, &profileScore, &profileSignals); err != nil {
+		if err := rows.Scan(&t.ID, &t.PostID, &t.Username, &t.IntentScore, &t.Signal, &t.Context, &t.Approach, &draftDM, &draftProvider, &t.DMStatus, &profileScore, &profileSignals, &t.DMStatusUpdatedAt); err != nil {
 			return nil, err
 		}
 		if draftDM.Valid {
@@ -579,7 +582,7 @@ func scanDMTarget(row *sql.Row) (domain.DMTarget, error) {
 	var t domain.DMTarget
 	var draftDM, draftProvider, profileSignals sql.NullString
 	var profileScore sql.NullFloat64
-	err := row.Scan(&t.ID, &t.PostID, &t.Username, &t.IntentScore, &t.Signal, &t.Context, &t.Approach, &draftDM, &draftProvider, &t.DMStatus, &profileScore, &profileSignals)
+	err := row.Scan(&t.ID, &t.PostID, &t.Username, &t.IntentScore, &t.Signal, &t.Context, &t.Approach, &draftDM, &draftProvider, &t.DMStatus, &profileScore, &profileSignals, &t.DMStatusUpdatedAt)
 	if err != nil {
 		return domain.DMTarget{}, err
 	}
@@ -717,4 +720,119 @@ func coalesceString(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+// DMTargetStatusCounts returns the count of dm_targets per dm_status for the
+// given project. The map always contains the four canonical keys with a zero
+// default, so callers can render zero-state tabs without a second query.
+func (r *Repository) DMTargetStatusCounts(ctx context.Context, projectID string) (map[string]int64, error) {
+	rows, err := r.DB.QueryContext(ctx,
+		`SELECT dm_status, COUNT(*) FROM dm_targets
+		 JOIN posts ON posts.id = dm_targets.post_id
+		 WHERE posts.project_id = ?
+		 GROUP BY dm_status`,
+		projectID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	counts := map[string]int64{
+		"new":     0,
+		"sent":    0,
+		"replied": 0,
+		"ignored": 0,
+	}
+	for rows.Next() {
+		var status string
+		var n int64
+		if err := rows.Scan(&status, &n); err != nil {
+			return nil, err
+		}
+		counts[status] = n
+	}
+	return counts, rows.Err()
+}
+
+// ListDMTargetsForProject returns every DM target for the project, joined with
+// the parent post's context fields, ordered by dm_status_updated_at DESC then id
+// DESC. When statusFilter is non-empty, only rows with that dm_status are
+// returned. The returned slice is never nil (empty slice on no rows) so JSON
+// renders as `[]` rather than `null`.
+func (r *Repository) ListDMTargetsForProject(ctx context.Context, projectID, statusFilter string) ([]domain.DMTargetListItem, error) {
+	columns := "t.id, t.post_id, t.username, t.intent_score, t.signal, t.context, t.approach, t.draft_dm, t.draft_provider, t.dm_status, t.profile_score, t.profile_signals, t.dm_status_updated_at, p.title, p.subreddit, p.platform, p.created_at, p.url"
+	args := []any{projectID}
+	q := "SELECT " + columns + " FROM dm_targets t JOIN posts p ON p.id = t.post_id WHERE p.project_id = ?"
+	if statusFilter != "" {
+		q += " AND t.dm_status = ?"
+		args = append(args, statusFilter)
+	}
+	q += " ORDER BY t.dm_status_updated_at DESC, t.id DESC"
+	rows, err := r.DB.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []domain.DMTargetListItem{}
+	for rows.Next() {
+		var item domain.DMTargetListItem
+		var draftDM, draftProvider, profileSignals sql.NullString
+		var profileScore sql.NullFloat64
+		var subreddit, createdAt sql.NullString
+		if err := rows.Scan(
+			&item.ID, &item.PostID, &item.Username, &item.IntentScore, &item.Signal, &item.Context, &item.Approach,
+			&draftDM, &draftProvider, &item.DMStatus, &profileScore, &profileSignals, &item.DMStatusUpdatedAt,
+			&item.PostTitle, &subreddit, &item.PostPlatform, &createdAt, &item.PostURL,
+		); err != nil {
+			return nil, err
+		}
+		if draftDM.Valid {
+			item.DraftDM = &draftDM.String
+		}
+		if draftProvider.Valid {
+			item.DraftProvider = &draftProvider.String
+		}
+		if profileScore.Valid {
+			item.ProfileScore = &profileScore.Float64
+		}
+		if profileSignals.Valid {
+			item.ProfileSignals = &profileSignals.String
+		}
+		if subreddit.Valid {
+			item.PostSubreddit = &subreddit.String
+		}
+		if createdAt.Valid {
+			item.PostCreatedAt = &createdAt.String
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+// BulkPatchDMTargets sets dm_status (and refreshes dm_status_updated_at) on
+// every dm_target whose id appears in ids AND whose parent post belongs to
+// projectID. Returns the number of rows actually updated; ids belonging to
+// other projects are silently ignored (safe-by-construction, matching
+// BulkPatchPosts). ids must be non-empty; the caller validates status.
+func (r *Repository) BulkPatchDMTargets(ctx context.Context, projectID string, ids []int64, status string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]any, 0, len(ids)+2)
+	args = append(args, status)
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args = append(args, id)
+	}
+	args = append(args, projectID)
+	q := fmt.Sprintf(
+		"UPDATE dm_targets SET dm_status = ?, dm_status_updated_at = datetime('now') WHERE id IN (%s) AND post_id IN (SELECT id FROM posts WHERE project_id = ?)",
+		strings.Join(placeholders, ", "),
+	)
+	res, err := r.DB.ExecContext(ctx, q, args...)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
