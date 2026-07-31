@@ -1210,6 +1210,7 @@
         onNavigate={(nextView) => navigateTo(nextView)}
         {onboardingStatus}
         onToggleChecklist={() => { checklistOpen = !checklistOpen; }}
+        {projectMode}
       />
     {/snippet}
 
