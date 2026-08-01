@@ -128,21 +128,23 @@
       <div class="dm-total">{total} total</div>
     </div>
 
-    <div class="dm-tabs">
-      {#each TABS as tab}
-        <button
-          type="button"
-          class="dm-tab"
-          class:active={activeTab === tab.id}
-          onclick={() => selectTab(tab.id)}
-        >
-          <span class="dm-tab-label">{tab.label}</span>
-          <span class="dm-tab-count">
-            {tab.id === '' ? total : (counts[tab.id] || 0)}
-          </span>
-        </button>
-      {/each}
-    </div>
+    {#if !loading}
+      <div class="dm-tabs">
+        {#each TABS as tab}
+          <button
+            type="button"
+            class="dm-tab"
+            class:active={activeTab === tab.id}
+            onclick={() => selectTab(tab.id)}
+          >
+            <span class="dm-tab-label">{tab.label}</span>
+            <span class="dm-tab-count">
+              {tab.id === '' ? total : (counts[tab.id] || 0)}
+            </span>
+          </button>
+        {/each}
+      </div>
+    {/if}
 
     {#if selectedIds.size > 0}
       <div class="bulk-bar">
