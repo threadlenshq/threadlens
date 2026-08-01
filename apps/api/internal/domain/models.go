@@ -220,3 +220,11 @@ type DMTargetsListResponse struct {
 	Items  []DMTargetListItem `json:"items"`
 	Counts map[string]int64   `json:"counts"`
 }
+
+// PagedDMTargetsListResponse is the paginated payload returned by GET
+// /dm-targets when page and/or limit query params are present.
+type PagedDMTargetsListResponse struct {
+	Items      []DMTargetListItem `json:"items"`
+	Counts     map[string]int64   `json:"counts"`
+	Pagination Pagination         `json:"pagination"`
+}

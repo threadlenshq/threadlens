@@ -448,6 +448,18 @@ func (s *PostService) ListDMTargets(ctx context.Context, projectID, statusFilter
 	return domain.DMTargetsListResponse{Items: items, Counts: counts}, http.StatusOK, ""
 }
 
+// ListDMTargetsPage is the paginated variant of ListDMTargets.
+func (s *PostService) ListDMTargetsPage(ctx context.Context, projectID, statusFilter string, page int, limit int) (domain.PagedDMTargetsListResponse, int, string) {
+	if statusFilter != "" && !isValidDMStatus(statusFilter) {
+		return domain.PagedDMTargetsListResponse{}, http.StatusBadRequest, "Invalid status filter. Must be one of: " + strings.Join(DMStatuses, ", ")
+	}
+	response, err := s.repo.ListDMTargetsForProjectPage(ctx, projectID, statusFilter, page, limit)
+	if err != nil {
+		return domain.PagedDMTargetsListResponse{}, http.StatusInternalServerError, "Internal server error"
+	}
+	return response, http.StatusOK, ""
+}
+
 // BulkPatchDMTargetsBody is the decoded request body for the bulk DM target
 // status update endpoint.
 type BulkPatchDMTargetsBody struct {

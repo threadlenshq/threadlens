@@ -21,6 +21,17 @@
   let bulkBusy = $state(false);
   let fetchEpoch = 0;
 
+  let page = $state(1);
+  let limit = $state(20);
+  let pagination = $state({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false,
+  });
+
   let total = $derived((counts.new || 0) + (counts.sent || 0) + (counts.replied || 0) + (counts.ignored || 0));
   let headerChecked = $derived(items.length > 0 && selectedIds.size === items.length);
 
@@ -30,9 +41,20 @@
     loading = true;
     error = null;
     try {
-      const response = await dmTargets.list(projectId, activeTab);
+      const response = await dmTargets.listPage(projectId, {
+        status: activeTab,
+        page: String(page),
+        limit: String(limit),
+      });
       if (epoch !== fetchEpoch) return; // stale
       items = Array.isArray(response?.items) ? response.items : [];
+      pagination = response?.pagination || {
+        page, limit,
+        total: items.length,
+        totalPages: Math.max(1, Math.ceil(items.length / limit)),
+        hasPreviousPage: page > 1,
+        hasNextPage: page < Math.max(1, Math.ceil(items.length / limit)),
+      };
       counts = response?.counts && typeof response.counts === 'object'
         ? { new: response.counts.new || 0, sent: response.counts.sent || 0, replied: response.counts.replied || 0, ignored: response.counts.ignored || 0 }
         : { new: 0, sent: 0, replied: 0, ignored: 0 };
@@ -55,7 +77,17 @@
   function selectTab(tabId) {
     if (activeTab === tabId) return;
     activeTab = tabId;
+    page = 1;
     selectedIds = new Set();
+  }
+
+  function changePage(nextPage) {
+    if (nextPage < 1 || nextPage === page || nextPage > pagination.totalPages) return;
+    page = nextPage;
+  }
+
+  function handlePageLimitChange() {
+    page = 1;
   }
 
   function toggleRow(item, event) {
@@ -256,6 +288,35 @@
           </tbody>
         </table>
       </div>
+      <div class="pagination-bar">
+        <div class="pagination-summary">
+          Page {pagination.page} of {pagination.totalPages} · {pagination.total} targets
+        </div>
+        <div class="pagination-actions">
+          <button
+            class="pagination-btn"
+            disabled={!pagination.hasPreviousPage || loading}
+            onclick={() => changePage(pagination.page - 1)}
+            aria-label="Previous page"
+            title="Previous page"
+          >‹</button>
+          <button
+            class="pagination-btn"
+            disabled={!pagination.hasNextPage || loading}
+            onclick={() => changePage(pagination.page + 1)}
+            aria-label="Next page"
+            title="Next page"
+          >›</button>
+        </div>
+        <div class="pagination-per-page">
+          <span class="pagination-per-page-label">Per page</span>
+          <select class="pagination-select" bind:value={limit} onchange={handlePageLimitChange}>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+        </div>
+      </div>
     {/if}
   </div>
 {/if}
@@ -355,4 +416,68 @@
   .status-sent { background: #7c6af520; color: #a090ff; }
   .status-replied { background: #98c37920; color: #98c379; }
   .status-ignored { background: #3a3a50; color: #6b6b80; }
+
+  .pagination-bar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0 0 0;
+    flex-shrink: 0;
+  }
+  .pagination-summary {
+    font-size: 10px;
+    color: #6b6b80;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .pagination-actions {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+  }
+  .pagination-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 6px;
+    border: 1px solid #2a2a3a;
+    background: #1a1a24;
+    color: #d0d0e8;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .pagination-btn:hover:not(:disabled) {
+    background: #23233a;
+    border-color: #7c6af5;
+  }
+  .pagination-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .pagination-per-page {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .pagination-per-page-label {
+    font-size: 11px;
+    color: #4a4a60;
+    white-space: nowrap;
+  }
+  .pagination-select {
+    padding: 3px 6px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: 1px solid #2a2a3a;
+    background: #1a1a24;
+    color: #d0d0e8;
+    cursor: pointer;
+  }
 </style>

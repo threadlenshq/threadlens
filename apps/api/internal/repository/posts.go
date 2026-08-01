@@ -809,6 +809,99 @@ func (r *Repository) ListDMTargetsForProject(ctx context.Context, projectID, sta
 	return items, rows.Err()
 }
 
+// ListDMTargetsForProjectPage is the paginated variant of
+// ListDMTargetsForProject. It returns a single page of DM targets plus
+// pagination metadata and full per-status counts (so tab badges stay accurate).
+func (r *Repository) ListDMTargetsForProjectPage(ctx context.Context, projectID, statusFilter string, page int, limit int) (domain.PagedDMTargetsListResponse, error) {
+	columns := "t.id, t.post_id, t.username, t.intent_score, t.signal, t.context, t.approach, t.draft_dm, t.draft_provider, t.dm_status, t.profile_score, t.profile_signals, t.dm_status_updated_at, p.title, p.subreddit, p.platform, p.created_at, p.url"
+	args := []any{projectID}
+	whereClause := ""
+	if statusFilter != "" {
+		whereClause = " AND t.dm_status = ?"
+		args = append(args, statusFilter)
+	}
+
+	baseJoins := " FROM dm_targets t JOIN posts p ON p.id = t.post_id WHERE p.project_id = ?" + whereClause
+
+	var total int64
+	countSQL := "SELECT COUNT(*)" + baseJoins
+	if err := r.DB.QueryRowContext(ctx, countSQL, args...).Scan(&total); err != nil {
+		return domain.PagedDMTargetsListResponse{}, err
+	}
+
+	offset := (page - 1) * limit
+	querySQL := "SELECT " + columns + baseJoins + " ORDER BY t.dm_status_updated_at DESC, t.id DESC LIMIT ? OFFSET ?"
+	pageArgs := append(append([]any{}, args...), limit, offset)
+	rows, err := r.DB.QueryContext(ctx, querySQL, pageArgs...)
+	if err != nil {
+		return domain.PagedDMTargetsListResponse{}, err
+	}
+	defer rows.Close()
+
+	items := []domain.DMTargetListItem{}
+	for rows.Next() {
+		var item domain.DMTargetListItem
+		var draftDM, draftProvider, profileSignals sql.NullString
+		var profileScore sql.NullFloat64
+		var subreddit, createdAt sql.NullString
+		if err := rows.Scan(
+			&item.ID, &item.PostID, &item.Username, &item.IntentScore, &item.Signal, &item.Context, &item.Approach,
+			&draftDM, &draftProvider, &item.DMStatus, &profileScore, &profileSignals, &item.DMStatusUpdatedAt,
+			&item.PostTitle, &subreddit, &item.PostPlatform, &createdAt, &item.PostURL,
+		); err != nil {
+			return domain.PagedDMTargetsListResponse{}, err
+		}
+		if draftDM.Valid {
+			item.DraftDM = &draftDM.String
+		}
+		if draftProvider.Valid {
+			item.DraftProvider = &draftProvider.String
+		}
+		if profileScore.Valid {
+			item.ProfileScore = &profileScore.Float64
+		}
+		if profileSignals.Valid {
+			item.ProfileSignals = &profileSignals.String
+		}
+		if subreddit.Valid {
+			item.PostSubreddit = &subreddit.String
+		}
+		if createdAt.Valid {
+			item.PostCreatedAt = &createdAt.String
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return domain.PagedDMTargetsListResponse{}, err
+	}
+
+	counts, err := r.DMTargetStatusCounts(ctx, projectID)
+	if err != nil {
+		return domain.PagedDMTargetsListResponse{}, err
+	}
+
+	totalPages := int(total) / limit
+	if int(total)%limit > 0 || totalPages == 0 {
+		totalPages++
+	}
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
+	return domain.PagedDMTargetsListResponse{
+		Items:  items,
+		Counts: counts,
+		Pagination: domain.Pagination{
+			Page:            page,
+			Limit:           limit,
+			Total:           total,
+			TotalPages:      totalPages,
+			HasPreviousPage: page > 1,
+			HasNextPage:     page < totalPages,
+		},
+	}, nil
+}
+
 // BulkPatchDMTargets sets dm_status (and refreshes dm_status_updated_at) on
 // every dm_target whose id appears in ids AND whose parent post belongs to
 // projectID. Returns the number of rows actually updated; ids belonging to

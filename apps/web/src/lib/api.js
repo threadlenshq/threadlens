@@ -100,6 +100,10 @@ export const dmTargets = {
     const qs = status ? `?status=${encodeURIComponent(status)}` : '';
     return api(`/api/projects/${pid}/dm-targets${qs}`);
   },
+  listPage: (pid, params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return api(`/api/projects/${pid}/dm-targets${qs ? '?' + qs : ''}`);
+  },
   bulkUpdate: (pid, body) => api(`/api/projects/${pid}/dm-targets/bulk`, { method: 'PATCH', body }),
 };
 

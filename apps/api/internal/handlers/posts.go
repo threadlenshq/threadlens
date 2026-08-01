@@ -81,11 +81,28 @@ func MountPostRoutes(r chi.Router, svc *services.PostService) {
 		httpx.WriteJSON(w, status, post)
 	})
 
-	// GET /api/projects/{id}/dm-targets?status=<new|sent|replied|ignored>
+	// GET /api/projects/{id}/dm-targets?status=<new|sent|replied|ignored>&page=1&limit=20
 	r.Get("/api/projects/{id}/dm-targets", func(w http.ResponseWriter, r *http.Request) {
 		projectID := chi.URLParam(r, "id")
 		q := extractQueryParams(r)
-		response, status, msg := svc.ListDMTargets(r.Context(), projectID, q["status"])
+
+		pageStr := q["page"]
+		limitStr := q["limit"]
+		hasPagination := pageStr != "" || limitStr != ""
+
+		if !hasPagination {
+			response, status, msg := svc.ListDMTargets(r.Context(), projectID, q["status"])
+			if msg != "" {
+				httpx.WriteError(w, status, msg)
+				return
+			}
+			httpx.WriteJSON(w, status, response)
+			return
+		}
+
+		page := httpx.ParsePositiveInt(pageStr, 1, 0)
+		limit := httpx.ParsePositiveInt(limitStr, 20, 100)
+		response, status, msg := svc.ListDMTargetsPage(r.Context(), projectID, q["status"], page, limit)
 		if msg != "" {
 			httpx.WriteError(w, status, msg)
 			return
