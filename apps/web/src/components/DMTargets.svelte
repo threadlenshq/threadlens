@@ -19,7 +19,7 @@
   let error = $state(null);
   let selectedIds = $state(new Set());
   let bulkBusy = $state(false);
-  let fetchEpoch = $state(0);
+  let fetchEpoch = 0;
 
   let total = $derived((counts.new || 0) + (counts.sent || 0) + (counts.replied || 0) + (counts.ignored || 0));
   let headerChecked = $derived(items.length > 0 && selectedIds.size === items.length);
@@ -56,7 +56,6 @@
     if (activeTab === tabId) return;
     activeTab = tabId;
     selectedIds = new Set();
-    refresh();
   }
 
   function toggleRow(item, event) {
