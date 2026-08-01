@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.22.0 - 2026-08-01
+
+Tag: `threadlens-v0.22.0`
+
+### Features
+
+- feat: add pagination to DM Targets list endpoint and UI (`46375d6`)
+- feat(web): per-card DM status pill + 'Did you send it?' confirmation (`5196c5c`)
+- feat(web): add DM Targets triage view with tabs, table, and bulk actions (`8b3a601`)
+- feat(web): show DM Targets nav item for marketing projects (`cb14557`)
+- feat(web): add dmTargets API client (list + bulkUpdate) (`e61a183`)
+- feat(handlers): register GET /dm-targets and PATCH /dm-targets/bulk (`b7ab429`)
+- feat(services): validate dm_status + list + bulk DM target endpoints (`ee3c3e5`)
+- feat(repo): scan dm_status_updated_at, refresh on status change, list + bulk endpoints (`ead8361`)
+- feat(domain): add DMStatusUpdatedAt + DMTargetListItem types (`8af6109`)
+- feat(db): rebuild dm_targets with four-state CHECK + dm_status_updated_at (`37df925`)
+- feat(api): dispatch DM prompt by post platform instead of hardcoded reddit (`a7aa988`)
+
+### Fixes
+
+- fix(web): hide DM target tabs while data is loading (`ef3bf21`)
+- fix(web): prevent infinite re-fetch loop in DM Targets view (`3103db5`)
+
+### Maintenance
+
+- test(pipeline): regression guard — DM target inserts populate new status and timestamp (`e809782`)
+- test(handlers): DM status four-state, list, bulk, and migration rebuild coverage (`e187155`)
+
 ## 0.21.0 - 2026-07-15
 
 Tag: `threadlens-v0.21.0`
